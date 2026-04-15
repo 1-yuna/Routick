@@ -27,7 +27,7 @@ export default function Splash() {
         <div
             className={`h-screen flex flex-col justify-between bg-primary pb-24 pt-40 text-white text-2xl font-semibold transition-opacity duration-500 ${
                         fade ? "opacity-100" : "opacity-0"}`}>
-            <div className={`px-8`}>
+            <div className="px-8">
                 <p className="mt-2">
                     반갑습니다!
                 </p>
