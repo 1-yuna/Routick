@@ -7,3 +7,13 @@
     padding: 0;
     box-sizing: border-box;
 }
+
+/* 스크롤바 숨기기 */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE */
+    scrollbar-width: none;     /* Firefox */
+}

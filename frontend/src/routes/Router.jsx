@@ -3,6 +3,8 @@ import HomePage from "../pages/HomePage.jsx";
 import LoginPage from "../pages/LoginPage.jsx";
 import SplashPage from "../pages/SplashPage.jsx";
 import SignupPage from "../pages/SignupPage.jsx";
+import MyPage from "../pages/MyPage.jsx";
+import CourseAddressPage from "../pages/CourseAddressPage.jsx";
 
 
 export default function Router() {
@@ -13,6 +15,8 @@ export default function Router() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path ="/signup" element={<SignupPage />} />
                 <Route path="/home" element={<HomePage />} />
+                <Route path="/mypage" element={<MyPage />} />
+                <Route path="/course/address" element={<CourseAddressPage />} />
             </Routes>
         </BrowserRouter>
     );

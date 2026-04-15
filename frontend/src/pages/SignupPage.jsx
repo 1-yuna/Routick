@@ -9,6 +9,7 @@ import SignupHeader from "../components/signup/SignupHeader.jsx";
 import EmailVerify from "../components/signup/EmailVerify.jsx";
 import PasswordSection from "../components/signup/PasswordSection.jsx";
 
+// 회원가입 페이지
 export default function SignUpPage() {
     const navigate = useNavigate();
 
