@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "../pages/HomePage.jsx";
 import LoginPage from "../pages/LoginPage.jsx";
 import SplashPage from "../pages/SplashPage.jsx";
-import SignUpPage from "../pages/SignUpPage.jsx";
+import SignupPage from "../pages/SignupPage.jsx";
 
 
 export default function Router() {
@@ -11,7 +11,7 @@ export default function Router() {
             <Routes>
                 <Route path="/" element={<SplashPage />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path ="/signup" element={<SignUpPage />} />
+                <Route path ="/signup" element={<SignupPage />} />
                 <Route path="/home" element={<HomePage />} />
             </Routes>
         </BrowserRouter>
