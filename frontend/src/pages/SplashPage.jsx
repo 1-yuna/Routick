@@ -3,7 +3,7 @@ import {useNavigate} from "react-router-dom";
 
 import main from "../assets/main.png";
 
-export default function Splash() {
+export default function SplashPage() {
     const navigate = useNavigate();
     const [fade, setFade] = useState(true);
 

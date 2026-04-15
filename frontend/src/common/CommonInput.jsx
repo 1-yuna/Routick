@@ -1,3 +1,5 @@
+
+// 입력창
 export default function CommonInput({ placeholder, type = "text" }) {
     return (
         <div className="flex items-center px-4 h-16 bg-white">

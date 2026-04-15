@@ -1,3 +1,5 @@
+
+// 버튼 1개
 export default function OneButton({ text, onClick }) {
     return (
         <button
