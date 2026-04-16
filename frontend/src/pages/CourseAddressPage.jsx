@@ -3,6 +3,8 @@ import TopBarLogo from "../common/TopBarLogo.jsx";
 import TwoButton from "../common/TwoButton.jsx";
 import {useState} from "react";
 import {CgAdd} from "react-icons/cg";
+import NewAddress from "../components/course-address/NewAddress.jsx";
+import AddressCard from "../components/course-address/SavedAddress.jsx";
 
 export default function CourseAddressPage() {
     const navigate = useNavigate();
@@ -51,32 +53,19 @@ export default function CourseAddressPage() {
         <div className="px-9 pt-40 pb-40 bg-backgroundLight">
             <TopBarLogo onClick={() => console.log("편집")} isEdit={true}/>
 
-            <button onClick={() => handleSelect(0)}
-                    className={`flex flex-col mb-4 justify-center items-center w-full h-28 bg-transparent border-2 border-grayLight text-grayDark rounded-md shadow-md ${selectedId === 0
-                        ? "bg-transparent border-2 border-primaryDark border-solid"
-                        : "bg-transparent border-2 border-grayLight border-dashed "
-                    }
-    `}>
-                <CgAdd className="w-7 h-7"/>
-                <p className="text-sm pt-1">장소 검색 추가하기</p>
-            </button>
+            <NewAddress
+                isSelected={selectedId === 0}
+                onClick={() => handleSelect(0)}
+            />
 
 
             {mockAddresses.map((item) => (
-                <button
+                <AddressCard
                     key={item.id}
+                    address={item}
+                    isSelected={selectedId === item.id}
                     onClick={() => handleSelect(item.id)}
-                    className={`flex flex-col justify-center items-start px-6 mb-4 w-full h-28 rounded-md shadow-md transition
-            ${selectedId === item.id
-                        ? "border-2 border-primaryDark"
-                        : "border border-grayLight"
-                    }
-        `}
-                >
-                    <p className="text-base">{item.main}</p>
-                    <p className="pt-4 text-sm">{item.detail1}</p>
-                    <p className="text-sm">{item.detail2}</p>
-                </button>
+                />
             ))}
 
             <TwoButton
