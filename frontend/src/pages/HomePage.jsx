@@ -11,7 +11,7 @@ export default function HomePage() {
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col px-8 pb-40">
+        <div className="flex flex-col px-8 pb-40 bg-backgroundLight">
             <TopBarLogo/>
 
             {/*Card*/}
