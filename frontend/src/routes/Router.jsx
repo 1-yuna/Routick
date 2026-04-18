@@ -7,6 +7,7 @@ import MyPage from "../pages/MyPage.jsx";
 import CourseAddressPage from "../pages/CourseAddressPage.jsx";
 import CoursePreferencePage from "../pages/CoursePreferencePage.jsx";
 import CoursePreferenceDetailPage from "../pages/CoursePreferenceDetailPage.jsx";
+import MapResultPage from "../pages/MapResultPage.jsx";
 
 
 export default function Router() {
@@ -21,6 +22,7 @@ export default function Router() {
                 <Route path="/course/address" element={<CourseAddressPage />} />
                 <Route path="/course/preference" element={<CoursePreferencePage />} />
                 <Route path="/course/preference/detail" element={<CoursePreferenceDetailPage />} />
+                <Route path="/map" element={<MapResultPage />} />
             </Routes>
         </BrowserRouter>
     );
