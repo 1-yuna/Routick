@@ -2,7 +2,6 @@ import {useNavigate} from "react-router-dom";
 import TopBarLogo from "../common/TopBarLogo.jsx";
 import TwoButton from "../common/TwoButton.jsx";
 import {useState} from "react";
-import {CgAdd} from "react-icons/cg";
 import NewAddress from "../components/course-address/NewAddress.jsx";
 import AddressCard from "../components/course-address/SavedAddress.jsx";
 
@@ -70,7 +69,7 @@ export default function CourseAddressPage() {
 
             <TwoButton
                 onPrev={() => navigate(-1)}
-                onNext={() => navigate("/next-page")}
+                onNext={() => navigate("/course/preference")}
                 isNextActive={isNextActive}
             />
 

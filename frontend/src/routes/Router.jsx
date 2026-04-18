@@ -5,6 +5,8 @@ import SplashPage from "../pages/SplashPage.jsx";
 import SignupPage from "../pages/SignupPage.jsx";
 import MyPage from "../pages/MyPage.jsx";
 import CourseAddressPage from "../pages/CourseAddressPage.jsx";
+import CoursePreferencePage from "../pages/CoursePreferencePage.jsx";
+import CoursePreferenceDetailPage from "../pages/CoursePreferenceDetailPage.jsx";
 
 
 export default function Router() {
@@ -17,6 +19,8 @@ export default function Router() {
                 <Route path="/home" element={<HomePage />} />
                 <Route path="/mypage" element={<MyPage />} />
                 <Route path="/course/address" element={<CourseAddressPage />} />
+                <Route path="/course/preference" element={<CoursePreferencePage />} />
+                <Route path="/course/preference/detail" element={<CoursePreferenceDetailPage />} />
             </Routes>
         </BrowserRouter>
     );
