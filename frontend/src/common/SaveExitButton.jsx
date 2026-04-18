@@ -4,7 +4,7 @@ export default function SaveExitButton({
                                      // isNextActive = false
                                   }) {
     return (
-        <div className="fixed bottom-0 left-0 w-full h-40 bg-white flex justify-around border-t px-4 pt-5">
+        <div className="fixed bottom-0 left-0 w-full h-40 bg-white flex justify-around border-t px-4 pt-5 z-50">
 
             {/* 이전 버튼 */}
             <div onClick={onExit} className="w-40 h-16 rounded-md flex justify-center items-center text-base font-bold cursor-pointer border border-black">
