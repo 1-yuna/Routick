@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 // 바텀 시트
-export default function BottomSheet({
+export default function BottomSheet({sheetY, setSheetY,
                                         initialHeight,
                                         snapPoints,
                                         maxHeightPercent,
@@ -9,12 +9,9 @@ export default function BottomSheet({
                                     }) {
     const contentRef = useRef(null);
 
-    const [sheetHeight, setSheetHeight] = useState(initialHeight);
     const [isDragging, setIsDragging] = useState(false);
     const [startY, setStartY] = useState(0);
     const [startHeight, setStartHeight] = useState(initialHeight);
-    const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
-    const [dragDirection, setDragDirection] = useState(0);
     const [lastY, setLastY] = useState(0);
 
     // 방향 감지 민감도
@@ -50,7 +47,8 @@ export default function BottomSheet({
         setIsDragging(true);
         setStartY(clientY);
         setLastY(clientY);
-        setStartHeight(sheetHeight);
+
+        setStartHeight(sheetY);
     };
 
     // 드래그 중
@@ -63,12 +61,11 @@ export default function BottomSheet({
             const deltaFromStart = startY - currentY;
             const deltaFromLast = lastY - currentY;
 
-            // 방향 감지
             if (Math.abs(deltaFromLast) > sensitivity) {
-                setDragDirection(deltaFromLast > 0 ? 1 : -1);
+                // 방향 감지는 유지
             }
 
-            // 스크롤 충돌 방지
+            // scroll 충돌 처리 유지
             if (contentRef.current) {
                 const { scrollTop, scrollHeight, clientHeight } =
                     contentRef.current;
@@ -92,7 +89,7 @@ export default function BottomSheet({
                 Math.min(startHeight + deltaFromStart, maxHeight)
             );
 
-            setSheetHeight(newHeight);
+            setSheetY(newHeight);
             setLastY(currentY);
         },
         [isDragging, startY, lastY, startHeight]
@@ -104,14 +101,12 @@ export default function BottomSheet({
 
         setIsDragging(false);
 
-        const { point, index } = findNearestSnapPoint(sheetHeight);
+        const { point } = findNearestSnapPoint(sheetY);
 
-        setSheetHeight(point);
-        setCurrentSnapIndex(index);
-        setDragDirection(0);
-    }, [isDragging, sheetHeight]);
+        // 👉 snap도 sheetY로
+        setSheetY(point);
+    }, [isDragging, sheetY]);
 
-    // 이벤트 바인딩
     useEffect(() => {
         window.addEventListener("mousemove", handleDragMove);
         window.addEventListener("mouseup", handleDragEnd);
@@ -126,11 +121,12 @@ export default function BottomSheet({
         };
     }, [handleDragMove, handleDragEnd]);
 
+
     return (
         <div
-            className="fixed left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-xl transition-all duration-200"
+            className="z-10 fixed left-0 right-0 bottom-40 bg-white rounded-t-2xl shadow-xl transition-all duration-200"
             style={{
-                height: `${sheetHeight}px`,
+                height: `${sheetY}px`,
             }}
         >
             {/* 핸들 */}

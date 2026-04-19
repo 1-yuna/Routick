@@ -5,24 +5,26 @@ import KakaoMap from "../components/map/KakaoMap.jsx";
 
 
 export default function MapResultPage() {
-    //const [open, setOpen] = useState(false);
+    const [sheetY, setSheetY] = useState(300); // 초기값 (최소 높이 기준)
 
     return (
-        <div className="p-5">
-            {/*<button*/}
-            {/*    className="px-4 py-2 bg-black text-white rounded-lg"*/}
-            {/*    onClick={() => setOpen(true)}*/}
-            {/*>*/}
-            {/*    바텀시트 열기*/}
-            {/*</button>*/}
-
-            {/* 항상 떠 있는 바텀시트 */}
+        <div className="relative w-full h-screen overflow-hidden">
+            <div
+                style={{
+                    height: `calc(100vh - ${sheetY}px)`,
+                    transition: "height 0.2s ease",
+                }}
+            >
+                <KakaoMap/>
+            </div>
             <BottomSheet
-                initialHeight={500}
-                snapPoints={[250, 500, 800]}
+                sheetY={sheetY}
+                setSheetY={setSheetY}
+                initialHeight={350}
+                snapPoints={[100, 350, 650]}
                 maxHeightPercent={90}
             >
-                <div className="space-y-4">
+            <div className="space-y-4">
                     {Array.from({length: 20}).map((_, i) => (
                         <div
                             key={i}
@@ -37,20 +39,6 @@ export default function MapResultPage() {
                 onSave={() => console.log("Save")}
                 // isNextActive={isNextActive}
             />
-
-
         </div>
     );
-}
-
-
-{/*<SaveExitButton*/
-}
-{/*    onExit={() => console.log("Exit")}*/
-}
-{/*    onSave={() => console.log("Save")}*/
-}
-{/*    //isNextActive={isNextActive}*/
-}
-{/*/>*/
 }
