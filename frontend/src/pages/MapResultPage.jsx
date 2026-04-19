@@ -5,9 +5,15 @@ import KakaoMap from "../components/map/KakaoMap.jsx";
 import MapContainer from "../components/map/MapContainer.jsx";
 import ReloadButton from "../components/map/ReloadButton.jsx";
 import PlaceListItem from "../components/map/PlaceListItem.jsx";
+import SaveBottomSheet from "../components/map/save/SaveBottomSheet.jsx";
+import {useNavigate} from "react-router-dom";
+import ExitModal from "../components/map/ExitModal.jsx";
 
 export default function MapResultPage() {
     const [sheetY, setSheetY] = useState(300);
+    const [isOpen, setOpen] = useState(false);
+    const [isExitOpen, setIsExitOpen] = useState(false);
+    const navigate = useNavigate();
 
     // mock
     const places = [
@@ -66,9 +72,25 @@ export default function MapResultPage() {
 
             {/*버튼*/}
             <SaveExitButton
-                onExit={() => console.log("Exit")}
-                onSave={() => console.log("Save")}
+                onExit={() => setIsExitOpen(true)}
+                onSave={() => setOpen(true)}
                 // isNextActive={isNextActive}
+            />
+
+            {/*저장시, 바텀시트*/}
+            <SaveBottomSheet
+                isOpen={isOpen}
+                setOpen={setOpen}
+                onSave={() => console.log("저장 실행")}
+            />
+
+            {/*종료시, 모달창*/}
+            <ExitModal
+                isOpen={isExitOpen}
+                setOpen={setIsExitOpen}
+                onExit={() => {
+                    navigate("/home");  // 종료 확정 시 이동
+                }}
             />
         </div>
     );
