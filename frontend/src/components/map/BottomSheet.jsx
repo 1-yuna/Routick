@@ -135,13 +135,13 @@ export default function BottomSheet({sheetY, setSheetY,
                 onTouchStart={handleDragStart}
                 className="flex justify-center py-3 cursor-grab"
             >
-                <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
+                <div className="w-10 h-1.5 bg-gray-300 rounded-full mb-4" />
             </div>
 
             {/* 콘텐츠 */}
             <div
                 ref={contentRef}
-                className="px-5 pb-10 overflow-y-auto h-full"
+                className="px-5 pb-12 overflow-y-auto h-full"
             >
                 {children}
             </div>
