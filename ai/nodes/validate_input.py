@@ -1,9 +1,21 @@
-# 좌표 변환 ( kakao map 사용 )
-from utils.geocode import geocode_kakao
-from constants.location import DEFAULT_RADIUS_KM, SEOUL_CENTER
-from utils.keyword_expansion import expand_by_context
+# ─────────────────────────────────────────────────────────────────────
+# validate_input
+# ─────────────────────────────────────────────────────────────────────
+# 사용자 입력 검증 + 전처리 노드
+#
+# 흐름:
+#   1. 필수 필드 검증
+#   2. 위치 → 좌표 변환 - 실패 시 SEOUL_CENTER fallback (geocode_kakao 호출)
+#   3. 식사 시간 계산 - needs_meal, meal_times
+#   4. 검색 키워드 보강
+#       - 필수 키워드 추가 (맛집, 카페)
+#       - 분위기/일행 기반 관련 활동 추가 (expand_by_context 호출)
+# ─────────────────────────────────────────────────────────────────────
 
-# 사용자 입력을 검증하고 좌표 + 식사 시간까지 전처리하는 node
+from utils.geocode import geocode_kakao
+from utils.expand_by_context import expand_by_context
+from constants.location import DEFAULT_RADIUS_KM, SEOUL_CENTER
+
 def validate_input(state: dict) -> dict:
 
     ui = dict(state["user_input"])
