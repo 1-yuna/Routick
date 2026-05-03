@@ -1,3 +1,23 @@
+# ─────────────────────────────────────────────────────────────────────
+# kakao_search
+# ─────────────────────────────────────────────────────────────────────
+# Kakao Local API 비동기 검색 헬퍼 (keyword + category 동시 호출)
+#
+# 흐름:
+#   1. 키워드 동의어 확장 (KEYWORD_EXPANSIONS 기반)
+#      예: "카페" → ["카페", "디저트카페", "베이커리", "브런치카페"]
+#   2. 확장된 키워드 × 페이지 × (keyword + category) 비동기 동시성 호출
+#   3. 일부 실패는 warnings에 기록, 성공한 결과만 합침
+#   4. place_id 기준 dedup → Place dict 리스트로 반환
+#
+# 메인 함수:
+#   - search_kakao_pool()  : fetch_candidates 노드에서 호출하는 진입점
+#
+# 주의:
+#   - Kakao API는 x=경도, y=위도 (보통 (lat, lng) 순서랑 반대)
+# ─────────────────────────────────────────────────────────────────────
+
+
 import asyncio
 import os
 import httpx
@@ -18,7 +38,7 @@ CATEGORY_CODES = {
     "숙박": "AD5",
 }
 
-# 키워드 동의어 확장
+# ─── 키워드 동의어 확장 ───
 def expand_keywords(keywords: list[str]) -> list[str]:
     expanded = []
     seen = set()
@@ -30,7 +50,7 @@ def expand_keywords(keywords: list[str]) -> list[str]:
                 expanded.append(ex)
     return expanded
 
-# 카카오 키워드 검색
+# ─── 카카오 키워드 검색 (keyword.json) ───
 async def kakao_keyword_search(
     client: httpx.AsyncClient,
     query: str,
@@ -56,7 +76,8 @@ async def kakao_keyword_search(
     return resp.json().get("documents", [])
 
 
-# 카카오 카테고리 검색
+# ─── 카카오 카테고리 검색 (category.json) ───
+# 키워드 검색과 비슷하지만, 검색어 대신 카테고리 코드(CE7 등)로 조회
 async def kakao_category_search(
     client: httpx.AsyncClient,
     category_code: str,
@@ -66,7 +87,6 @@ async def kakao_category_search(
     page: int = 1,
 ) -> list[dict]:
 
-    # 키워드 검색과 비슷하지만, 검색어 대신 카테고리 코드로 조회
     headers = {"Authorization": f"KakaoAK {KAKAO_API_KEY}"}
     params = {
         "category_group_code": category_code,
@@ -83,7 +103,7 @@ async def kakao_category_search(
     return resp.json().get("documents", [])
 
 
-# 응답 변환 (카카오 -> Place dict)
+# ─── 응답 변환 (카카오 → Place dict) ───
 def parse_kakao_doc(doc: dict) -> dict:
 
     return {
@@ -105,7 +125,7 @@ def parse_kakao_doc(doc: dict) -> dict:
     }
 
 
-# [메인 함수] Kakao Local API (keyword + category) 비동기 검색
+# ─── [메인] 여러 키워드 × 페이지를 병렬 호출하고 합치기 ───
 # 여러 페이지 결과를 합쳐서 dedup
 async def search_kakao_pool(
     keywords: list[str],
@@ -118,11 +138,13 @@ async def search_kakao_pool(
     # 키워드 확장 (동의어 추가)
     expanded_keywords = expand_keywords(keywords)
 
+    # km → m 변환, 카카오 최대 20km로 제한
     radius_m = int(radius_km * 1000)
     radius_m = min(radius_m, 20000)  # Kakao 최대 20km
 
     warnings: list[str] = []
 
+    # httpx 클라이언트 1개를 모든 호출에서 공유 (커넥션 재사용)
     async with httpx.AsyncClient(timeout=10.0) as client:
         tasks = []
         labels = []
@@ -143,10 +165,10 @@ async def search_kakao_pool(
                     )
                     labels.append(f"category:{code}:p{page}")
 
-        # 병렬 실행 (실패해도 진행)
+        # 모든 호출 병렬 실행 (실패해도 멈추지 않음)
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    # 결과 합치기 + dedup
+    # 결과 합치기 + dedup (같은 place_id는 한 번만)
     seen_ids: set[str] = set()
     places: list[dict] = []
 
