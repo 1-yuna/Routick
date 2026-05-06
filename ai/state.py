@@ -14,6 +14,7 @@ class UserInput(TypedDict):
     duration: str
     mood_preferences: list[str]
     activity_preferences: list[str]
+    dislike_keywords: Optional[list[str]]
 
     # 시간 관련 필드 (프론트에서 제공)
     # 2026-04-25, 10:00, 19:00, 8.0

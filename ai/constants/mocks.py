@@ -11,6 +11,7 @@ mock_user_input: UserInput = {
     "duration": "당일",
     "mood_preferences": ["활기찬", "힐링", "이색"],
     "activity_preferences": ["카페", "게임/보드게임", "동물체험", "액티비티","바다","이색체험"],
+    "dislike_keywords": ["카페", "PC방" ,"술집"],
 
     "trip_date": "2026-04-24",
     "start_time": "10:00",
