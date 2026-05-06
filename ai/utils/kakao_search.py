@@ -10,6 +10,9 @@
 #   3. 일부 실패는 warnings에 기록, 성공한 결과만 합침
 #   4. place_id 기준 dedup → Place dict 리스트로 반환
 #
+# 반환:
+#   - places, warnings, expanded_keywords
+#
 # 메인 함수:
 #   - search_kakao_pool()  : fetch_candidates 노드에서 호출하는 진입점
 #
@@ -133,7 +136,7 @@ async def search_kakao_pool(
     lng: float,
     radius_km: float,
     pages: int = 3,
-) -> tuple[list[dict], list[str]]:
+) -> tuple[list[dict], list[str], list[str]]:
 
     # 키워드 확장 (동의어 추가)
     expanded_keywords = expand_keywords(keywords)
@@ -186,4 +189,4 @@ async def search_kakao_pool(
             seen_ids.add(doc["id"])
             places.append(parse_kakao_doc(doc))
 
-    return places, warnings
+    return places, warnings, expanded_keywords

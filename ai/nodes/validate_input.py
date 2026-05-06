@@ -84,7 +84,6 @@ def validate_input(state: dict) -> dict:
     # 분위기/일행 기반 활동 키워드 보강
     final_keywords = expand_by_context(
         activity_preferences=activity_prefs,
-        mood_preferences=mood_prefs,
         party_type=party_type,
         target_count=5,
     )

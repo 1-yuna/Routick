@@ -3,14 +3,14 @@ from state import UserInput
 
 # mock - user_input
 mock_user_input: UserInput = {
-    "location": "홍대역",
+    "location": "강릉",
     "party_size": 2,
     "party_type": "연인",
     "genders": "혼성",
     "age_group": "20대",
     "duration": "당일",
     "mood_preferences": ["활기찬", "힐링", "이색"],
-    "activity_preferences": ["카페", "게임/보드게임", "동물 체험", "액티비티"],
+    "activity_preferences": ["카페", "게임/보드게임", "동물체험", "액티비티","바다","이색체험"],
 
     "trip_date": "2026-04-24",
     "start_time": "10:00",

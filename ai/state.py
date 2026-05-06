@@ -31,7 +31,7 @@ class UserInput(TypedDict):
     needs_meal: Optional[bool]
     meal_times: Optional[list[str]]
 
-    # validate_input에서 필수 키워드 추가
+    # activity_preferences 에 키워드 보강
     final_keywords: Optional[list[str]]
 
 

@@ -17,7 +17,6 @@
 from utils.kakao_search import search_kakao_pool
 from utils.db import upsert_places
 
-
 async def fetch_candidates(state: dict) -> dict:
     # 필요한 입력 꺼내기
     ui = state["user_input"]
@@ -47,7 +46,7 @@ async def fetch_candidates(state: dict) -> dict:
     # Kakao api 호출 (비동기 병렬)
     places: list[dict] = []
     try:
-        places, search_warnings = await search_kakao_pool(
+        places, search_warnings, expanded = await search_kakao_pool(
             keywords=keywords,
             lat=lat,
             lng=lng,
@@ -68,8 +67,8 @@ async def fetch_candidates(state: dict) -> dict:
     if not places:
         warnings.append("후보가 0개 — fallback/재시도 필요")
 
-    # state에 저장 (다음 노드로 전달)
     return {
+        "user_input": {**ui, "final_keywords": expanded},
         "candidates": places,
         "warnings": warnings,
         "errors": errors,
