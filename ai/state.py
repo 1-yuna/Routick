@@ -16,21 +16,13 @@ class UserInput(TypedDict):
     activity_preferences: list[str]
     dislike_keywords: Optional[list[str]]
 
-    # 시간 관련 필드 (프론트에서 제공)
-    # 2026-04-25, 10:00, 19:00, 8.0
+    # 2026-04-25
     trip_date: str
-    start_time: str
-    end_time: str
-    total_hours: float
 
     # [validate_input] 장소 정규화
     center_lat: Optional[float]
     center_lng: Optional[float]
     search_radius_km: Optional[float]
-
-    # 식사 관련 필드
-    needs_meal: Optional[bool]
-    meal_times: Optional[list[str]]
 
     # activity_preferences 에 키워드 보강
     final_keywords: Optional[list[str]]
@@ -106,6 +98,13 @@ class TravelState(TypedDict):
 # 운영: 프론트에서 받은 진짜 user_input을 넣어서 호출
 # 테스트: mocks.mock_user_input을 넣어서 호출
 def make_initial_state(user_input: UserInput) -> TravelState:
+    # activity_preferences 기본값 보정
+    if not user_input.get("activity_preferences"):
+        user_input["activity_preferences"] = ["맛집"]
+    else:
+        if "맛집" not in user_input["activity_preferences"]:
+            user_input["activity_preferences"].append("맛집")
+
     return {
         "user_input": user_input,
         "candidates": [],

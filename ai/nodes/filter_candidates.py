@@ -111,16 +111,26 @@ def filter_by_brand_priority(
     removed = len(places) - len(result)
     return result, removed
 
+# 5.5) 음식점/카페 우선 정렬
+def sort_by_priority(places: list[dict]) -> list[dict]:
+    def priority(p):
+        code = p.get("category_group_code", "")
+        if code == "FD6":   # 음식점 최우선
+            return 0
+        if code == "CE7":   # 카페 2순위
+            return 1
+        return 2            # 나머지
+    return sorted(places, key=priority)
+
 
 # 6) 카페, 음식점 개수 줄이기
 def filter_by_category_cap(
         places: list[dict],
         activity_preferences: list[str],
-        needs_meal: bool,
 ) -> tuple[list[dict], int]:
     # cap 설정
-    cafe_cap = 15 if "카페" in activity_preferences else 5
-    food_cap = 20 if needs_meal else 3
+    cafe_cap = 12 if "카페" in activity_preferences else 5
+    food_cap = 28
     gym_cap = 5 if "헬스" in activity_preferences else 1
     pc_cap = 5 if "PC방" in activity_preferences else 1
 
@@ -135,17 +145,17 @@ def filter_by_category_cap(
         name = p.get("name", "")
         category = p.get("category", "")
 
-        if code == "CE7":  # 카페
+        if code == "CE7":  # 카페 먼저 체크
             if cafe_count >= cafe_cap:
                 continue
             cafe_count += 1
 
-        elif code == "FD6":  # 음식점
+        elif code == "FD6":  # 음식점은 CE7 아닐 때만
             if food_count >= food_cap:
                 continue
             food_count += 1
 
-        elif "헬스" in name or "피트니스" in name or "필라테스" in name or "스포츠" in name or "헬스" in category or "피트니스" in category:
+        elif "헬스" in name or "피트니스" in name or "필라테스" in name or "헬스" in category or "피트니스" in category:
             if gym_count >= gym_cap:
                 continue
             gym_count += 1
@@ -198,10 +208,13 @@ def filter_candidates(state: dict) -> dict:
     if removed > 0:
         warnings.append(f"체인 후순위 처리로 {removed}개 제거")
 
+    # ─── 5.5 음식점/카페 우선 정렬 ───
+    filtered = sort_by_priority(filtered)
+
     # ─── 6. 카페, 음식점 줄이기 ───
     activity_preferences = ui.get("activity_preferences") or []
     needs_meal = ui.get("needs_meal") or False
-    filtered, removed = filter_by_category_cap(filtered, activity_preferences, needs_meal)
+    filtered, removed = filter_by_category_cap(filtered, activity_preferences)
     if removed > 0:
         warnings.append(f"카테고리 cap으로 {removed}개 제거")
 

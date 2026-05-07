@@ -14,15 +14,10 @@ mock_user_input: UserInput = {
     "dislike_keywords": [ "PC" ,"술집"],
 
     "trip_date": "2026-04-24",
-    "start_time": "10:00",
-    "end_time": "19:00",
-    "total_hours": 8.0,
 
     "center_lat": None,
     "center_lng": None,
     "search_radius_km": None,
 
-    "needs_meal": None,
-    "meal_times": None,
     "final_keywords": None,
 }
