@@ -40,6 +40,11 @@ class Place(TypedDict):
     avg_stay_minutes: int
     open_hours: dict
 
+    atmosphere: list[str]
+    best_for: list[str]
+    revisit_intent: str
+    summary: str
+
 
 # 타입 정의 - 후보(place의 점수 매기기)
 class ScoredPlace(TypedDict):
