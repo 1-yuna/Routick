@@ -100,9 +100,9 @@ async def enrich_candidates(state: dict) -> dict:
         warnings.append("shortlist 비어있음")
 
     return {
-        "filtered_candidates": enriched,
+        "filtered_candidates": enriched, #50개
         "scored_candidates": scored,
-        "shortlist": shortlist,
+        "shortlist": shortlist, # 최종 선별 30개
         "warnings": warnings,
         "step": "enriched",
     }
