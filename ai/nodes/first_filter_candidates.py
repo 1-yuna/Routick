@@ -215,7 +215,7 @@ def filter_by_category_cap(
 
 
 # [메인] 필터
-def filter_candidates(state: dict, debug: bool = False) -> dict:
+def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     ui = state["user_input"]
     candidates = state["candidates"]
     warnings: list[str] = []

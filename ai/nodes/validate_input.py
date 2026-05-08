@@ -11,8 +11,8 @@
 #       - 분위기/일행 기반 관련 활동 추가 (expand_by_context 호출)
 # ─────────────────────────────────────────────────────────────────────
 
-from utils.geocode import geocode_kakao
-from utils.expand_by_context import expand_by_context
+from utils.input.geocode import geocode_kakao
+from utils.input.expand_by_context import expand_by_context
 from constants.location import DEFAULT_RADIUS_KM, SEOUL_CENTER
 
 def validate_input(state: dict) -> dict:

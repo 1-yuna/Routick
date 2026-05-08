@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────
-# enrich_candidates.py (node)
+# second_filter_candidates.py (node)
 # ─────────────────────────────────────────────────────────────────────
 # 데이터 보강 + 점수 계산 노드
 #
@@ -11,13 +11,13 @@
 #   5. 카테고리 quota 분배 → shortlist (30개)
 # ─────────────────────────────────────────────────────────────────────
 
-from utils.search_naver_blogs import search_naver_blogs
-from utils.enrich_with_llm import enrich_with_llm
-from utils.scoring import calc_mood_score, calc_activity_score, calc_party_fit_score, calc_revisit_score, calc_total_score
-from utils.shortlist import select_shortlist, classify_fallback
+from utils.second_filter.search_naver_blogs import search_naver_blogs
+from utils.second_filter.enrich_with_llm import enrich_with_llm
+from utils.second_filter.scoring import calc_mood_score, calc_activity_score, calc_party_fit_score, calc_revisit_score, calc_total_score
+from utils.second_filter.shortlist import select_shortlist, classify_fallback
 import time
 
-async def enrich_candidates(state: dict) -> dict:
+async def second_filter_candidates(state: dict) -> dict:
     filtered = state["filtered_candidates"]
     ui = state["user_input"]
     warnings: list[str] = []

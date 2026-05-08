@@ -14,10 +14,10 @@
 # ─────────────────────────────────────────────────────────────────────
 
 
-from utils.kakao_search import search_kakao_pool
-from utils.db import upsert_places
+from utils.pool.kakao_search import search_kakao_pool
+from utils.pool.db import upsert_places
 
-async def fetch_candidates(state: dict) -> dict:
+async def collect_candidate_pool(state: dict) -> dict:
     # 필요한 입력 꺼내기
     ui = state["user_input"]
     warnings: list[str] = []

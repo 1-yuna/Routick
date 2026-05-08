@@ -2,10 +2,8 @@
 from typing import TypedDict, Annotated, Optional
 import operator
 
-# 타입 정의 - 입력
+#  ─── 사용자 원본 입력 ───
 class UserInput(TypedDict):
-    # 사용자 원본 입력
-    # 장소(홍대역), 인원수, 연인, 혼성, 20대, 당일, [활기찬,힐링], [카페, 게임/보드게임]
     location: str
     party_size: int
     party_type: str
@@ -24,11 +22,11 @@ class UserInput(TypedDict):
     center_lng: Optional[float]
     search_radius_km: Optional[float]
 
-    # activity_preferences 에 키워드 보강
+    # [validate_input] 활동 키워드 보강
     final_keywords: Optional[list[str]]
 
 
-# 타입 정의 - 후보(장소 하나의 기본 정보)
+#  ─── [타입 정의] 장소 ───
 class Place(TypedDict):
     id: str
     name: str
@@ -46,16 +44,18 @@ class Place(TypedDict):
     summary: str
 
 
-# 타입 정의 - 후보(place의 점수 매기기)
+#  ─── [타입 정의] 장소 + 점수 ───
 class ScoredPlace(TypedDict):
     place: Place
     mood_score: float
     activity_score: float
     party_fit_score: float
+    revisit_score: float
     total_score: float
 
 
-# 타입 정의 - 출력(ScoredPlace로 동선, 시간 배치)
+# TODO: 아직 안함
+#  ─── [타입 정의] 출력 ───
 class ItineraryItem(TypedDict):
     order: int
     place: Place
@@ -65,26 +65,29 @@ class ItineraryItem(TypedDict):
     recommendation_reason: str
 
 
-# 타입 정의 - 전체 state 설계도
+#  ─── 전체 state 설계도 ───
 class TravelState(TypedDict):
-    # 입력
+    # 사용자 입력
     user_input: UserInput
 
-    # 넓게 수집된 raw 풀
+    # 전체 pool
     candidates: Annotated[list[Place], operator.add]
 
-    # 거리/영업 필터링 + 거리 정보 추가된 풀
+    # 1차 필터 - 50개
     filtered_candidates: list[Place]
 
-    # 점수 & 필터링
+    # 2차 필터
+    # 점수화(50개), 필터화(30개)
     scored_candidates: list[ScoredPlace]
     shortlist: list[ScoredPlace]
 
+    # TODO: 앞으로 할 것
     # 동선
     distance_matrix: list[list[float]]
     route: list[str]
     route_metrics: dict
 
+    # TODO: 앞으로 할 것
     # 출력
     itinerary: list[ItineraryItem]
     rationale: str
@@ -97,11 +100,7 @@ class TravelState(TypedDict):
     step: str
 
 
-# 초기화 함수 - 빈 state를 만들어줌
-# 이후 로직: 초기화 함수를 받는 변수 = state. 함수들(노드)은 해당 state를 받아서 부분 수정함.
-
-# 운영: 프론트에서 받은 진짜 user_input을 넣어서 호출
-# 테스트: mocks.mock_user_input을 넣어서 호출
+#  ─── 초기화 함수 ───
 def make_initial_state(user_input: UserInput) -> TravelState:
     # activity_preferences 기본값 보정
     if not user_input.get("activity_preferences"):
