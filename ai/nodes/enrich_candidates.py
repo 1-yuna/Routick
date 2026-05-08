@@ -13,7 +13,7 @@
 
 from utils.search_naver_blogs import search_naver_blogs
 from utils.enrich_with_llm import enrich_with_llm
-from utils.scoring import calc_mood_score, calc_activity_score, calc_party_fit_score, calc_total_score
+from utils.scoring import calc_mood_score, calc_activity_score, calc_party_fit_score, calc_revisit_score, calc_total_score
 from utils.shortlist import select_shortlist, classify_fallback
 
 
@@ -50,7 +50,7 @@ async def enrich_candidates(state: dict) -> dict:
     llm_results = []
     if blog_data:
         try:
-            llm_results = await enrich_with_llm(blog_data)
+            llm_results = await enrich_with_llm(blog_data, ui)
         except Exception as e:
             warnings.append(f"LLM 보강 실패: {e}")
     else:
@@ -68,6 +68,7 @@ async def enrich_candidates(state: dict) -> dict:
             "bucket": enrich.get("bucket") or classify_fallback(place),
             "atmosphere": enrich.get("atmosphere", []),
             "best_for": enrich.get("best_for", []),
+            "place_tags": enrich.get("place_tags", []),
             "revisit_intent": enrich.get("revisit_intent", "low"),
             "summary": enrich.get("summary", ""),
         })
@@ -78,15 +79,19 @@ async def enrich_candidates(state: dict) -> dict:
         mood_score = calc_mood_score(place, mood_preferences)
         activity_score = calc_activity_score(place, activity_preferences)
         party_fit_score = calc_party_fit_score(place, party_type, party_size, age_group)
+        revisit_score = calc_revisit_score(place)
         total_score = calc_total_score(
-            mood_score, activity_score, party_fit_score,
-            party_type, activity_preferences,
+            mood_score,
+            activity_score,
+            party_fit_score,
+            revisit_score,
         )
         scored.append({
             "place": place,
             "mood_score": mood_score,
             "activity_score": activity_score,
             "party_fit_score": party_fit_score,
+            "revisit_score": revisit_score,
             "total_score": total_score,
         })
 
@@ -102,7 +107,7 @@ async def enrich_candidates(state: dict) -> dict:
     return {
         "filtered_candidates": enriched, #50개
         "scored_candidates": scored,
-        "shortlist": shortlist, # 최종 선별 30개
+        "shortlist": shortlist, # 최종 선별 30
         "warnings": warnings,
         "step": "enriched",
     }

@@ -17,7 +17,24 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 
-def build_prompt(blog_data: list[dict]) -> str:
+def build_prompt(
+        blog_data: list[dict],
+        user_input: dict,
+) -> str:
+    party_type = user_input.get("party_type", "")
+    age_group = user_input.get("age_group", "")
+    genders = user_input.get("genders", "")
+
+    user_context = f"""
+    [현재 사용자 정보]
+    - 구성원: {party_type}
+    - 연령대: {age_group}
+    - 성별 구성: {genders}
+
+    이 정보는 장소 분위기와 추천 대상을 해석할 때 참고하세요.
+    단, 실제 블로그 리뷰 기반으로 장소 자체 특성을 우선 판단하세요.
+    """
+
     lines = []
     for i, item in enumerate(blog_data, 1):
         snippets = "\n".join(f"  - {s}" for s in item["snippets"]) or "  - 블로그 없음"
@@ -28,40 +45,83 @@ def build_prompt(blog_data: list[dict]) -> str:
 
     places_text = "\n\n".join(lines)
 
-    return f"""아래는 여행지 장소들의 블로그 리뷰 발췌입니다.
-각 장소에 대해 JSON 배열로만 응답하세요. 설명, 마크다운 금지.
-- atmosphere 은 제시한 단어로만 응답하세요
-- bucket 은 반드시 5개 값 중 하나로만 응답하세요 (애매하면 "other")
+    return f"""
+    아래는 여행지 장소들의 블로그 리뷰 발췌입니다.
+    각 장소에 대해 JSON 배열로만 응답하세요.
+    설명, 마크다운, 코드블록 금지.
+    
+    {user_context}
 
-[bucket 분류 기준]
-  cafe     - 일반 카페 (커피/디저트 위주, 머무는 곳)
-  food     - 음식점 (식사 위주, 한식/양식/일식 등)
-  activity - 놀거리 (보드게임/방탈출/공방/관광/문화/체험/공연/오락 등)
-  lodging  - 숙박 (호텔/펜션/게스트하우스/리조트)
-  other    - 위 분류에 안 맞는 곳
+    - 실제 블로그 리뷰 내용 기반으로 추론하세요.
+    - 리뷰 내용 요약은 필수입니다. 30줄 이하로 작성해주세요.
+    - 정보가 부족하더라도 반드시 1~2개는 추론해서 채워주세요 
+    - 빈 배열 절대 금지
+    - atmosphere, best_for, bucket은 반드시 제시된 값만 사용하세요.
+    - atmosphere은 활기찬, 힐링, 감성, 이색, 조용한, 따뜻한, 로맨틱, 깔끔한, 빈티지, 힙한에서 최대 3개 골라주세요.
+    - best_for은 연인, 혼자, 친구, 가족 네가지 중 최대 3개 골라주세요.
+    - bucket 은 반드시 cafe, food, activity, lodging, other 5개 중 하나만 선택하세요
+    - place_tags는 해당 장소의 키워드를 뽑아주세요 ex. 카페, 바다, 운동, pc방 등등 최대 3개 뽑아내주세요
 
-{places_text}
+    [atmosphere 판단 기준]
+    활기찬 : 웨이팅이 있거나 회전율이 빠른 곳/ 시장, 번화가, 인기 맛집, 관광지
+    힐링: 조용하고 편안하게 쉬기 좋은 공간/ 자연 요소(바다, 숲, 공원)가 있는 장소
+    감성: 인스타 감성, 조명, 인테리어, 사진찍기 좋은 공간/ 공간 자체의 “예쁨”이 중요한 곳
+    이색: 체험형 공간, 테마형 공간, 독특한 구조/ 기존에 흔하지 않은 경험을 제공하는 장소
+    조용한: 대화하거나 혼자 머물기 좋은 낮은 소음 환경/ 회전율이 낮고 여유로운 분위기
+    따뜻한: 아늑하고 편안한 느낌의 공간/ 소규모 운영 또는 개인적인 감성이 있는 장소
+    로맨틱: 데이트 목적에 자연스럽게 어울리는 공간/ 야경, 오션뷰, 분위기 좋은 조명
+    깔끔한: 구조가 단순하고 현대적인 느낌/ 정돈된 인테리어와 신축 공간에서 자주 나타남
+    빈티지: 오래된 인테리어, 레트로 감성/ 옛날 건물, 오래된 가구, 클래식한 분위기
+    힙한: 트렌디하고 젊은 감각의 공간/ SNS에서 유행하거나 핫플인 장소/ 새로운 브랜드, 팝업스토어, 감각적인 디자인
+    
+    
+    [best_for 판단 기준]
+    연인
+    - 야경, 맛집, 분위기 좋은 카페, 오션뷰, 사진찍기 좋은 곳, 풍경 좋은 곳, 데이트하기 좋은 곳
+    - 연령 확인 후 적합한지 판단 가능 ( 10-20대면 활발한 활동 장소, 30-40대면 등산) 
 
-[응답 형식]
-[
-  {{
-    "place_id": "장소id",
-    "bucket": "cafe"|"food"|"activity"|"lodging"|"other",
-    "atmosphere": ["활기찬"|"힐링"|"감성"|"이색"|"조용한"|"따뜻한"|"로맨틱"|"깔끔한"|"빈티지"|"힙한"],  // 최대 3개
-    "best_for": ["연인"|"혼자"|"친구"|"가족"],  // 최대 3개
-    "revisit_intent": "high"|"medium"|"low",
-    "summary": "한 문장 30자 이내"
-  }},
-  ...
-]"""
+    혼자
+    - 혼밥, 혼카페, 조용히 머물기 좋은 장소
+
+    친구
+    - 함께 놀거나 대화하기 좋은 장소
+    - 활동적이거나 시끌벅적한 장소 포함
+    - 연령 확인 후 적합한지 판단 가능 (10-20대면 활발한 활동 장소, 30-40대면 잔잔한 장소 )
+
+    가족
+    - 연령대 확인 후 10대 이하가 포함되어 있으면 아이 동반 가능 장소
+    - 연령대 확인 후 20-40대면 다양한 장소 
+    - 연령대 확인 후 40대 이상이면 자연, 온천, 절 장소 
+
+    [응답 형식]
+    [
+      {{
+        "place_id": "장소id",
+        "bucket": "cafe"|"food"|"activity"|"lodging"|"other",
+        "atmosphere": [],
+        "best_for": [],
+        "place_tags": [],
+        "revisit_intent": "high"|"medium"|"low",
+        "summary": "30자 이내 한 문장"
+      }}
+    ]
+
+    {places_text}
+    """
 
 
-async def enrich_with_llm(blog_data: list[dict]) -> list[dict]:
-    chunks = [blog_data[i:i + 25] for i in range(0, len(blog_data), 25)]
+async def enrich_with_llm(
+    blog_data: list[dict],
+    user_input: dict,
+) -> list[dict]:
+    chunks = [blog_data[i:i + 25] for i in range(0, len(blog_data), 15)]
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         # 순차 대신 병렬로
-        tasks = [call_llm(client, chunk) for chunk in chunks]
+        tasks = [
+            call_llm(client, chunk, user_input)
+            for chunk in chunks
+        ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     output = []
@@ -72,8 +132,12 @@ async def enrich_with_llm(blog_data: list[dict]) -> list[dict]:
     return output
 
 
-async def call_llm(client: httpx.AsyncClient, chunk: list[dict]) -> list[dict]:
-    prompt = build_prompt(chunk)
+async def call_llm(
+    client: httpx.AsyncClient,
+    chunk: list[dict],
+    user_input: dict,
+) -> list[dict]:
+    prompt = build_prompt(chunk, user_input)
     resp = await client.post(
         OPENAI_API_URL,
         headers={
@@ -83,7 +147,7 @@ async def call_llm(client: httpx.AsyncClient, chunk: list[dict]) -> list[dict]:
         json={
             "model": "gpt-4o-mini",
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 4000,
+            "max_tokens": 8000,
         },
     )
     resp.raise_for_status()
