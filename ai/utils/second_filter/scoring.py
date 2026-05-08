@@ -1,14 +1,16 @@
 # ─────────────────────────────────────────────────────────────────────
-# utils/scoring.py
+# scoring
 # ─────────────────────────────────────────────────────────────────────
 # 분위기 점수 계산
 #
 # 흐름:
-#   1. 분위기 점수 계산 ( 사용자 - mood_preferences, 장소 - atmosphere)
-#   3. 구성원 적합도 점수 (구성원, 인원수, 연령대)
+#   - 분위기 점수 계산
+#   - 활동 점수 계산
+#   - 구성원 적합도 점수 (구성원, 인원수, 연령대)
+#   - 재방문 의사
 # ─────────────────────────────────────────────────────────────────────
-
 from constants.scoring import (PARTY_SIZE_PENALTY, AGE_PENALTY, REVISIT_SCORE_MAP)
+
 
 # ─── 분위기 점수 계산 ───
 def calc_mood_score(place: dict, mood_preferences: list[str]) -> int:
@@ -35,7 +37,6 @@ def calc_activity_score(place, activity_preferences):
             score += 10   # 핵심 매칭
 
     return score
-
 
 
 # ─── 구성원 적합도 점수 ───
@@ -71,12 +72,13 @@ def calc_party_fit_score(
     return score
 
 
-# 재방문 의사
+# ─── 재방문 의사 ───
 def calc_revisit_score(place: dict) -> int:
     intent = place.get("revisit_intent", "low")
     return REVISIT_SCORE_MAP.get(intent, 0)
 
-# 최종 종합 점수
+
+# ─── 최종 종합 점수 ───
 def calc_total_score(
         mood_score: int,
         activity_score: int,

@@ -11,17 +11,11 @@
 #   3. quota만큼 점수순으로 뽑아서 shortlist 구성
 #   4. 부족분은 점수순으로 보충
 # ─────────────────────────────────────────────────────────────────────
-
-
 VALID_BUCKETS = {"cafe", "food", "activity", "lodging", "other"}
 
 
 # ─── LLM 실패 시 fallback 분류 (룰베이스) ───
 def classify_fallback(place: dict) -> str:
-    """
-    LLM이 bucket 분류 못한 경우 fallback.
-    카카오 카테고리 코드 + 한글 카테고리로 판별.
-    """
     code = place.get("category_group_code", "") or ""
     category = place.get("category", "") or ""
 
@@ -38,37 +32,21 @@ def classify_fallback(place: dict) -> str:
 
 # ─── duration 기반 quota 정의 ───
 def get_quotas(duration: str) -> dict[str, int]:
-    """
-    duration에 따라 카테고리별 quota 반환.
-      당일:    카페 8 + 음식점 8 + 놀거리 14 + 기타 = 30
-      1박2일+: 카페 7 + 음식점 7 + 놀거리 12 + 숙박 4 + 기타 = 30
-    """
     if duration == "당일":
         return {"cafe": 8, "food": 8, "activity": 14, "lodging": 0, "other": 5}
     else:
         return {"cafe": 7, "food": 7, "activity": 12, "lodging": 4, "other": 5}
 
 
-# ─── [메인] shortlist 선별 ───
+# ─── shortlist 선별 ───
 def select_shortlist(
     scored: list[dict],
     duration: str = "당일",
     target_count: int = 30,
 ) -> list[dict]:
-    """
-    scored 리스트에서 카테고리 quota 만족하면서 상위 N개 선별.
-
-    Args:
-        scored: total_score 내림차순 정렬된 ScoredPlace 리스트
-        duration: "당일" | "1박2일" | "2박3일" 등
-        target_count: 최종 shortlist 크기 (기본 30)
-
-    Returns:
-        총 target_count개의 ScoredPlace 리스트 (점수 내림차순 정렬)
-    """
     quotas = get_quotas(duration)
 
-    # 1) 카테고리별 버킷에 분류 (점수순 자동 유지: scored가 이미 정렬돼있음)
+    # 카테고리별 버킷에 분류 (점수순 자동 유지: scored가 이미 정렬돼있음)
     buckets: dict[str, list] = {k: [] for k in quotas}
     for item in scored:
         bucket = item["place"].get("bucket") or classify_fallback(item["place"])
@@ -76,12 +54,12 @@ def select_shortlist(
             bucket = "other"
         buckets[bucket].append(item)
 
-    # 2) quota만큼 상위 N개 뽑기
+    # quota만큼 상위 N개 뽑기
     shortlist = []
     for bucket_name, limit in quotas.items():
         shortlist.extend(buckets[bucket_name][:limit])
 
-    # 3) 부족하면 점수순으로 보충 (이미 들어간 건 제외)
+    # 부족하면 점수순으로 보충 (이미 들어간 건 제외)
     if len(shortlist) < target_count:
         already_in = {id(item) for item in shortlist}
         for item in scored:
@@ -90,7 +68,7 @@ def select_shortlist(
                 if len(shortlist) >= target_count:
                     break
 
-    # 4) 최종적으로 점수 내림차순 정렬 (보기 좋게)
+    # 최종적으로 점수 내림차순 정렬 (보기 좋게)
     shortlist.sort(key=lambda x: x["total_score"], reverse=True)
 
     return shortlist[:target_count]

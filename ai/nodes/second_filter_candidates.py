@@ -1,14 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────
-# second_filter_candidates.py (node)
+# second_filter_candidates
 # ─────────────────────────────────────────────────────────────────────
-# 데이터 보강 + 점수 계산 노드
+# API/LLM + 점수 계산 + 30개 축약
 #
 # 흐름:
-#   1. 네이버 블로그 snippet 수집
-#   2. LLM으로 분위기/재방문의사/bucket 추출 (25개씩)
-#   3. filtered_candidates에 보강 데이터 머지
-#   4. 점수 계산 → scored_candidates
-#   5. 카테고리 quota 분배 → shortlist (30개)
+#   - 네이버 블로그 snippet 수집 (search_naver_blogs)
+#   - LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
+#   - filtered_candidates에 보강 데이터 머지
+#   - 점수 계산 → scored_candidates (scoring)
+#   - 카테고리 quota 분배 → shortlist - 30개 (shortlist)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.second_filter.search_naver_blogs import search_naver_blogs
@@ -17,6 +17,8 @@ from utils.second_filter.scoring import calc_mood_score, calc_activity_score, ca
 from utils.second_filter.shortlist import select_shortlist, classify_fallback
 import time
 
+
+# ─── [노드] 30개 축약  ───
 async def second_filter_candidates(state: dict) -> dict:
     filtered = state["filtered_candidates"]
     ui = state["user_input"]
@@ -39,7 +41,7 @@ async def second_filter_candidates(state: dict) -> dict:
             "step": "enriched",
         }
 
-    # ─── 1. 네이버 블로그 snippet 수집 ───
+    # 네이버 블로그 snippet 수집 (search_naver_blogs)
     t1 = time.time()
     try:
         blog_data = await search_naver_blogs(filtered)
@@ -48,7 +50,7 @@ async def second_filter_candidates(state: dict) -> dict:
         blog_data = []
     print(f"⏱  네이버 블로그: {time.time() - t1:.1f}초 ({len(blog_data)}개)")
 
-    # ─── 2. LLM으로 분위기/재방문의사/bucket 추출 ───
+    # LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
     t2 = time.time()
     llm_results = []
     if blog_data:
@@ -60,7 +62,7 @@ async def second_filter_candidates(state: dict) -> dict:
         warnings.append("블로그 데이터 없음 → LLM 스킵")
     print(f"⏱  LLM 보강: {time.time() - t2:.1f}초 ({len(llm_results)}개)")
 
-    # ─── 3. filtered_candidates에 머지 ───
+    # filtered_candidates에 머지
     llm_map = {r["place_id"]: r for r in llm_results}
 
     enriched = []
@@ -77,7 +79,7 @@ async def second_filter_candidates(state: dict) -> dict:
             "summary": enrich.get("summary", ""),
         })
 
-    # ─── 4. 점수 계산 ───
+    # 점수 계산 (scoring)
     scored = []
     for place in enriched:
         mood_score = calc_mood_score(place, mood_preferences)
@@ -102,7 +104,7 @@ async def second_filter_candidates(state: dict) -> dict:
     # total_score 내림차순 정렬
     scored.sort(key=lambda x: x["total_score"], reverse=True)
 
-    # ─── 5. shortlist (카테고리 quota 분배, 30개) ───
+    # 30개 축약 (select_shortlist)
     shortlist = select_shortlist(scored, duration=duration, target_count=30)
 
     if not shortlist:

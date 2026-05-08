@@ -58,8 +58,10 @@ class Place(TypedDict):
     avg_stay_minutes: int
     open_hours: dict
 
+    bucket: str
     atmosphere: list[str]
     best_for: list[str]
+    place_tags: list[str]
     revisit_intent: str
     summary: str
 
