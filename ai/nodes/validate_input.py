@@ -12,9 +12,11 @@
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.input.geocode import geocode_kakao
-from utils.input.expand_by_context import expand_by_context
+from utils.input.expand_activities_by_party import expand_activities_by_party
 from constants.location import DEFAULT_RADIUS_KM, SEOUL_CENTER
 
+
+# ─── [노드] 사용자 입력 검증 + 전처리 ───
 def validate_input(state: dict) -> dict:
 
     ui = dict(state["user_input"])
@@ -40,25 +42,25 @@ def validate_input(state: dict) -> dict:
     if not ui.get("activity_preferences"):
         warnings.append("활동 선호가 비어있어 기본값 적용")
 
-    # 위치 → 좌표 변환
+    # 위치 → 좌표 변환 (geocode_kakao)
     loc = ui.get("location", "") or ""
     coords, err = geocode_kakao(loc) if loc else (None, "location 비어 있음")
 
+    # 성공 시
     if coords:
         ui["center_lat"], ui["center_lng"] = coords
         ui["search_radius_km"] = DEFAULT_RADIUS_KM
+    # 실패 시
     else:
         ui["center_lat"], ui["center_lng"] = SEOUL_CENTER
         ui["search_radius_km"] = 2.0
         warnings.append(f"fallback 사용: {err}")
 
-    # ── 필수 키워드 추가 ──
+    # 구성원 -> 활동 키워드 보강 (expand_by_context)
     activity_prefs = list(ui.get("activity_preferences") or [])
-    mood_prefs = ui.get("mood_preferences") or []
     party_type = ui.get("party_type", "")
 
-    # 분위기/일행 기반 활동 키워드 보강
-    final_keywords = expand_by_context(
+    final_keywords = expand_activities_by_party(
         activity_preferences=activity_prefs,
         party_type=party_type,
         target_count=5,

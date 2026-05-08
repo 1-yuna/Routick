@@ -6,7 +6,7 @@
 # 3. KEYWORD_EXPANSIONS      : 활동 키워드 → 검색 시 동의어 (검색 확장용)
 #
 # 사용처:
-#   - 1, 2: utils/expand_by_context.py 의 expand_by_context()
+#   - 1, 2: utils/expand_activities_by_party.py 의 expand_by_context()
 #   - 3: utils/kakao_search.py 의 expand_keywords()
 # ─────────────────────────────────────────────────────────────────────
 

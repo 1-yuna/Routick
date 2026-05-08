@@ -12,7 +12,7 @@
 from constants.keywords import PARTY_TO_ACTIVITIES
 
 
-def expand_by_context(
+def expand_activities_by_party(
     activity_preferences: list[str],
     party_type: str,
     target_count: int = 5,
