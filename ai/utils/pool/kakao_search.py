@@ -4,9 +4,9 @@
 # Kakao Local API 비동기 검색 헬퍼 (keyword + category 동시 호출)
 #
 # 흐름:
-#   - 키워드 동의어 확장 (KEYWORD_EXPANSIONS 기반)
-#   - 확장된 키워드 × 페이지 × (keyword + category) 비동기 동시성 호출
-#   - 일부 실패는 warnings에 기록, 성공한 결과만 합침
+#   1. 키워드 동의어 확장 (KEYWORD_EXPANSIONS 기반)
+#   2. 확장된 키워드 × 페이지 × (keyword + category) 비동기 동시성 호출
+#   3. 일부 실패는 warnings에 기록, 성공한 결과만 합침
 #
 # 주의:
 #   - Kakao API는 x=경도, y=위도 (보통 (lat, lng) 순서랑 반대)

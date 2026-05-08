@@ -4,11 +4,11 @@
 # API/LLM + 점수 계산 + 30개 축약
 #
 # 흐름:
-#   - 네이버 블로그 snippet 수집 (search_naver_blogs)
-#   - LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
-#   - filtered_candidates에 보강 데이터 머지
-#   - 점수 계산 → scored_candidates (scoring)
-#   - 카테고리 quota 분배 → shortlist - 30개 (shortlist)
+#   1. 네이버 블로그 snippet 수집 (search_naver_blogs)
+#   2. LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
+#   3. filtered_candidates에 보강 데이터 머지
+#   4. 점수 계산 → scored_candidates (scoring)
+#   5. 카테고리 quota 분배 → shortlist - 30개 (shortlist)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.second_filter.search_naver_blogs import search_naver_blogs

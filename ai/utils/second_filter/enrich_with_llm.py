@@ -4,9 +4,9 @@
 # 블로그 snippet → LLM으로 분위기/재방문의사/bucket 등 추출
 #
 # 흐름:
-#   - 10개씩 묶어서 프롬프트 생성
-#   - LLM 호출 (5번)
-#   - JSON 파싱 후 반환
+#   1. 10개씩 묶어서 프롬프트 생성
+#   2. LLM 호출 (5번)
+#   3. JSON 파싱 후 반환
 # ─────────────────────────────────────────────────────────────────────
 from prompts.enrich_places import build_prompt
 import asyncio

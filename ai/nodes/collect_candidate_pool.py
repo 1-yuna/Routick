@@ -4,10 +4,10 @@
 # Kakao Local API로 raw 후보군(~200개) 수집 + PostgreSQL 영구 저장
 #
 # 흐름:
-#   - Kakao API 호출 (kakao_search 호출)
+#   1. Kakao API 호출 (kakao_search 호출)
 #      - 현재 좌표로 검색
 #      - 비동기 병렬, 일부 실패해도 진행
-#   - PostgreSQL upsert (db 사용)
+#   2. PostgreSQL upsert (db 사용)
 #      - state.candidates와 별개로 DB에도 누적 저장
 # ─────────────────────────────────────────────────────────────────────
 

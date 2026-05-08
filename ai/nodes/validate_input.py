@@ -4,9 +4,9 @@
 # 사용자 입력 검증 + 전처리 노드
 #
 # 흐름:
-#   - 필수 필드 검증
-#   - 위치 → 좌표 변환 (geocode_kakao 호출)
-#   - 구성원 -> 검색 키워드 보강 (expand_by_context 호출)
+#   1. 필수 필드 검증
+#   2. 위치 → 좌표 변환 (geocode_kakao 호출)
+#   3. 구성원 -> 검색 키워드 보강 (expand_by_context 호출)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.input.geocode import geocode_kakao

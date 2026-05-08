@@ -4,7 +4,7 @@
 # 1차 필터: candidates → filtered_candidates (최대 50개)
 #
 # 흐름:
-#   - 관련 없는 키워드 제거 후 50개 축약 (place_filter_pipeline)
+#   1. 관련 없는 키워드 제거 후 50개 축약 (place_filter_pipeline)
 #       - dislike 키워드 제거
 #       - 부적합 키워드 제거
 #       - 구성원에 따라 부적합 키워드 제거
