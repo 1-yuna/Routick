@@ -61,6 +61,7 @@ async def fetch_blog_snippets(
     return {
         "place_id": place.get("id"),
         "name": name,
+        "category": place.get("category", ""),
         "snippets": snippets,
     }
 

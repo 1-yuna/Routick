@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────
 # llm_enrich.py (utils)
 # ─────────────────────────────────────────────────────────────────────
-# 블로그 snippet → LLM으로 분위기/재방문의사 등 추출
+# 블로그 snippet → LLM으로 분위기/재방문의사/bucket 등 추출
 #
 # 흐름:
 #   1. 25개씩 묶어서 프롬프트 생성
@@ -16,11 +16,14 @@ import httpx
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
+
 def build_prompt(blog_data: list[dict]) -> str:
     lines = []
     for i, item in enumerate(blog_data, 1):
         snippets = "\n".join(f"  - {s}" for s in item["snippets"]) or "  - 블로그 없음"
+        category = item.get("category", "")
         lines.append(f"""[{i}] {item['name']} (id: {item['place_id']})
+  카테고리: {category}
 {snippets}""")
 
     places_text = "\n\n".join(lines)
@@ -28,6 +31,14 @@ def build_prompt(blog_data: list[dict]) -> str:
     return f"""아래는 여행지 장소들의 블로그 리뷰 발췌입니다.
 각 장소에 대해 JSON 배열로만 응답하세요. 설명, 마크다운 금지.
 - atmosphere 은 제시한 단어로만 응답하세요
+- bucket 은 반드시 5개 값 중 하나로만 응답하세요 (애매하면 "other")
+
+[bucket 분류 기준]
+  cafe     - 일반 카페 (커피/디저트 위주, 머무는 곳)
+  food     - 음식점 (식사 위주, 한식/양식/일식 등)
+  activity - 놀거리 (보드게임/방탈출/공방/관광/문화/체험/공연/오락 등)
+  lodging  - 숙박 (호텔/펜션/게스트하우스/리조트)
+  other    - 위 분류에 안 맞는 곳
 
 {places_text}
 
@@ -35,6 +46,7 @@ def build_prompt(blog_data: list[dict]) -> str:
 [
   {{
     "place_id": "장소id",
+    "bucket": "cafe"|"food"|"activity"|"lodging"|"other",
     "atmosphere": ["활기찬"|"힐링"|"감성"|"이색"|"조용한"|"따뜻한"|"로맨틱"|"깔끔한"|"빈티지"|"힙한"],  // 최대 3개
     "best_for": ["연인"|"혼자"|"친구"|"가족"],  // 최대 3개
     "revisit_intent": "high"|"medium"|"low",

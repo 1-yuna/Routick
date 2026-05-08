@@ -5,15 +5,16 @@
 #
 # 흐름:
 #   1. 네이버 블로그 snippet 수집
-#   2. LLM으로 분위기/재방문의사 추출 (25개씩)
+#   2. LLM으로 분위기/재방문의사/bucket 추출 (25개씩)
 #   3. filtered_candidates에 보강 데이터 머지
 #   4. 점수 계산 → scored_candidates
-#   5. 상위 30개 → shortlist
+#   5. 카테고리 quota 분배 → shortlist (30개)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.search_naver_blogs import search_naver_blogs
 from utils.enrich_with_llm import enrich_with_llm
 from utils.scoring import calc_mood_score, calc_activity_score, calc_party_fit_score, calc_total_score
+from utils.shortlist import select_shortlist, classify_fallback
 
 
 async def enrich_candidates(state: dict) -> dict:
@@ -26,6 +27,7 @@ async def enrich_candidates(state: dict) -> dict:
     party_type = ui.get("party_type", "")
     party_size = ui.get("party_size", 1)
     age_group = ui.get("age_group", "")
+    duration = ui.get("duration", "당일")
 
     if not filtered:
         warnings.append("filtered_candidates 비어있음 → 보강 스킵")
@@ -44,7 +46,7 @@ async def enrich_candidates(state: dict) -> dict:
         warnings.append(f"네이버 블로그 수집 실패: {e}")
         blog_data = []
 
-    # ─── 2. LLM으로 분위기/재방문의사 추출 ───
+    # ─── 2. LLM으로 분위기/재방문의사/bucket 추출 ───
     llm_results = []
     if blog_data:
         try:
@@ -63,6 +65,7 @@ async def enrich_candidates(state: dict) -> dict:
         enrich = llm_map.get(place_id, {})
         enriched.append({
             **place,
+            "bucket": enrich.get("bucket") or classify_fallback(place),
             "atmosphere": enrich.get("atmosphere", []),
             "best_for": enrich.get("best_for", []),
             "revisit_intent": enrich.get("revisit_intent", "low"),
@@ -90,8 +93,8 @@ async def enrich_candidates(state: dict) -> dict:
     # total_score 내림차순 정렬
     scored.sort(key=lambda x: x["total_score"], reverse=True)
 
-    # ─── 5. shortlist (상위 30개) ───
-    shortlist = scored[:30]
+    # ─── 5. shortlist (카테고리 quota 분배, 30개) ───
+    shortlist = select_shortlist(scored, duration=duration, target_count=30)
 
     if not shortlist:
         warnings.append("shortlist 비어있음")
