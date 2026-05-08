@@ -1,6 +1,26 @@
-# 스키마 정의
+# ─────────────────────────────────────────────────────────────────────
+# make_initial_state
+# ─────────────────────────────────────────────────────────────────────
+# state 정의
+#
+# 흐름:
+#   1. 초기 상태 생성 && 사용자 입력 저장
+#      -  UserInput을 기반으로 TravelState 구조 생성
+#   2. 후보 수집 (candidates 생성)
+#      - Kakao API 기반 장소 검색
+#   3. 1차 필터링 (filtered_candidates 생성)
+#      - 50개로 필터
+#   4. 2차 필터링 (scored_candidates 생성, shortlist 생성)
+#      - 점수화
+#      - 30개로 필터
+#
+# TODO: 장소 간 거리, 동선 최적화, 시간 기반? 등등
+#
+# ─────────────────────────────────────────────────────────────────────
+
 from typing import TypedDict, Annotated, Optional
 import operator
+
 
 #  ─── 사용자 원본 입력 ───
 class UserInput(TypedDict):
