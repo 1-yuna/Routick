@@ -15,7 +15,7 @@ from utils.search_naver_blogs import search_naver_blogs
 from utils.enrich_with_llm import enrich_with_llm
 from utils.scoring import calc_mood_score, calc_activity_score, calc_party_fit_score, calc_revisit_score, calc_total_score
 from utils.shortlist import select_shortlist, classify_fallback
-
+import time
 
 async def enrich_candidates(state: dict) -> dict:
     filtered = state["filtered_candidates"]
@@ -40,13 +40,16 @@ async def enrich_candidates(state: dict) -> dict:
         }
 
     # ─── 1. 네이버 블로그 snippet 수집 ───
+    t1 = time.time()
     try:
         blog_data = await search_naver_blogs(filtered)
     except Exception as e:
         warnings.append(f"네이버 블로그 수집 실패: {e}")
         blog_data = []
+    print(f"⏱  네이버 블로그: {time.time() - t1:.1f}초 ({len(blog_data)}개)")
 
     # ─── 2. LLM으로 분위기/재방문의사/bucket 추출 ───
+    t2 = time.time()
     llm_results = []
     if blog_data:
         try:
@@ -55,6 +58,7 @@ async def enrich_candidates(state: dict) -> dict:
             warnings.append(f"LLM 보강 실패: {e}")
     else:
         warnings.append("블로그 데이터 없음 → LLM 스킵")
+    print(f"⏱  LLM 보강: {time.time() - t2:.1f}초 ({len(llm_results)}개)")
 
     # ─── 3. filtered_candidates에 머지 ───
     llm_map = {r["place_id"]: r for r in llm_results}

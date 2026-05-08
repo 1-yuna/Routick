@@ -114,7 +114,7 @@ async def enrich_with_llm(
     blog_data: list[dict],
     user_input: dict,
 ) -> list[dict]:
-    chunks = [blog_data[i:i + 25] for i in range(0, len(blog_data), 15)]
+    chunks = [blog_data[i:i + 10] for i in range(0, len(blog_data), 10)]
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         # 순차 대신 병렬로
@@ -148,6 +148,7 @@ async def call_llm(
             "model": "gpt-4o-mini",
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 8000,
+            "temperature": 0.3,
         },
     )
     resp.raise_for_status()
