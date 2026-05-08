@@ -4,11 +4,9 @@
 # 사용자 입력 검증 + 전처리 노드
 #
 # 흐름:
-#   1. 필수 필드 검증
-#   2. 위치 → 좌표 변환 - 실패 시 SEOUL_CENTER fallback (geocode_kakao 호출)
-#   3. 검색 키워드 보강
-#       - 필수 키워드 추가 (맛집, 카페)
-#       - 분위기/일행 기반 관련 활동 추가 (expand_by_context 호출)
+#   - 필수 필드 검증
+#   - 위치 → 좌표 변환 (geocode_kakao 호출)
+#   - 구성원 -> 검색 키워드 보강 (expand_by_context 호출)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.input.geocode import geocode_kakao
@@ -66,12 +64,10 @@ def validate_input(state: dict) -> dict:
         target_count=5,
     )
 
-    # 카페: 긴 코스 + 힐링 무드일 때 카페 보강 ( 이미 있으면 skip)
-    if (
-            ui.get("total_hours", 0) >= 4
-            and "힐링" in (ui.get("mood_preferences") or [])
-            and "카페" not in final_keywords
-    ):
+    # 카페: 긴 코스 + 힐링 무드일 때 카페 보강 - 이미 있으면 skip
+    if ( ui.get("total_hours", 0) >= 4
+        and "힐링" in (ui.get("mood_preferences") or [])
+        and "카페" not in final_keywords ):
         final_keywords.append("카페")
 
     ui["final_keywords"] = final_keywords
