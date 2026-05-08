@@ -1,22 +1,21 @@
 # ─────────────────────────────────────────────────────────────────────
-# fetch_candidates
+# collect_candidate_pool
 # ─────────────────────────────────────────────────────────────────────
 # Kakao Local API로 raw 후보군(~200개) 수집 + PostgreSQL 영구 저장
 #
 # 흐름:
-#   1. state에서 검색 키워드/좌표 꺼내기
-#   2. Kakao API 호출 (utils/kakao_search.py 사용)
+#   - Kakao API 호출 (kakao_search 호출)
+#      - 현재 좌표로 검색
 #      - 비동기 병렬, 일부 실패해도 진행
-#   3. PostgreSQL upsert (utils/db.py 사용)
-#      - state.candidates와 별개로 마스터 DB에도 누적 저장
-#   4. state.candidates 채워서 다음 노드로 전달
-#
+#   - PostgreSQL upsert (db 사용)
+#      - state.candidates와 별개로 DB에도 누적 저장
 # ─────────────────────────────────────────────────────────────────────
-
 
 from utils.pool.kakao_search import search_kakao_pool
 from utils.pool.db import upsert_places
 
+
+# ─── [노드] Kakao API + DB ───
 async def collect_candidate_pool(state: dict) -> dict:
     # 필요한 입력 꺼내기
     ui = state["user_input"]

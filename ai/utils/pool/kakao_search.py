@@ -4,17 +4,9 @@
 # Kakao Local API 비동기 검색 헬퍼 (keyword + category 동시 호출)
 #
 # 흐름:
-#   1. 키워드 동의어 확장 (KEYWORD_EXPANSIONS 기반)
-#      예: "카페" → ["카페", "디저트카페", "베이커리", "브런치카페"]
-#   2. 확장된 키워드 × 페이지 × (keyword + category) 비동기 동시성 호출
-#   3. 일부 실패는 warnings에 기록, 성공한 결과만 합침
-#   4. place_id 기준 dedup → Place dict 리스트로 반환
-#
-# 반환:
-#   - places, warnings, expanded_keywords
-#
-# 메인 함수:
-#   - search_kakao_pool()  : fetch_candidates 노드에서 호출하는 진입점
+#   - 키워드 동의어 확장 (KEYWORD_EXPANSIONS 기반)
+#   - 확장된 키워드 × 페이지 × (keyword + category) 비동기 동시성 호출
+#   - 일부 실패는 warnings에 기록, 성공한 결과만 합침
 #
 # 주의:
 #   - Kakao API는 x=경도, y=위도 (보통 (lat, lng) 순서랑 반대)
@@ -27,12 +19,13 @@ import httpx
 
 from constants.keywords import KEYWORD_EXPANSIONS
 
-
+# ─── 카카오 API 키 ───
 KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
+
+# ─── 카카오 검색 API URL ───
 KAKAO_BASE = "https://dapi.kakao.com/v2/local/search"
 
-# 사용자 키워드 -> 카카오 표준 카테고리 코드 매핑
-# 매핑 안 된 키워드 (예: "보드게임카페")는 keyword 검색만 수행
+# ─── 카카오 표준 카테고리 코드 ───
 CATEGORY_CODES = {
     "카페": "CE7",
     "음식점": "FD6",
@@ -40,6 +33,7 @@ CATEGORY_CODES = {
     "문화시설": "CT1",
     "숙박": "AD5",
 }
+
 
 # ─── 키워드 동의어 확장 ───
 def expand_keywords(keywords: list[str]) -> list[str]:
@@ -53,7 +47,8 @@ def expand_keywords(keywords: list[str]) -> list[str]:
                 expanded.append(ex)
     return expanded
 
-# ─── 카카오 키워드 검색 (keyword.json) ───
+
+# ─── 키워드 검색 ───
 async def kakao_keyword_search(
     client: httpx.AsyncClient,
     query: str,
@@ -79,8 +74,8 @@ async def kakao_keyword_search(
     return resp.json().get("documents", [])
 
 
-# ─── 카카오 카테고리 검색 (category.json) ───
-# 키워드 검색과 비슷하지만, 검색어 대신 카테고리 코드(CE7 등)로 조회
+# ─── 카테고리 검색 ───
+# 검색어 대신 카테고리 코드(CE7 등)로 조회
 async def kakao_category_search(
     client: httpx.AsyncClient,
     category_code: str,
@@ -129,7 +124,6 @@ def parse_kakao_doc(doc: dict) -> dict:
 
 
 # ─── [메인] 여러 키워드 × 페이지를 병렬 호출하고 합치기 ───
-# 여러 페이지 결과를 합쳐서 dedup
 async def search_kakao_pool(
     keywords: list[str],
     lat: float,

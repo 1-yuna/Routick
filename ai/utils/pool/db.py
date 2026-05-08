@@ -1,20 +1,11 @@
 # ─────────────────────────────────────────────────────────────────────
 # db
 # ─────────────────────────────────────────────────────────────────────
-# PostgreSQL 비동기 연결 + places 테이블 upsert 헬퍼 (asyncpg 사용)
+# PostgreSQL 비동기 연결 + places 테이블 upsert 헬퍼
 #
 # 흐름:
-#   1. get_pool()       : 커넥션 풀 싱글톤 생성/반환
-#   2. upsert_places()  : Place dict 리스트를 한 번에 upsert
-#                         - place_id 있으면 UPDATE, 없으면 INSERT
-#   3. close_pool()     : 앱 종료 시 풀 정리 (선택)
-#
-# 메인 함수:
-#   - upsert_places()   : fetch_candidates 노드에서 호출하는 진입점
-#
-# 저장 전략:
+#   - 커넥션 풀 싱글톤 생성/반환
 #   - state.candidates(메모리) + PostgreSQL(영구) 둘 다에 저장
-#   - state는 요청 단위로 휘발, DB는 다음 요청에서 재사용/분석용
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -25,11 +16,11 @@ import asyncpg
 
 _pool: Optional[asyncpg.Pool] = None
 
-# 커넥션 풀 (싱글톤 패턴)
+
+# ─── 커넥션 풀 (싱글톤 패턴) ───
 async def get_pool() -> asyncpg.Pool:
 
-    # asyncpg 커넥션 풀 반환 (없으면 처음 호출 시 생성)
-    # 환경 변수에서 DB 접속 정보 읽음 + 풀 크기 설정 ( 최소 1개 + 동시에 최대 10개 연결 허용)
+    # 풀 크기 설정 ( 최소 1개 + 동시에 최대 10개 연결 허용)
     global _pool
     if _pool is None:
         new_pool = await asyncpg.create_pool(  # type: ignore[misc]
@@ -48,7 +39,8 @@ async def get_pool() -> asyncpg.Pool:
     return _pool
 
 
-# 앱 종료 시 호출 (LangGraph 서버를 종료할 때 풀을 깔끔히 닫고 싶다면 호출)
+# ─── 앱 종료 시 호출 ───
+# LangGraph 서버를 종료할 때 풀을 깔끔히 닫고 싶다면 호출
 async def close_pool() -> None:
 
     global _pool
@@ -57,9 +49,7 @@ async def close_pool() -> None:
         _pool = None
 
 
-# PostgreSQL 연결 + places 테이블 upsert
-# 비동기로 PostgreSQL과 통신 (asyncpg 사용)
-# place_id 중복이면 갱신, 새 가게면 INSERT.
+# ─── PostgreSQL 연결 ───
 async def upsert_places(places: list[dict]) -> int:
 
     if not places:
