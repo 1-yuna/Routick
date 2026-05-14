@@ -8,3 +8,8 @@ DEFAULT_RADIUS_KM = 1.5
 
 # ─── 위치 정보를 못 찾았을 때 사용할 기본 좌표 (서울 시청 기준 ) ───
 SEOUL_CENTER = (37.5665, 126.9780)
+
+
+# ─── 여행 시간 기본값 ───
+DEFAULT_START_TIME = "09:00"
+DEFAULT_END_TIME = "21:00"

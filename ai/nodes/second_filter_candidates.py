@@ -8,7 +8,7 @@
 #   2. LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
 #   3. filtered_candidates에 보강 데이터 머지
 #   4. 점수 계산 → scored_candidates (scoring)
-#   5. 카테고리 quota 분배 → 30개 축약(shortlist)
+#   5. 카테고리 quota 분배 → shortlist - 30개 축약(shortlist)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.second_filter.search_naver_blogs import search_naver_blogs
@@ -111,6 +111,7 @@ async def second_filter_candidates(state: dict) -> dict:
         warnings.append("shortlist 비어있음")
 
     return {
+        "user_input": ui,
         "filtered_candidates": enriched, #50개
         "scored_candidates": scored,
         "shortlist": shortlist, # 최종 선별 30

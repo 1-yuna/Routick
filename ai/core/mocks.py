@@ -26,4 +26,8 @@ mock_user_input: UserInput = {
     "search_radius_km": None,
 
     "final_keywords": None,
+
+    "transport_mode": "도보",
+    "start_time": "09:00",
+    "end_time": "21:00",
 }

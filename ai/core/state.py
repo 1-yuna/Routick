@@ -18,7 +18,8 @@
 #
 # ─────────────────────────────────────────────────────────────────────
 
-from typing import TypedDict, Annotated, Optional
+from typing import Annotated, Optional
+from typing_extensions import TypedDict
 import operator
 
 
@@ -44,6 +45,12 @@ class UserInput(TypedDict):
 
     # [validate_input] 활동 키워드 보강
     final_keywords: Optional[list[str]]
+
+    # TODO: 우선, 도보로 작성
+    # [travel_matrix] 이동수단 + 여행 시간
+    transport_mode: str  # "도보" | "자전거" | "자동차"
+    start_time: str  # "09:00" - default로 작성
+    end_time: str  # "21:00" - default로 작성
 
 
 #  ─── [타입 정의] 장소 ───
@@ -103,9 +110,10 @@ class TravelState(TypedDict):
     scored_candidates: list[ScoredPlace]
     shortlist: list[ScoredPlace]
 
-    # TODO: 앞으로 할 것
-    # 동선
-    distance_matrix: list[list[float]]
+    # [travel_matrix] 이동시간 행렬
+    distance_matrix: list[list[float]] # km 단위 거리
+    time_matrix: list[list[float]]  # 분 단위 이동시간
+    place_index: list[str]  # 인덱스 → place_id 매핑
     route: list[str]
     route_metrics: dict
 
@@ -138,6 +146,8 @@ def make_initial_state(user_input: UserInput) -> TravelState:
         "scored_candidates": [],
         "shortlist": [],
         "distance_matrix": [],
+        "time_matrix": [],
+        "place_index": [],
         "route": [],
         "route_metrics": {},
         "itinerary": [],
