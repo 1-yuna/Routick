@@ -8,7 +8,7 @@
 #   2. LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
 #   3. filtered_candidates에 보강 데이터 머지
 #   4. 점수 계산 → scored_candidates (scoring)
-#   5. 카테고리 quota 분배 → shortlist - 30개 (shortlist)
+#   5. 카테고리 quota 분배 → 30개 축약(shortlist)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.second_filter.search_naver_blogs import search_naver_blogs
