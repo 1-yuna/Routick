@@ -28,6 +28,4 @@ mock_user_input: UserInput = {
     "final_keywords": None,
 
     "transport_mode": "도보",
-    "start_time": "09:00",
-    "end_time": "21:00",
 }
