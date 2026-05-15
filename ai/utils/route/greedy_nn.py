@@ -91,16 +91,25 @@ def greedy_nn(
         if not selectable:
             break
 
-        # 가장 가까운 장소 선택
-        best_time = float("inf")
+        # 가장 가까운 장소 선택 ( 이동시간 + total_score 같이 보기 50:50)
+        best_score = float("inf")
         best_item = None
 
         for item in selectable:
             pid = item["place"]["id"]
             next_idx = id_to_matrix_idx[pid]
-            t = time_matrix[current_idx][next_idx]
-            if t < best_time:
-                best_time = t
+            travel_time = time_matrix[current_idx][next_idx]
+            total_score = item.get("total_score", 0)
+
+            # 정규화 후 합산
+            norm_travel = travel_time / 30  # 이동시간 0~1
+            norm_score = total_score / 90  # 점수 0~1
+
+            # 낮을수록 좋음 (이동 짧고 + 점수 높고)
+            combined = norm_travel * 0.5 - norm_score * 0.5
+
+            if combined < best_score:
+                best_score = combined
                 best_item = item
 
         if best_item is None:
@@ -109,15 +118,22 @@ def greedy_nn(
         # 이동시간 + 체류시간 누적 → 총 여행시간 초과하면 해당 장소 스킵
         next_bucket = best_item["place"].get("bucket", "other")
         next_stay = STAY_MINUTES.get(next_bucket, 60)
-        if used_minutes + best_time + next_stay > total_minutes:
-            # 바로 break 대신 해당 장소 블랙리스트 추가 후 계속 탐색
+        if used_minutes + travel_time + next_stay > total_minutes:
             visited_ids.add(best_item["place"]["id"])
+            # 남은 후보 중 시간 안에 들어오는 게 없으면 종료
+            remaining = total_minutes - used_minutes
+            if all(
+                    STAY_MINUTES.get(item["place"].get("bucket", "other"), 60) > remaining
+                    for item in candidates
+                    if item["place"]["id"] not in visited_ids
+            ):
+                break
             continue
 
         visited.append(best_item)
         visited_ids.add(best_item["place"]["id"])
-        total_travel += best_time
-        used_minutes += best_time + next_stay
+        total_travel += travel_time
+        used_minutes += travel_time + next_stay
         current_idx = id_to_matrix_idx[best_item["place"]["id"]]
 
     return visited, total_travel
