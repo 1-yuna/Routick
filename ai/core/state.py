@@ -119,6 +119,8 @@ class TravelState(TypedDict):
 
     # 체크
     excluded_ids: list[str]  # 제거된 place_id 누적
+    constraint_retry_count: int # 몇번 실패했는지
+    violations: list[dict] # 어떤 규칙 위반
 
     # TODO: 앞으로 할 것
     # 출력
@@ -154,6 +156,8 @@ def make_initial_state(user_input: UserInput) -> TravelState:
         "route": [],
         "route_metrics": {},
         "excluded_ids": [],
+        "constraint_retry_count": 0,
+        "violations": [],
         "itinerary": [],
         "rationale": "",
         "errors": [],

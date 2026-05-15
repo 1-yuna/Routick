@@ -7,12 +7,15 @@
 #   1. 이동시간 체크 (30분 초과 구간)
 #   2. 카테고리 구성 체크 (food 개수 / food 연속 / place_tags 중복)
 #   3. 인원 체크 (1인인데 단체 장소)
-#   4. 통과 → generate_response
+#   4. 경로 교차 체크 (X자 동선)
+#   5. 연속 같은 bucket 체크 (3회 이상)
+#   6. 통과 → generate_response
 #      실패 → 문제 장소 excluded_ids 추가 → plan_itinerary로 back
-#             shortlist 소진 시 → second_filter_candidates로 back
+#             retry 5회 초과 or shortlist 소진 → second_filter_candidates로 back
 # ─────────────────────────────────────────────────────────────────────
 
 from constants.scoring import PARTY_SIZE_PENALTY
+from utils.route.route_check import check_route_intersections, check_consecutive_bucket
 
 
 # ─── [노드] 규칙 위반 체크 ───
@@ -21,10 +24,10 @@ def constraint_check(state: dict) -> dict:
     shortlist = state["shortlist"]
     party_size = state["user_input"].get("party_size", 1)
     excluded_ids = list(state.get("excluded_ids", []))
-    retry_count = state.get("retry_count", 0)
+    constraint_retry_count = state.get("constraint_retry_count", 0)
 
-    violations = []  # 실패 이유 목록
-    problem_ids = [] # 문제 장소 place_id 목록
+    violations = []
+    problem_ids = []
 
     # ─── 1. 이동시간 체크 ───
     for item in itinerary:
@@ -37,7 +40,6 @@ def constraint_check(state: dict) -> dict:
             problem_ids.append(item["place"]["id"])
 
     # ─── 2. 카테고리 구성 체크 ───
-    # food 1개 이상 있는가
     food_count = sum(1 for item in itinerary if item["place"].get("bucket") == "food")
     if food_count == 0:
         violations.append({
@@ -46,7 +48,6 @@ def constraint_check(state: dict) -> dict:
             "detail": "식사 장소가 없음"
         })
 
-    # food → food 연속 체크 + place_tags 중복 체크
     for i in range(len(itinerary) - 1):
         curr = itinerary[i]["place"]
         next_ = itinerary[i + 1]["place"]
@@ -65,9 +66,8 @@ def constraint_check(state: dict) -> dict:
         next_tags = set(next_.get("place_tags", []))
         overlap = curr_tags & next_tags
         if overlap:
-            # 점수 낮은 장소를 제거 대상으로
-            curr_score = next((i["total_score"] for i in shortlist if i["place"]["id"] == curr["id"]), 0)
-            next_score = next((i["total_score"] for i in shortlist if i["place"]["id"] == next_["id"]), 0)
+            curr_score = next((s["total_score"] for s in shortlist if s["place"]["id"] == curr["id"]), 0)
+            next_score = next((s["total_score"] for s in shortlist if s["place"]["id"] == next_["id"]), 0)
             remove_id = curr["id"] if curr_score < next_score else next_["id"]
             remove_name = curr["name"] if curr_score < next_score else next_["name"]
             violations.append({
@@ -92,42 +92,47 @@ def constraint_check(state: dict) -> dict:
                 })
                 problem_ids.append(place["id"])
 
+    # ─── 4. 경로 교차 체크 ───
+    violations.extend(check_route_intersections(itinerary))
+
+    # ─── 5. 연속 같은 bucket 체크 ───
+    violations.extend(check_consecutive_bucket(itinerary))
+
     # ─── 결과 판단 ───
     if not violations:
         return {
             "violations": [],
             "excluded_ids": excluded_ids,
-            "retry_count": retry_count,
+            "constraint_retry_count": constraint_retry_count,
             "next_node": "generate_response",
             "step": "constraint_passed",
         }
 
-    # 문제 place_id 중복 제거
+    # 문제 place_id 누적
     problem_ids = list(set(problem_ids))
     excluded_ids.extend(problem_ids)
     excluded_ids = list(set(excluded_ids))
 
-    # shortlist에서 excluded_ids 제외하고 남은 장소 확인
+    # shortlist에서 남은 장소 확인
     remaining = [
         item for item in shortlist
         if item["place"]["id"] not in excluded_ids
     ]
 
-    if remaining:
-        # shortlist에 교체할 장소 있음 → plan_itinerary로 back
+    # retry 5회 초과 or shortlist 소진 → second_filter로 back
+    if not remaining or constraint_retry_count >= 5:
         return {
             "violations": violations,
             "excluded_ids": excluded_ids,
-            "retry_count": retry_count + 1,
-            "next_node": "plan_itinerary",
-            "step": "constraint_failed",
-        }
-    else:
-        # shortlist 소진 → second_filter_candidates로 back
-        return {
-            "violations": violations,
-            "excluded_ids": excluded_ids,
-            "retry_count": 0,  # retry_count 초기화
+            "constraint_retry_count": 0,
             "next_node": "second_filter_candidates",
             "step": "constraint_exhausted",
         }
+
+    return {
+        "violations": violations,
+        "excluded_ids": excluded_ids,
+        "constraint_retry_count": constraint_retry_count + 1,
+        "next_node": "plan_itinerary",
+        "step": "constraint_failed",
+    }
