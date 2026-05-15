@@ -45,8 +45,13 @@ def plan_itinerary(state: dict) -> dict:
         if not lodging_item:
             warnings.append("lodging 후보 없음 → 숙박 슬롯 스킵")
 
-    # lodging 제외한 candidates (food 포함 → Greedy NN 내부에서 슬롯 제약 처리)
-    candidates = [i for i in shortlist if i["place"].get("bucket") != "lodging"]
+    # # lodging 제외 + excluded_ids 제외 (food 포함 → Greedy NN 내부에서 슬롯 제약 처리)
+    excluded_ids = state.get("excluded_ids", [])
+    candidates = [
+        i for i in shortlist
+        if i["place"].get("bucket") != "lodging"
+           and i["place"]["id"] not in excluded_ids
+    ]
 
     # 총 여행시간 계산
     start_dt = to_dt(DEFAULT_START_TIME)

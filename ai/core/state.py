@@ -117,6 +117,9 @@ class TravelState(TypedDict):
     route: list[str]
     route_metrics: dict
 
+    # 체크
+    excluded_ids: list[str]  # 제거된 place_id 누적
+
     # TODO: 앞으로 할 것
     # 출력
     itinerary: list[ItineraryItem]
@@ -150,6 +153,7 @@ def make_initial_state(user_input: UserInput) -> TravelState:
         "place_index": [],
         "route": [],
         "route_metrics": {},
+        "excluded_ids": [],
         "itinerary": [],
         "rationale": "",
         "errors": [],
