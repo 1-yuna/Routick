@@ -10,7 +10,7 @@ export default function LoginPage() {
     const navigate = useNavigate();
 
     return (
-        <div className="h-screen flex flex-col items-center px-12 pt-24 pb-20 bg-background">
+        <div className="h-screen flex flex-col items-center px-8 pt-32 bg-background">
             <Logo />
             <LoginForm />
             <LoginButtons

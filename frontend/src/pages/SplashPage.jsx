@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {useNavigate} from "react-router-dom";
 
-import main from "../assets/main.png";
+import main from "../assets/images/main.png";
 
 // 처음 시작 페이지
 export default function SplashPage() {

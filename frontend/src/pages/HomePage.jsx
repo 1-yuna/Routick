@@ -4,8 +4,8 @@ import TopBarLogo from "../common/TopBarLogo.jsx";
 import BottomBar from "../common/BottomBar.jsx";
 import TopCardSection from "../components/home/TopCardSection.jsx";
 import HomeBannerCard from "../components/home/HomeBannerCard.jsx";
-import home from "../assets/home.png";
-import sample from "../assets/sample.png";
+import home from "../assets/images/home.png";
+import sample from "../assets/images/sample.png";
 
 export default function HomePage() {
     const navigate = useNavigate();
