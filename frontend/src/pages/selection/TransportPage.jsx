@@ -1,15 +1,33 @@
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
+import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
+import useSelectionStore from '../../store/selectionStore.jsx';
+import { useNavigate } from 'react-router-dom';
 
-// 선택1 - 주소 찾기
+// 선택6 - 이동 수단
 export default function TransportPage() {
+  const navigate = useNavigate();
+  const transport = useSelectionStore((state) => state.transport);
+  const setTransport = useSelectionStore((state) => state.setTransport);
+
+  const TRANSPORT_OPTIONS = [
+    { label: '도보', value: 'walk' },
+    { label: '자동차', value: 'car' },
+  ];
+
   return (
     <SelectionLayout
-      step={1}
-      url="/home"
-      icon="✈️"
-      text1="가고자 하는 여행"
-      text2="주소를 검색해주세요"
-      onNext={() => console.log('next')}
-    ></SelectionLayout>
+      step={7}
+      icon="🚘"
+      text1="이동 수단이"
+      text2="어떻게 되세요?"
+      onNext={() => navigate('/select/dislike')}
+      disabled={!transport}
+    >
+      <SelectionGrid
+        items={TRANSPORT_OPTIONS}
+        selected={transport}
+        onSelect={setTransport}
+      />
+    </SelectionLayout>
   );
 }

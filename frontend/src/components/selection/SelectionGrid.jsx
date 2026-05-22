@@ -10,7 +10,13 @@ export default function SelectionGrid({ items, selected, onSelect }) {
         return (
           <button
             key={item.value}
-            onClick={() => onSelect(item.value)}
+            onClick={() => {
+              if (Array.isArray(selected)) {
+                onSelect(item.value);
+              } else {
+                onSelect(selected === item.value ? '' : item.value);
+              }
+            }}
             className={`h-16 rounded-[10px] text-14-sb transition-colors
               ${
                 isSelected
