@@ -13,6 +13,7 @@ export default function SelectionLayout({
   text2,
   children,
   onNext,
+  disabled,
 }) {
   const navigate = useNavigate();
 
@@ -34,8 +35,10 @@ export default function SelectionLayout({
 
       <FullWidthButton
         text="다음"
-        className="bg-primary mt-auto"
-        onClick={onNext}
+        className={
+          disabled ? 'bg-primaryOpacity mt-auto' : 'bg-primary mt-auto'
+        }
+        onClick={disabled ? undefined : onNext}
       />
     </div>
   );

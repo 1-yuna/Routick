@@ -15,7 +15,8 @@ export default function AddressPage() {
       icon="✈️"
       text1="가고자 하는 여행"
       text2="주소를 검색해주세요"
-      onNext={() => console.log('next')}
+      onNext={() => navigate('/select/period')}
+      disabled={!address.name}
     >
       <SelectionInput
         placeholder="장소, 주소 검색"
