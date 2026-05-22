@@ -4,7 +4,7 @@ import PromptText from '../../common/text/PromptText.jsx';
 import FullWidthButton from '../../common/button/FullWidthButton.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
 
-// CourseStepLayout.jsx
+// 선택 페이지 공통 레이아웃
 export default function SelectionLayout({
   step,
   url,

@@ -1,15 +1,36 @@
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
+import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
+import useSelectionStore from '../../store/selectionStore.jsx';
+import { useNavigate } from 'react-router-dom';
 
-// 선택1 - 주소 찾기
+// 선택2 - 여행 기간
 export default function TravelPeriodPage() {
+  const navigate = useNavigate();
+  const period = useSelectionStore((state) => state.period);
+  const setPeriod = useSelectionStore((state) => state.setPeriod);
+
+  const PERIOD_OPTIONS = [
+    { label: '당일치기', value: 'day' },
+    { label: '1박 2일', value: '1n2d' },
+    { label: '2박 3일', value: '2n3d' },
+    { label: '3박 4일', value: '3n4d' },
+  ];
+
   return (
     <SelectionLayout
-      step={1}
-      url="/home"
-      icon="✈️"
-      text1="가고자 하는 여행"
-      text2="주소를 검색해주세요"
-      onNext={() => console.log('next')}
-    ></SelectionLayout>
+      step={2}
+      url="/select/address"
+      icon="🗓"
+      text1="여행 기간이"
+      text2="어떻게 되세요?"
+      onNext={() => navigate('/select/companion')}
+      disabled={!period}
+    >
+      <SelectionGrid
+        items={PERIOD_OPTIONS}
+        selected={period}
+        onSelect={setPeriod}
+      />
+    </SelectionLayout>
   );
 }
