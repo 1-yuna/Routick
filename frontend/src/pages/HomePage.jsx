@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 
-import BottomBar from '../common/BottomBar.jsx';
+import BottomBar from '../common/bar/BottomBar.jsx';
 import TopCardSection from '../components/home/TopCardSection.jsx';
 import CourseBanner from '../components/home/CourseBanner.jsx';
 import home from '../assets/images/home.png';
@@ -48,7 +48,7 @@ export default function HomePage() {
 
         {/*놀거리*/}
         <PlaySection
-          className="px-6 pt-5 pb-6"
+          className="px-6 pt-5 pb-12"
           onClick={() => console.log('놀거리')}
         />
       </div>
