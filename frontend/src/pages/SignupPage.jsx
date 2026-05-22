@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 
-import TopBarButton from '../common/TopBarButton';
+import TopBar from '../common/bar/TopBar.jsx';
 import FullWidthButton from '../common/button/FullWidthButton.jsx';
 
 import SignupHeader from '../components/signup/SignupHeader.jsx';
@@ -32,9 +32,9 @@ export default function SignUpPage() {
   return (
     <div className="px-6 py-12 h-screen flex flex-col bg-login">
       {/*상단 바*/}
-      <TopBarButton className="bg-login" onClick={() => navigate(-1)}>
+      <TopBar className="bg-login" onClick={() => navigate(-1)}>
         <LeftIcon className="w-5 h-10 text-primary" />
-      </TopBarButton>
+      </TopBar>
 
       <div className="flex flex-col gap-8 pt-8">
         {/* 헤더 */}
