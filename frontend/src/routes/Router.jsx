@@ -5,6 +5,13 @@ import SignupPage from '../pages/login/SignupPage.jsx';
 import HomePage from '../pages/home/HomePage.jsx';
 import AddressPage from '../pages/selection/AddressPage.jsx';
 import AddressSearchPage from '../pages/selection/AddressSearchPage.jsx';
+import TravelPeriodPage from '../pages/selection/TravelPeriodPage.jsx';
+import CompanionPage from '../pages/selection/CompanionPage.jsx';
+import AgeGroupPage from '../pages/selection/AgeGroupPage.jsx';
+import MoodPage from '../pages/selection/MoodPage.jsx';
+import ActivityPage from '../pages/selection/ActivityPage.jsx';
+import TransportPage from '../pages/selection/TransportPage.jsx';
+import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import MapResultPage from '../pages/MapResultPage.jsx';
 
 import MyPage from '../pages/MyPage.jsx';
@@ -22,6 +29,13 @@ export default function Router() {
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/select/address" element={<AddressPage />} />
         <Route path="/select/address/search" element={<AddressSearchPage />} />
+        <Route path="/select/period" element={<TravelPeriodPage />} />
+        <Route path="/select/companion" element={<CompanionPage />} />
+        <Route path="/select/age" element={<AgeGroupPage />} />
+        <Route path="/select/mood" element={<MoodPage />} />
+        <Route path="/select/activity" element={<ActivityPage />} />
+        <Route path="/select/transport" element={<TransportPage />} />
+        <Route path="/select/dislike" element={<DislikeActivityPage />} />
 
         <Route path="/map" element={<MapResultPage />} />
       </Routes>
