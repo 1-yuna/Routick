@@ -8,10 +8,12 @@ import sample from '../../assets/images/sample.png';
 import logo from '../../assets/images/logo.png';
 import TopBar from '../../common/bar/TopBar.jsx';
 import PlaySection from '../../components/home/PlaySection.jsx';
+import useCourseStore from '../../store/selectionStore.jsx';
 
 // 홈 페이지
 export default function HomePage() {
   const navigate = useNavigate();
+  const reset = useCourseStore((state) => state.reset);
 
   return (
     <div className="pt-12 pb-32 flex flex-col h-screen bg-default">
@@ -29,7 +31,10 @@ export default function HomePage() {
           name="윤아"
           image={home}
           className="px-6 pt-8 "
-          onClick={() => navigate('/course/address')}
+          onClick={() => {
+            reset();
+            navigate('/course/address');
+          }}
         />
 
         {/*Top5*/}

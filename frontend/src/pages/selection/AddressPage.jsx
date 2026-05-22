@@ -1,14 +1,12 @@
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SelectionInput from '../../common/input/SelectionInput.jsx';
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
+import useSelectionStore from '../../store/selectionStore.jsx';
 
 // 선택1 - 주소 찾기
 export default function AddressPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  console.log('location.state:', location.state);
-  const [address, setAddress] = useState(location.state?.address || '');
+  const address = useSelectionStore((state) => state.address);
 
   return (
     <SelectionLayout
@@ -21,7 +19,7 @@ export default function AddressPage() {
     >
       <SelectionInput
         placeholder="장소, 주소 검색"
-        value={address}
+        value={address.name}
         onClick={() =>
           navigate('/course/address/search', { state: { address } })
         }
