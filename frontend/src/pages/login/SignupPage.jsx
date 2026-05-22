@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 
-import TopBar from '../common/bar/TopBar.jsx';
-import FullWidthButton from '../common/button/FullWidthButton.jsx';
-import SignupHeader from '../components/signup/SignupHeader.jsx';
-import AccountInfoSection from '../components/signup/AccountInfoSection.jsx';
-import PasswordSection from '../components/signup/PasswordSection.jsx';
+import TopBar from '../../common/bar/TopBar.jsx';
+import FullWidthButton from '../../common/button/FullWidthButton.jsx';
+import SignupHeader from '../../components/signup/SignupHeader.jsx';
+import AccountInfoSection from '../../components/signup/AccountInfoSection.jsx';
+import PasswordSection from '../../components/signup/PasswordSection.jsx';
 
-import LeftIcon from '../assets/icons/left.svg?react';
-import useSignup from '../hooks/useSignup.jsx';
+import LeftIcon from '../../assets/icons/left.svg?react';
+import useSignup from '../../hooks/useSignup.jsx';
 
 // 회원가입 페이지
 export default function SignUpPage() {

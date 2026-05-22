@@ -1,20 +1,20 @@
 import { useNavigate } from 'react-router-dom';
 
-import BottomBar from '../common/bar/BottomBar.jsx';
-import TopCardSection from '../components/home/TopCardSection.jsx';
-import CourseBanner from '../components/home/CourseBanner.jsx';
-import home from '../assets/images/home.png';
-import sample from '../assets/images/sample.png';
-import logo from '../assets/images/logo.png';
-import TopBar from '../common/bar/TopBar.jsx';
-import PlaySection from '../components/home/PlaySection.jsx';
+import BottomBar from '../../common/bar/BottomBar.jsx';
+import TopCardSection from '../../components/home/TopCardSection.jsx';
+import CourseBanner from '../../components/home/CourseBanner.jsx';
+import home from '../../assets/images/home.png';
+import sample from '../../assets/images/sample.png';
+import logo from '../../assets/images/logo.png';
+import TopBar from '../../common/bar/TopBar.jsx';
+import PlaySection from '../../components/home/PlaySection.jsx';
 
 // 홈 페이지
 export default function HomePage() {
   const navigate = useNavigate();
 
   return (
-    <div className="py-12 pb-32 flex flex-col h-screen bg-default">
+    <div className="pt-12 pb-32 flex flex-col h-screen bg-default">
       {/*상단 바*/}
       <TopBar
         className="px-6 bg-white border-b border-line1"

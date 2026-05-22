@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 
-import Logo from '../components/login/Logo';
-import LoginForm from '../components/login/LoginForm';
-import OAuthLoginGroup from '../components/login/OAuthLoginGroup';
+import Logo from '../../components/login/Logo.jsx';
+import LoginForm from '../../components/login/LoginForm.jsx';
+import OAuthLoginGroup from '../../components/login/OAuthLoginGroup.jsx';
 
 // 로그인 페이지
 export default function LoginPage() {

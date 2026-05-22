@@ -7,6 +7,7 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 // CourseStepLayout.jsx
 export default function SelectionLayout({
   step,
+  url,
   icon,
   text1,
   text2,
@@ -20,7 +21,7 @@ export default function SelectionLayout({
       <TopBar
         className="text-primary text-16-sb"
         text={`${step}/8`}
-        onClick={() => navigate(-1)}
+        onClick={() => (url ? navigate(url) : navigate(-1))}
       >
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
