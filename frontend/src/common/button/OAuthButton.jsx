@@ -1,3 +1,4 @@
+// 소셜 로그인 버튼 1개
 export default function OAuthButton({ icon, onClick, alt = 'social login' }) {
   return (
     <button

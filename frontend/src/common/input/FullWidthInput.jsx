@@ -1,7 +1,7 @@
 // 입력창
 export default function FullWidthInput({ placeholder, type, value, onChange }) {
   return (
-    <div className="flex items-center px-4 h-16 w-full bg-white border border-line1">
+    <div className="flex items-center px-4 h-14 w-full bg-white border border-line1">
       <input
         type={type}
         placeholder={placeholder}

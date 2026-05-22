@@ -9,12 +9,15 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="h-screen flex flex-col gap-16 items-center px-8 py-32 bg-login">
-      <Logo className="w-36 h-16" />
+    <div className="px-6 py-16 h-screen flex flex-col gap-16 items-center bg-login">
+      {/*로고*/}
+      <Logo className="w-36 h-16 mt-14" />
+      {/*입력 폼*/}
       <LoginForm
         onLogin={() => console.log('login')}
         onSignup={() => navigate('/signup')}
       />
+      {/*소셜 로그인*/}
       <OAuthLoginGroup />
     </div>
   );

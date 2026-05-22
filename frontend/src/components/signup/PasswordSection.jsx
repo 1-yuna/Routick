@@ -1,5 +1,6 @@
 import FullWidthInput from '../../common/input/FullWidthInput.jsx';
 
+// 비밀번호 정보 폼
 export default function PasswordSection({
   password,
   passwordCheck,
@@ -8,26 +9,27 @@ export default function PasswordSection({
   error,
 }) {
   return (
-    <>
-      {/* Password */}
-      <div className="flex flex-col pt-8 mb-4 justify-between h-44">
-        <FullWidthInput
-          placeholder="비밀번호"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+    <div className="flex flex-col gap-3">
+      {/* 비밀번호 */}
+      <FullWidthInput
+        placeholder="비밀번호"
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
+      {/* 비밀번호 확인*/}
+      <div className="flex flex-col gap-2">
         <FullWidthInput
           placeholder="비밀번호 확인"
           type="password"
           value={passwordCheck}
           onChange={(e) => setPasswordCheck(e.target.value)}
         />
-      </div>
 
-      {/* Error */}
-      {error && <div className="text-sm text-red-500 mb-2">{error}</div>}
-    </>
+        {/* Error */}
+        {error && <div className="text-14-rg pl-2 text-error">{error}</div>}
+      </div>
+    </div>
   );
 }

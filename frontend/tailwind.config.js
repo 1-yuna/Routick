@@ -24,6 +24,8 @@ export default {
         lodging: '#229EBC',
         label: '#F25637',
         button: '#F1F1F1',
+        correct: '#2D9E5F',
+        error: '#E04444',
 
         login: '#F9FAFF',
         default: '#FDFDFF',
