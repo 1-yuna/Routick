@@ -3,6 +3,7 @@ export default {
   theme: {
     extend: {
       fontSize: {
+        '36-sb': ['36px', { lineHeight: '36px', fontWeight: '600' }],
         '24-sb': ['24px', { lineHeight: '32px', fontWeight: '600' }],
 
         '16-sb': ['16px', { lineHeight: '24px', fontWeight: '600' }],
