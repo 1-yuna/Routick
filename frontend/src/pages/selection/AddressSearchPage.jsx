@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import SelectionInput from '../../common/input/SelectionInput.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import CloseIcon from '../../assets/icons/close.svg?react';
 import MapIcon from '../../assets/icons/map.svg?react';
-import { useNavigate } from 'react-router-dom';
-import SelectionInput from '../../common/input/SelectionInput.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
 
 const KAKAO_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY;
@@ -33,7 +33,7 @@ export default function AddressSearchPage() {
 
   const handlePlaceSelect = ({ place_name, x, y }) => {
     setAddress({ name: place_name, x, y });
-    navigate('/course/address');
+    navigate('/select/address');
   };
 
   return (

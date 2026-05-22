@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import BottomBar from '../../common/bar/BottomBar.jsx';
 import TopCardSection from '../../components/home/TopCardSection.jsx';
 import CourseBanner from '../../components/home/CourseBanner.jsx';
+import TopBar from '../../common/bar/TopBar.jsx';
+import PlaySection from '../../components/home/PlaySection.jsx';
 import home from '../../assets/images/home.png';
 import sample from '../../assets/images/sample.png';
 import logo from '../../assets/images/logo.png';
-import TopBar from '../../common/bar/TopBar.jsx';
-import PlaySection from '../../components/home/PlaySection.jsx';
 import useCourseStore from '../../store/selectionStore.jsx';
 
 // 홈 페이지
@@ -33,7 +33,7 @@ export default function HomePage() {
           className="px-6 pt-8 "
           onClick={() => {
             reset();
-            navigate('/course/address');
+            navigate('/select/address');
           }}
         />
 

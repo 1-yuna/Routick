@@ -21,7 +21,7 @@ export default function AddressPage() {
         placeholder="장소, 주소 검색"
         value={address.name}
         onClick={() =>
-          navigate('/course/address/search', { state: { address } })
+          navigate('/select/address/search', { state: { address } })
         }
       />
     </SelectionLayout>
