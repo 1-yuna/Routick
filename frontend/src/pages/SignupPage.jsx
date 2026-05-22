@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 
 import TopBar from '../common/bar/TopBar.jsx';
 import FullWidthButton from '../common/button/FullWidthButton.jsx';
-
 import SignupHeader from '../components/signup/SignupHeader.jsx';
 import AccountInfoSection from '../components/signup/AccountInfoSection.jsx';
 import PasswordSection from '../components/signup/PasswordSection.jsx';

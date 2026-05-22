@@ -1,7 +1,4 @@
-// import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-// import { faAngleLeft } from '@fortawesome/free-solid-svg-icons';
-
-// top-bar + 이전버튼
+// top-bar
 export default function TopBar({ onClick, children, className = '' }) {
   return (
     <div className={`sticky top-0 w-full h-14 flex items-center ${className}`}>
