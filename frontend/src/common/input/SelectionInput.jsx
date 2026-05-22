@@ -6,6 +6,7 @@ export default function SelectionInput({
   onClick,
   leftIcon,
   rightIcon,
+  onKeyDown,
 }) {
   return (
     <div
@@ -19,6 +20,7 @@ export default function SelectionInput({
         value={value}
         readOnly={!!onClick}
         onChange={onClick ? undefined : onChange}
+        onKeyDown={onKeyDown}
         className="w-full text-14-rg text-black1 outline-none placeholder:text-gray1 placeholder:text-14-sb"
       />
       {rightIcon && <div className="ml-2 flex-shrink-0">{rightIcon}</div>}

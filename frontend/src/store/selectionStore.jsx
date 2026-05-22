@@ -9,6 +9,7 @@ const useSelectionStore = create((set) => ({
   mood: [],
   activity: [],
   transport: '',
+  dislike: [],
 
   setAddress: (data) => set({ address: data }),
   setPeriod: (data) => set({ period: data }),
@@ -27,6 +28,7 @@ const useSelectionStore = create((set) => ({
         : [...state.activity, value],
     })),
   setTransport: (data) => set({ transport: data }),
+  setDislike: (data) => set({ dislike: data }),
 
   reset: () =>
     set({
@@ -37,6 +39,7 @@ const useSelectionStore = create((set) => ({
       mood: [],
       activity: [],
       transport: '',
+      dislike: [],
     }),
 }));
 
