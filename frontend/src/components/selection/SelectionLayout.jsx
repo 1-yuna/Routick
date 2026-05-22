@@ -14,6 +14,7 @@ export default function SelectionLayout({
   children,
   onNext,
   disabled,
+  subText,
 }) {
   const navigate = useNavigate();
 
@@ -28,8 +29,7 @@ export default function SelectionLayout({
       </TopBar>
 
       <div className="flex flex-col w-full gap-11">
-        <PromptText icon={icon} text1={text1} text2={text2} />
-
+        <PromptText icon={icon} text1={text1} text2={text2} subText={subText} />
         {children}
       </div>
 
