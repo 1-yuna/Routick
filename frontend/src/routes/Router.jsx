@@ -13,6 +13,7 @@ import ActivityPage from '../pages/selection/ActivityPage.jsx';
 import TransportPage from '../pages/selection/TransportPage.jsx';
 import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import MapResultPage from '../pages/MapResultPage.jsx';
+import PlaceDetailPage from '../pages/place/PlaceDetailPage.jsx';
 
 import MyPage from '../pages/MyPage.jsx';
 import MyTripPage from '../pages/MyTripPage.jsx';
@@ -36,6 +37,7 @@ export default function Router() {
         <Route path="/select/activity" element={<ActivityPage />} />
         <Route path="/select/transport" element={<TransportPage />} />
         <Route path="/select/dislike" element={<DislikeActivityPage />} />
+        <Route path="/place/:id" element={<PlaceDetailPage />} />
 
         <Route path="/map" element={<MapResultPage />} />
       </Routes>

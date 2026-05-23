@@ -48,7 +48,7 @@ export default function HomePage() {
             { image: sample, tags: ['홍대', '데이트 코스'] },
             { image: sample, tags: ['홍대', '데이트 코스'] },
           ]}
-          onClick={() => console.log('보러갑시다')}
+          onClick={() => navigate('/place/1')}
         />
 
         {/*놀거리*/}
