@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import PlaceCard from '../../components/place/PlaceCard.jsx';
 import { useState } from 'react';
 import SampleImage from '../../assets/images/mock/sample.png';
+import MapTopBar from '../../common/bar/MapTopBar.jsx';
 
 const mockPlace = {
   id: 1,
@@ -24,11 +25,9 @@ export default function PlaceDetailPage() {
   const [place, setPlace] = useState(mockPlace);
 
   return (
-    <div className="py-12 relative w-full h-screen">
+    <div className="relative w-full h-screen">
       {/*상단 바*/}
-      <TopBar className="px-6 bg-white" onClick={() => navigate(-1)}>
-        <LeftIcon className="w-5 h-10 text-primary" />
-      </TopBar>
+      <MapTopBar onClick={() => navigate(-1)} />
 
       {/*지도*/}
       <KakaoMap lat={place.lat} lng={place.lng} />
