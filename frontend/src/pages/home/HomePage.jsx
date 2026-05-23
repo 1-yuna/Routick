@@ -6,7 +6,7 @@ import CourseBanner from '../../components/home/CourseBanner.jsx';
 import TopBar from '../../common/bar/TopBar.jsx';
 import PlaySection from '../../components/home/PlaySection.jsx';
 import home from '../../assets/images/home.png';
-import sample from '../../assets/images/sample.png';
+import sample from '../../assets/images/mock/sample.png';
 import logo from '../../assets/images/logo.png';
 import useCourseStore from '../../store/selectionStore.jsx';
 

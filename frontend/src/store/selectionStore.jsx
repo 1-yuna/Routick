@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 
 const useSelectionStore = create((set) => ({
-  address: { name: '', x: '', y: '' },
+  address: { name: '', x: '', y: '', placeId: '' },
   period: '',
   companion: '',
   age: '',
@@ -32,7 +32,7 @@ const useSelectionStore = create((set) => ({
 
   reset: () =>
     set({
-      address: { name: '', x: '', y: '' },
+      address: { name: '', x: '', y: '', placeId: '' },
       period: '',
       companion: '',
       age: '',

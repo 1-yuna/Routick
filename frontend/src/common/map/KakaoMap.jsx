@@ -1,11 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-export default function KakaoMap() {
+export default function KakaoMap({ lat, lng }) {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    console.log('kakao check:', window.kakao);
-
     if (!window.kakao || !window.kakao.maps) {
       console.error('kakao not loaded');
       return;
@@ -14,10 +12,10 @@ export default function KakaoMap() {
     window.kakao.maps.load(() => {
       const container = mapRef.current;
 
-      const markerPosition = new window.kakao.maps.LatLng(37.5665, 126.978);
+      const markerPosition = new window.kakao.maps.LatLng(lat, lng);
 
       const options = {
-        center: new window.kakao.maps.LatLng(37.5655, 126.978), // 중심점을 마커보다 아래로
+        center: new window.kakao.maps.LatLng(lat - 0.001, lng),
         level: 3,
       };
 
@@ -29,7 +27,7 @@ export default function KakaoMap() {
 
       marker.setMap(map);
     });
-  }, []);
+  }, [lat, lng]);
 
   return <div ref={mapRef} className="absolute w-full h-full z-0" />;
 }

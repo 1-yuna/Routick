@@ -31,8 +31,8 @@ export default function AddressSearchPage() {
     setResults(value.length >= 2 ? await searchPlaces(value) : []);
   };
 
-  const handlePlaceSelect = ({ place_name, x, y }) => {
-    setAddress({ name: place_name, x, y });
+  const handlePlaceSelect = ({ place_name, x, y, id }) => {
+    setAddress({ name: place_name, x, y, placeId: id });
     navigate('/select/address');
   };
 

@@ -1,14 +1,10 @@
 import StarIcon from '../../assets/icons/star.svg?react';
-import PlaceImageDefault from '../../common/default/PlaceImageDefault.jsx';
+import PlaceImageDefault from '../../common/imageDefault/PlaceImageDefault.jsx';
 
 // 상세보기 - 하단 카드
-export default function PlaceCard({
-  name,
-  rating,
-  reviewCount,
-  description,
-  src,
-}) {
+export default function PlaceCard({ place }) {
+  const { name, rating, reviewCount, description, src, placeId } = place;
+
   return (
     <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 bg-white rounded-[10px] p-5 w-[327px] h-[148px] shadow-[2px_2px_10px_5px_rgba(0,0,0,0.1)]">
       <div className="flex gap-4">
@@ -33,7 +29,12 @@ export default function PlaceCard({
             </div>
           </div>
           <p className="w-36 text-10-rg text-gray2">{description}</p>
-          <button className="grid place-items-center w-24 h-6 bg-primary rounded-[2px] text-white text-12-rg">
+          <button
+            onClick={() =>
+              window.open(`https://place.map.kakao.com/${placeId}`, '_blank')
+            }
+            className="grid place-items-center w-24 h-6 bg-primary rounded-[2px] text-white text-12-rg"
+          >
             바로가기
           </button>
         </div>
