@@ -54,7 +54,9 @@ export default function HomePage() {
         {/*놀거리*/}
         <PlaySection
           className="px-6 pt-5 pb-12"
-          onClick={() => console.log('놀거리')}
+          onHotplace={() => navigate('/playlist?type=hotplace')}
+          onExhibition={() => navigate('/playlist?type=exhibition')}
+          onNature={() => navigate('/playlist?type=nature')}
         />
       </div>
 
