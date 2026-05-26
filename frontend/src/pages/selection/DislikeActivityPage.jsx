@@ -42,7 +42,7 @@ export default function DislikeActivityPage() {
       text1="피하고 싶은"
       text2="활동이 있으신가요?"
       buttonText={dislike.length > 0 ? '다음' : '건너뛰기'}
-      onNext={() => navigate('/home')}
+      onNext={() => navigate('/loading')}
     >
       <div className="flex flex-col gap-3">
         <SelectionInput
