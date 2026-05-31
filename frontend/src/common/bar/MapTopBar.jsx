@@ -12,7 +12,7 @@ export default function MapTopBar({
 
   return (
     <div
-      className={`z-10 px-6 mt-12 absolute top-0 w-full h-18 flex items-center ${className}`}
+      className={`z-10 px-6 mt-12 absolute top-0 w-full flex items-center ${className}`}
     >
       <div className="w-1/3 flex items-center justify-start">
         <button

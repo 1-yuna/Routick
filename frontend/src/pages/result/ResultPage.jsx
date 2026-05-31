@@ -16,6 +16,7 @@ const mockCourse = [
     places: [
       {
         id: 1,
+        category: 'food',
         time: '09:00',
         endTime: '10:00',
         name: '타코잇 상수역점',
@@ -30,33 +31,33 @@ const mockCourse = [
       },
       {
         id: 2,
-        category: 'food',
-        time: '20:00',
-        endTime: '21:00',
-        name: '타코잇 상수역점',
-        rating: 4.6,
-        reviewCount: 1243,
-        description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
+        category: 'lodging',
+        time: '11:00',
+        endTime: '13:00',
+        name: '스타벅스 합정점',
+        rating: 4.2,
+        reviewCount: 832,
+        description: '한강뷰가 보이는 분위기 좋은 카페',
         src: SampleImage,
-        transport: '자동차',
+        transport: '도보',
         transportTime: '15분',
-        lat: 37.5574,
-        lng: 126.9248,
+        lat: 37.5497,
+        lng: 126.9143,
       },
       {
         id: 3,
-        category: 'lodging',
-        time: '20:00',
-        endTime: '21:00',
-        name: '타코잇 상수역점',
-        rating: 4.6,
-        reviewCount: 1243,
-        description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
+        category: 'food',
+        time: '14:00',
+        endTime: '16:00',
+        name: '홍대 놀이터',
+        rating: 4.0,
+        reviewCount: 512,
+        description: '홍대 특유의 젊고 활기찬 분위기',
         src: SampleImage,
         transport: '자동차',
-        transportTime: '15분',
-        lat: 37.5574,
-        lng: 126.9248,
+        transportTime: '10분',
+        lat: 37.5564,
+        lng: 126.9238,
       },
     ],
   },
@@ -65,45 +66,48 @@ const mockCourse = [
     places: [
       {
         id: 1,
+        category: 'food',
         time: '09:00',
         endTime: '10:00',
-        name: '타코잇 상수역점',
-        rating: 4.6,
-        reviewCount: 1243,
-        description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
+        name: '연남동 카페거리',
+        rating: 4.5,
+        reviewCount: 1023,
+        description: '감성적인 카페들이 모여있는 거리',
         src: SampleImage,
         transport: '도보',
         transportTime: '10분',
-        lat: 37.5479,
-        lng: 126.9228,
+        lat: 37.5617,
+        lng: 126.9237,
       },
       {
         id: 2,
-        time: '20:00',
-        endTime: '21:00',
-        name: '타코잇 상수역점',
-        rating: 4.6,
-        reviewCount: 1243,
-        description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
+        category: 'lodging',
+        time: '11:00',
+        endTime: '13:00',
+        name: '망원한강공원',
+        rating: 4.7,
+        reviewCount: 2341,
+        description: '한강을 바라보며 쉬어가기 좋은 공원',
         src: SampleImage,
         transport: '자동차',
         transportTime: '15분',
-        lat: 37.5574,
-        lng: 126.9248,
+        lat: 37.5537,
+        lng: 126.9008,
       },
       {
         id: 3,
-        time: '20:00',
-        endTime: '21:00',
-        name: '타코잇 상수역점',
-        rating: 4.6,
-        reviewCount: 1243,
-        description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
+        category: 'food',
+        time: '14:00',
+        endTime: '16:00',
+        name: '합정역 맛집거리',
+        rating: 4.3,
+        reviewCount: 743,
+        description: '다양한 맛집들이 모여있는 거리',
         src: SampleImage,
-        transport: '자동차',
-        transportTime: '15분',
-        lat: 37.5574,
-        lng: 126.9248,
+        transport: '도보',
+        transportTime: '10분',
+        lat: 37.5496,
+        lng: 126.9143,
       },
     ],
   },
@@ -112,6 +116,10 @@ const mockCourse = [
 export default function ResultPage() {
   const navigate = useNavigate();
   const [sheetY, setSheetY] = useState(400);
+  const [selectedDay, setSelectedDay] = useState(1);
+
+  const selectedPlaces =
+    mockCourse.find((day) => day.day === selectedDay)?.places || [];
 
   return (
     <div className="relative w-full h-screen">
@@ -119,10 +127,7 @@ export default function ResultPage() {
       <MapTopBar onClick={() => navigate(-1)} icon={CancelIcon} />
 
       {/*지도*/}
-      <KakaoMap
-        lat={mockCourse[0].places[0].lat}
-        lng={mockCourse[0].places[0].lng}
-      />
+      <KakaoMap places={selectedPlaces} padding={[50, 50, sheetY + 50, 50]} />
 
       {/*바텀시트*/}
       <BottomSheet
@@ -137,7 +142,12 @@ export default function ResultPage() {
           {mockCourse.map((dayData, dayIndex) => (
             <div key={dayData.day}>
               {/*헤더*/}
-              <DayHeader day={dayData.day} showRefresh={dayIndex === 0} />
+              <DayHeader
+                day={dayData.day}
+                showRefresh={dayIndex === 0}
+                isSelected={selectedDay === dayData.day}
+                onClick={() => setSelectedDay(dayData.day)}
+              />
 
               {/*코스*/}
               <div>
