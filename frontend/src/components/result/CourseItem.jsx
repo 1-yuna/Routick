@@ -92,7 +92,7 @@ export default function CourseItem({ place, isLast, onCardClick, index }) {
               <WalkIcon className="w-4 h-4 text-gray2" />
             ) : null}
             <span className="text-12-rg text-gray2">
-              {place.transport} {place.transportTime}
+              {place.transport} {place.transportTime}분
             </span>
           </div>
         </div>

@@ -10,6 +10,7 @@ import CancelIcon from '../../assets/icons/cancel.svg?react';
 import DayHeader from '../../components/result/DayHeader.jsx';
 import CourseActions from '../../components/result/CourseActions.jsx';
 import useCourseStore from '../../store/courseStore.jsx';
+import { calcPlaceTimes } from '../../utils/timeUtils.jsx';
 
 export default function ResultPage() {
   // 코스 데이터
@@ -18,8 +19,9 @@ export default function ResultPage() {
   const [sheetY, setSheetY] = useState(400);
   const [selectedDay, setSelectedDay] = useState(1);
 
-  const selectedPlaces =
-    course.find((day) => day.day === selectedDay)?.places || [];
+  const selectedPlaces = calcPlaceTimes(
+    course.find((day) => day.day === selectedDay)?.places || []
+  );
 
   return (
     <div className="relative w-full h-screen">
@@ -51,7 +53,7 @@ export default function ResultPage() {
 
               {/*코스*/}
               <div>
-                {dayData.places.map((place, index) => (
+                {calcPlaceTimes(dayData.places).map((place, index) => (
                   <CourseItem
                     key={index}
                     index={index}
