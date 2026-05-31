@@ -4,7 +4,7 @@ import CarIcon from '../../assets/icons/car.svg?react';
 import WalkIcon from '../../assets/icons/walk.svg?react';
 
 // 코스 list
-export default function CourseItem({ place, isLast, onCardClick }) {
+export default function CourseItem({ place, isLast, onCardClick, index }) {
   // 너비
   const TIME_WIDTH = 'w-8';
   const DOT_WIDTH = 'w-5';
@@ -36,7 +36,7 @@ export default function CourseItem({ place, isLast, onCardClick }) {
           <div
             className={`${DOT_WIDTH} h-5 rounded-full flex items-center justify-center flex-shrink-0 ${CATEGORY_COLOR[place.category] || 'bg-primary'}`}
           >
-            <span className="text-10-sb text-white">{place.id}</span>
+            <span className="text-10-sb text-white">{index + 1}</span>
           </div>
           <div className="w-[1px] flex-1 border-l border-dashed border-gray2" />
           <div
@@ -88,9 +88,9 @@ export default function CourseItem({ place, isLast, onCardClick }) {
           <div className="flex items-center gap-2 py-4">
             {place.transport === '자동차' ? (
               <CarIcon className="w-4 h-4 text-gray2" />
-            ) : (
+            ) : place.transport ? (
               <WalkIcon className="w-4 h-4 text-gray2" />
-            )}
+            ) : null}
             <span className="text-12-rg text-gray2">
               {place.transport} {place.transportTime}
             </span>

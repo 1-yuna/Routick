@@ -9,117 +9,17 @@ import SampleImage from '../../assets/images/mock/sample.png';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
 import DayHeader from '../../components/result/DayHeader.jsx';
 import CourseActions from '../../components/result/CourseActions.jsx';
-
-const mockCourse = [
-  {
-    day: 1,
-    places: [
-      {
-        id: 1,
-        category: 'food',
-        time: '09:00',
-        endTime: '10:00',
-        name: '타코잇 상수역점',
-        rating: 4.6,
-        reviewCount: 1243,
-        description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
-        src: SampleImage,
-        transport: '도보',
-        transportTime: '10분',
-        lat: 37.5479,
-        lng: 126.9228,
-      },
-      {
-        id: 2,
-        category: 'lodging',
-        time: '11:00',
-        endTime: '13:00',
-        name: '스타벅스 합정점',
-        rating: 4.2,
-        reviewCount: 832,
-        description: '한강뷰가 보이는 분위기 좋은 카페',
-        src: SampleImage,
-        transport: '도보',
-        transportTime: '15분',
-        lat: 37.5497,
-        lng: 126.9143,
-      },
-      {
-        id: 3,
-        category: 'food',
-        time: '14:00',
-        endTime: '16:00',
-        name: '홍대 놀이터',
-        rating: 4.0,
-        reviewCount: 512,
-        description: '홍대 특유의 젊고 활기찬 분위기',
-        src: SampleImage,
-        transport: '자동차',
-        transportTime: '10분',
-        lat: 37.5564,
-        lng: 126.9238,
-      },
-    ],
-  },
-  {
-    day: 2,
-    places: [
-      {
-        id: 1,
-        category: 'food',
-        time: '09:00',
-        endTime: '10:00',
-        name: '연남동 카페거리',
-        rating: 4.5,
-        reviewCount: 1023,
-        description: '감성적인 카페들이 모여있는 거리',
-        src: SampleImage,
-        transport: '도보',
-        transportTime: '10분',
-        lat: 37.5617,
-        lng: 126.9237,
-      },
-      {
-        id: 2,
-        category: 'lodging',
-        time: '11:00',
-        endTime: '13:00',
-        name: '망원한강공원',
-        rating: 4.7,
-        reviewCount: 2341,
-        description: '한강을 바라보며 쉬어가기 좋은 공원',
-        src: SampleImage,
-        transport: '자동차',
-        transportTime: '15분',
-        lat: 37.5537,
-        lng: 126.9008,
-      },
-      {
-        id: 3,
-        category: 'food',
-        time: '14:00',
-        endTime: '16:00',
-        name: '합정역 맛집거리',
-        rating: 4.3,
-        reviewCount: 743,
-        description: '다양한 맛집들이 모여있는 거리',
-        src: SampleImage,
-        transport: '도보',
-        transportTime: '10분',
-        lat: 37.5496,
-        lng: 126.9143,
-      },
-    ],
-  },
-];
+import useCourseStore from '../../store/courseStore.jsx';
 
 export default function ResultPage() {
+  // 코스 데이터
+  const course = useCourseStore((state) => state.course);
   const navigate = useNavigate();
   const [sheetY, setSheetY] = useState(400);
   const [selectedDay, setSelectedDay] = useState(1);
 
   const selectedPlaces =
-    mockCourse.find((day) => day.day === selectedDay)?.places || [];
+    course.find((day) => day.day === selectedDay)?.places || [];
 
   return (
     <div className="relative w-full h-screen">
@@ -139,7 +39,7 @@ export default function ResultPage() {
       >
         {/*바텀시트 바디*/}
         <div className="flex flex-col gap-12">
-          {mockCourse.map((dayData, dayIndex) => (
+          {course.map((dayData, dayIndex) => (
             <div key={dayData.day}>
               {/*헤더*/}
               <DayHeader
@@ -153,10 +53,13 @@ export default function ResultPage() {
               <div>
                 {dayData.places.map((place, index) => (
                   <CourseItem
-                    key={place.id}
+                    key={index}
+                    index={index}
                     place={place}
                     isLast={index === dayData.places.length - 1}
-                    onCardClick={() => navigate(`/place/${place.id}`)}
+                    onCardClick={() =>
+                      navigate(`/place/${place.id}`, { state: { ...place } })
+                    }
                   />
                 ))}
               </div>
@@ -165,7 +68,9 @@ export default function ResultPage() {
 
           {/*버튼*/}
           <CourseActions
-            onAdd={() => console.log('장소 추가')}
+            onAdd={() =>
+              navigate('/select/address/search', { state: { mode: 'add' } })
+            }
             onEdit={() => console.log('편집')}
             onSave={() => console.log('저장')}
           />

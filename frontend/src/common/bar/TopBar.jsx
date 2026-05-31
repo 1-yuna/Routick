@@ -3,6 +3,7 @@ export default function TopBar({
   onClick,
   title,
   text,
+  onTextClick,
   children,
   className = '',
   className3 = '',
@@ -15,7 +16,9 @@ export default function TopBar({
       <div className="w-1/3 flex justify-center text-16-sb text-black1">
         {title}
       </div>
-      <div className={`w-1/3 flex justify-end ${className3}`}>{text}</div>
+      <div className={`w-1/3 flex justify-end ${className3}`}>
+        <button onClick={onTextClick}>{text}</button>
+      </div>
     </div>
   );
 }

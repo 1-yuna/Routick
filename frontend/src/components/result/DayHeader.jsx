@@ -7,9 +7,7 @@ export default function DayHeader({ day, showRefresh, isSelected, onClick }) {
       >
         day {day}
       </p>
-      {showRefresh && (
-        <button className="text-14-rg text-gray2">새로고침</button>
-      )}
+      {showRefresh && <button className="text-14-rg text-gray2">재추천</button>}
     </div>
   );
 }

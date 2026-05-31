@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import SelectionInput from '../../common/input/SelectionInput.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import CloseIcon from '../../assets/icons/close.svg?react';
@@ -20,6 +20,10 @@ const searchPlaces = async (query) => {
 
 // 장소 검색
 export default function AddressSearchPage() {
+  // 현재 페이지 정보 가져오기
+  const location = useLocation();
+  const mode = location.state?.mode;
+
   const navigate = useNavigate();
   const [query, setQuery] = useState(location.state?.address || '');
   const [results, setResults] = useState([]);
@@ -32,8 +36,25 @@ export default function AddressSearchPage() {
   };
 
   const handlePlaceSelect = ({ place_name, x, y, id }) => {
-    setAddress({ name: place_name, x, y, placeId: id });
-    navigate('/select/address');
+    if (mode === 'add') {
+      navigate(`/place/${id}`, {
+        state: {
+          name: place_name,
+          lat: Number(y),
+          lng: Number(x),
+          placeId: id,
+          mode: 'add',
+        },
+      });
+    } else {
+      setAddress({
+        name: place_name,
+        lat: Number(y),
+        lng: Number(x),
+        placeId: id,
+      });
+      navigate('/select/address');
+    }
   };
 
   return (
