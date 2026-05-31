@@ -15,6 +15,7 @@ import ActivityPage from '../pages/selection/ActivityPage.jsx';
 import TransportPage from '../pages/selection/TransportPage.jsx';
 import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import LoadingPage from '../pages/selection/LoadingPage.jsx';
+import ResultPage from '../pages/result/ResultPage.jsx';
 import MapResultPage from '../pages/MapResultPage.jsx';
 import MyPage from '../pages/MyPage.jsx';
 import MyTripPage from '../pages/MyTripPage.jsx';
@@ -43,6 +44,7 @@ export default function Router() {
         <Route path="/loading" element={<LoadingPage />} />
 
         <Route path="/map" element={<MapResultPage />} />
+        <Route path="/result" element={<ResultPage />} />
 
         <Route path="/mytrip" element={<MyTripPage />} />
         <Route path="/mypage" element={<MyPage />} />

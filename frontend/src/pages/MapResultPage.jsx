@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import BottomSheet from '../components/map/BottomSheet.jsx';
+import BottomSheet from '../components/result/BottomSheet.jsx';
 import SaveExitButton from '../common/SaveExitButton.jsx';
 import KakaoMap from '../common/map/KakaoMap.jsx';
 import MapContainer from '../components/map/MapContainer.jsx';
@@ -51,8 +51,8 @@ export default function MapResultPage() {
       <BottomSheet
         sheetY={sheetY}
         setSheetY={setSheetY}
-        initialHeight={300}
-        snapPoints={[100, 300, 650]}
+        initialHeight={400}
+        snapPoints={[100, 400, 650]}
         maxHeightPercent={90}
       >
         <div>
