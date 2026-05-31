@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
-import BottomSheet from '../../components/result/BottomSheet.jsx';
+import BottomSheet from '../../common/sheet/BottomSheet.jsx';
 import CourseItem from '../../components/result/CourseItem.jsx';
-import FullWidthButton from '../../common/button/FullWidthButton.jsx';
 import SampleImage from '../../assets/images/mock/sample.png';
+import DayHeader from '../../components/result/DayHeader.jsx';
+import CourseActions from '../../components/result/CourseActions.jsx';
 
 const mockCourse = [
   {
@@ -28,6 +29,7 @@ const mockCourse = [
       },
       {
         id: 2,
+        category: 'food',
         time: '20:00',
         endTime: '21:00',
         name: '타코잇 상수역점',
@@ -42,6 +44,7 @@ const mockCourse = [
       },
       {
         id: 3,
+        category: 'lodging',
         time: '20:00',
         endTime: '21:00',
         name: '타코잇 상수역점',
@@ -128,43 +131,33 @@ export default function ResultPage() {
         snapPoints={[100, 400, 700]}
         maxHeightPercent={75}
       >
-        {mockCourse.map((dayData, dayIndex) => (
-          <div key={dayData.day}>
-            {/*헤더*/}
-            <div className="flex py-4 justify-between items-center">
-              <p className="text-16-sb text-black1">day {dayData.day}</p>
-              {dayIndex === 0 && (
-                <button className="text-14-rg text-gray2">새로고침</button>
-              )}
-            </div>
+        {/*바텀시트 바디*/}
+        <div className="flex flex-col gap-12">
+          {mockCourse.map((dayData, dayIndex) => (
+            <div key={dayData.day}>
+              {/*헤더*/}
+              <DayHeader day={dayData.day} showRefresh={dayIndex === 0} />
 
-            {/*코스*/}
-            <div>
-              {dayData.places.map((place, index) => (
-                <CourseItem
-                  key={place.id}
-                  place={place}
-                  isLast={index === dayData.places.length - 1}
-                />
-              ))}
+              {/*코스*/}
+              <div>
+                {dayData.places.map((place, index) => (
+                  <CourseItem
+                    key={place.id}
+                    place={place}
+                    isLast={index === dayData.places.length - 1}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {/*버튼*/}
-        <div className="flex gap-3 mt-4">
-          <button className="flex-1 h-12 rounded-[10px] border border-line2 text-14-sb text-gray2">
-            장소 추가
-          </button>
-          <button className="flex-1 h-12 rounded-[10px] border border-line2 text-14-sb text-gray2">
-            편집
-          </button>
+          {/*버튼*/}
+          <CourseActions
+            onAdd={() => console.log('장소 추가')}
+            onEdit={() => console.log('편집')}
+            onSave={() => console.log('저장')}
+          />
         </div>
-        <FullWidthButton
-          text="저장하기"
-          className="bg-primary mt-3"
-          onClick={() => console.log('저장')}
-        />
       </BottomSheet>
     </div>
   );

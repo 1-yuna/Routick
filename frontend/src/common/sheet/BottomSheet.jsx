@@ -97,9 +97,9 @@ export default function BottomSheet({
       <div
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
-        className="flex justify-center py-3 cursor-grab"
+        className="flex justify-center pt-3 pb-5 cursor-grab"
       >
-        <div className="w-10 h-1.5 bg-gray-300 rounded-full mb-4" />
+        <div className="w-16 h-1 bg-line2 rounded-full mb-4" />
       </div>
 
       {/*바디*/}

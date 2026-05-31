@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import BottomSheet from '../components/result/BottomSheet.jsx';
+import BottomSheet from '../common/sheet/BottomSheet.jsx';
 import SaveExitButton from '../common/SaveExitButton.jsx';
 import KakaoMap from '../common/map/KakaoMap.jsx';
 import MapContainer from '../components/map/MapContainer.jsx';

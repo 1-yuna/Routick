@@ -3,7 +3,7 @@ export default function FullWidthButton({ text, onClick, className = '' }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full h-14 text-16-sb text-white flex items-center justify-center ${className}`}
+      className={`w-full h-14 text-14-sb text-white flex items-center justify-center ${className}`}
     >
       {text}
     </button>
