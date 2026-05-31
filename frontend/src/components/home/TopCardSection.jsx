@@ -19,7 +19,7 @@ export default function TopCardSection({
             key={index}
             image={item.image}
             tags={item.tags}
-            onClick={onClick}
+            onClick={() => onClick(item)}
           />
         ))}
       </div>

@@ -9,18 +9,6 @@ import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import useCourseStore from '../../store/courseStore.jsx';
 import TimeInputModal from '../../components/place/TimeInputModal.jsx';
 
-const mockPlace = {
-  id: 1,
-  name: '타코잇 상수역점',
-  rating: 4.6,
-  reviewCount: 1243,
-  description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
-  lat: 37.5479,
-  lng: 126.9228,
-  placeId: '1611642967',
-  src: SampleImage,
-};
-
 // 상세보기 페이지
 export default function PlaceDetailPage() {
   const [showModal, setShowModal] = useState(false);
@@ -31,7 +19,8 @@ export default function PlaceDetailPage() {
   const addPlace = useCourseStore((state) => state.addPlace);
 
   const navigate = useNavigate();
-  const [place] = useState(mode === 'add' ? location.state : mockPlace);
+  const place = location.state;
+  if (!place) return null;
 
   const handleConfirm = (stayTime) => {
     addPlace({ ...place, stayTime });

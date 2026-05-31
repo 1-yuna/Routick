@@ -19,7 +19,7 @@ export default function PlaceCard({ place }) {
           <PlaceImageDefault className="w-28 h-28 rounded-lg" />
         )}
         {/*정보*/}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col justify-between py-1">
           <div className="flex flex-col gap-1">
             <p className="text-16-sb text-black1">{name}</p>
             <div className="flex items-center gap-[2px]">
@@ -28,15 +28,17 @@ export default function PlaceCard({ place }) {
               <span className="text-10-rg text-gray2">({reviewCount})</span>
             </div>
           </div>
-          <p className="w-36 text-10-rg text-gray2">{description}</p>
-          <button
-            onClick={() =>
-              window.open(`https://place.map.kakao.com/${placeId}`, '_blank')
-            }
-            className="grid place-items-center w-24 h-6 bg-primary rounded-[2px] text-white text-12-rg"
-          >
-            바로가기
-          </button>
+          <div className="flex flex-col gap-2">
+            <p className="w-36 text-10-rg text-gray2">{description}</p>
+            <button
+              onClick={() =>
+                window.open(`https://place.map.kakao.com/${placeId}`, '_blank')
+              }
+              className="grid place-items-center w-24 h-[26px] bg-primary rounded-[2px] text-white text-12-rg"
+            >
+              바로가기
+            </button>
+          </div>
         </div>
       </div>
     </div>

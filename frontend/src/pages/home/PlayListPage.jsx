@@ -12,6 +12,9 @@ const mockPlaces = [
     reviewCount: 1243,
     address: '경기 고양시 덕양구 동산동 370',
     src: SampleImage,
+    lat: 37.5479,
+    lng: 126.9228,
+    placeId: '1611642967',
   },
   {
     id: 2,
@@ -20,6 +23,9 @@ const mockPlaces = [
     reviewCount: 1243,
     address: '경기 고양시 덕양구 동산동 370',
     src: SampleImage,
+    lat: 37.5497,
+    lng: 126.9143,
+    placeId: '1234567890',
   },
   {
     id: 3,
@@ -28,6 +34,9 @@ const mockPlaces = [
     reviewCount: 1243,
     address: '경기 고양시 덕양구 동산동 370',
     src: SampleImage,
+    lat: 37.5564,
+    lng: 126.9238,
+    placeId: '0987654321',
   },
   {
     id: 4,
@@ -36,6 +45,9 @@ const mockPlaces = [
     reviewCount: 1243,
     address: '경기 고양시 덕양구 동산동 370',
     src: SampleImage,
+    lat: 37.5617,
+    lng: 126.9237,
+    placeId: '1122334455',
   },
   {
     id: 5,
@@ -44,6 +56,9 @@ const mockPlaces = [
     reviewCount: 1243,
     address: '경기 고양시 덕양구 동산동 370',
     src: SampleImage,
+    lat: 37.5537,
+    lng: 126.9008,
+    placeId: '5544332211',
   },
   {
     id: 6,
@@ -52,6 +67,9 @@ const mockPlaces = [
     reviewCount: 1243,
     address: '경기 고양시 덕양구 동산동 370',
     src: SampleImage,
+    lat: 37.5496,
+    lng: 126.9143,
+    placeId: '6677889900',
   },
   {
     id: 7,
@@ -60,6 +78,9 @@ const mockPlaces = [
     reviewCount: 1243,
     address: '경기 고양시 덕양구 동산동 370',
     src: SampleImage,
+    lat: 37.5574,
+    lng: 126.9248,
+    placeId: '9900887766',
   },
 ];
 
@@ -92,7 +113,9 @@ export default function PlayListPage() {
             key={place.id}
             place={place}
             index={index + 1}
-            onClick={() => navigate(`/place/${place.id}`)}
+            onClick={() =>
+              navigate(`/place/${place.id}`, { state: { ...place } })
+            }
           />
         ))}
       </div>
