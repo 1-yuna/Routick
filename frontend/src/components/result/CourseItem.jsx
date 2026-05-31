@@ -86,14 +86,18 @@ export default function CourseItem({ place, isLast, onCardClick, index }) {
 
           {/* 이동수단 텍스트 */}
           <div className="flex items-center gap-2 py-4">
-            {place.transport === '자동차' ? (
-              <CarIcon className="w-4 h-4 text-gray2" />
-            ) : place.transport ? (
-              <WalkIcon className="w-4 h-4 text-gray2" />
-            ) : null}
-            <span className="text-12-rg text-gray2">
-              {place.transport} {place.transportTime}분
-            </span>
+            {place.transport && (
+              <div className="flex items-center gap-2 py-4">
+                {place.transport === '자동차' ? (
+                  <CarIcon className="w-4 h-4 text-gray2" />
+                ) : (
+                  <WalkIcon className="w-4 h-4 text-gray2" />
+                )}
+                <span className="text-12-rg text-gray2">
+                  {place.transport} {place.transportTime}분
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

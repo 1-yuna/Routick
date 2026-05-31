@@ -26,7 +26,7 @@ export default function ResultPage() {
   return (
     <div className="relative w-full h-screen">
       {/*상단 바*/}
-      <MapTopBar onClick={() => navigate(-1)} icon={CancelIcon} />
+      <MapTopBar onClick={() => navigate('/home')} icon={CancelIcon} />
 
       {/*지도*/}
       <KakaoMap places={selectedPlaces} padding={[50, 50, sheetY + 50, 50]} />

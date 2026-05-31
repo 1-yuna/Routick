@@ -7,6 +7,7 @@ import { useState } from 'react';
 import SampleImage from '../../assets/images/mock/sample.png';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import useCourseStore from '../../store/courseStore.jsx';
+import TimeInputModal from '../../components/place/TimeInputModal.jsx';
 
 const mockPlace = {
   id: 1,
@@ -22,6 +23,8 @@ const mockPlace = {
 
 // 상세보기 페이지
 export default function PlaceDetailPage() {
+  const [showModal, setShowModal] = useState(false);
+
   // 현재 페이지 정보 가져오기
   const location = useLocation();
   const mode = location.state?.mode;
@@ -30,8 +33,20 @@ export default function PlaceDetailPage() {
   const navigate = useNavigate();
   const [place] = useState(mode === 'add' ? location.state : mockPlace);
 
+  const handleConfirm = (stayTime) => {
+    addPlace({ ...place, stayTime });
+    navigate('/result');
+  };
+
   return (
     <div className="relative w-full h-screen">
+      {showModal && (
+        <TimeInputModal
+          onConfirm={handleConfirm}
+          onCancel={() => setShowModal(false)}
+        />
+      )}
+
       {/* mode가 'add'면 TopBar, 아니면 MapTopBar*/}
       {mode === 'add' ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
@@ -40,10 +55,7 @@ export default function PlaceDetailPage() {
             title="장소 추가"
             text="추가"
             className3="text-primary text-16-sb"
-            onTextClick={() => {
-              addPlace(place);
-              navigate('/result');
-            }}
+            onTextClick={() => setShowModal(true)}
           >
             <LeftIcon className="w-5 h-10 text-primary" />
           </TopBar>
