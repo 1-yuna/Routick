@@ -6,6 +6,7 @@ import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import BottomSheet from '../../common/sheet/BottomSheet.jsx';
 import CourseItem from '../../components/result/CourseItem.jsx';
 import SampleImage from '../../assets/images/mock/sample.png';
+import CancelIcon from '../../assets/icons/cancel.svg?react';
 import DayHeader from '../../components/result/DayHeader.jsx';
 import CourseActions from '../../components/result/CourseActions.jsx';
 
@@ -115,7 +116,7 @@ export default function ResultPage() {
   return (
     <div className="relative w-full h-screen">
       {/*상단 바*/}
-      <MapTopBar onClick={() => navigate(-1)} />
+      <MapTopBar onClick={() => navigate(-1)} icon={CancelIcon} />
 
       {/*지도*/}
       <KakaoMap
@@ -145,6 +146,7 @@ export default function ResultPage() {
                     key={place.id}
                     place={place}
                     isLast={index === dayData.places.length - 1}
+                    onCardClick={() => navigate(`/place/${place.id}`)}
                   />
                 ))}
               </div>

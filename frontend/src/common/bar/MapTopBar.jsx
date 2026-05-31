@@ -6,7 +6,10 @@ export default function MapTopBar({
   text,
   className = '',
   className3 = '',
+  icon,
 }) {
+  const Icon = icon || LeftIcon;
+
   return (
     <div
       className={`z-10 px-6 mt-12 absolute top-0 w-full h-18 flex items-center ${className}`}
@@ -16,7 +19,7 @@ export default function MapTopBar({
           className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-[2px_2px_1px_0px_rgba(0,0,0,0.25)]"
           onClick={onClick}
         >
-          <LeftIcon className="w-5 h-10 text-primary" />
+          <Icon className="w-4 h-8 text-primary" />
         </button>
       </div>
       <div className="w-1/3" />

@@ -4,7 +4,7 @@ import CarIcon from '../../assets/icons/car.svg?react';
 import WalkIcon from '../../assets/icons/walk.svg?react';
 
 // 코스 list
-export default function CourseItem({ place, isLast }) {
+export default function CourseItem({ place, isLast, onCardClick }) {
   // 너비
   const TIME_WIDTH = 'w-8';
   const DOT_WIDTH = 'w-5';
@@ -45,7 +45,10 @@ export default function CourseItem({ place, isLast }) {
         </div>
 
         {/* 카드 */}
-        <div className="flex gap-2 bg-white rounded-[10px] shadow-[2px_2px_10px_5px_rgba(0,0,0,0.05)] p-3 flex-1">
+        <div
+          className="flex gap-2 bg-white rounded-[10px] shadow-[2px_2px_10px_5px_rgba(0,0,0,0.05)] p-3 flex-1"
+          onClick={onCardClick}
+        >
           {/*사진*/}
           <img
             src={place.src}
