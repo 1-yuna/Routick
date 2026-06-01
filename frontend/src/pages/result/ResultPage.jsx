@@ -5,7 +5,7 @@ import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import TopBar from '../../common/bar/TopBar.jsx';
 import BottomSheet from '../../common/sheet/BottomSheet.jsx';
-import CourseActions from '../../components/result/CourseActions.jsx';
+import CourseActions from '../../components/result/view/CourseActions.jsx';
 import FullWidthButton from '../../common/button/FullWidthButton.jsx';
 import { calcPlaceTimes } from '../../utils/timeUtils.jsx';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
@@ -14,6 +14,8 @@ import useCourseStore from '../../store/courseStore.jsx';
 import CourseList from '../../components/result/view/CourseList.jsx';
 import EditCourseList from '../../components/result/edit/EditCourseList.jsx';
 import useCourseEdit from '../../hooks/useCourseEdit.jsx';
+import SaveCompleteModal from '../../components/result/save/SaveCompleteModal.jsx';
+import TitleInputModal from '../../components/result/save/TitleInputModal.jsx';
 
 // 결과 페이지 - 코스 지도 및 바텀시트로 일정 표시
 export default function ResultPage() {
@@ -22,6 +24,8 @@ export default function ResultPage() {
   const navigate = useNavigate();
   const [sheetY, setSheetY] = useState(400);
   const [selectedDay, setSelectedDay] = useState(1);
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
 
   const {
     isEditing,
@@ -40,8 +44,27 @@ export default function ResultPage() {
     course.find((day) => day.day === selectedDay)?.places || []
   );
 
+  // 저장
+  const handleSave = (title) => {
+    setShowTitleModal(false);
+    setShowSaveModal(true);
+  };
+
   return (
     <div className="relative w-full h-screen">
+      {/*제목 입력 모달*/}
+      {showTitleModal && (
+        <TitleInputModal
+          onConfirm={handleSave}
+          onCancel={() => setShowTitleModal(false)}
+        />
+      )}
+
+      {/*저장 완료 모달*/}
+      {showSaveModal && (
+        <SaveCompleteModal onConfirm={() => navigate('/home')} />
+      )}
+
       {/*상단 바 - 편집 모드면 TopBar, 아니면 MapTopBar*/}
       {isEditing ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
@@ -105,7 +128,7 @@ export default function ResultPage() {
                 navigate('/select/address/search', { state: { mode: 'add' } })
               }
               onEdit={handleEditStart}
-              onSave={() => console.log('저장')}
+              onSave={() => setShowTitleModal(true)}
             />
           </div>
         )}

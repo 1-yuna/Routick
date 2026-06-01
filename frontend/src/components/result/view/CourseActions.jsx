@@ -1,4 +1,4 @@
-import FullWidthButton from '../../common/button/FullWidthButton.jsx';
+import FullWidthButton from '../../../common/button/FullWidthButton.jsx';
 
 // 결과 페이지 - 코스 액션 버튼 (장소 추가 / 편집 / 저장하기)
 export default function CourseActions({ onAdd, onEdit, onSave }) {
