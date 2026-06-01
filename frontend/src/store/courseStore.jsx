@@ -126,6 +126,8 @@ const useCourseStore = create((set) => ({
       ),
     })),
 
+  setCourse: (course) => set({ course }),
+
   // 홈으로 돌아갈 때 초기화
   reset: () => set({ course: mockCourse }),
 }));

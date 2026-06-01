@@ -24,27 +24,25 @@ export default function EditCourseList({
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // 8px 이상 움직여야 드래그 시작
-      },
+      activationConstraint: { distance: 8 },
     })
   );
 
   return (
-    <div className="flex flex-col gap-12">
-      {course.map((dayData, dayIndex) => (
-        <div key={dayData.day}>
-          <DayHeader
-            day={dayData.day}
-            showRefresh={false}
-            isSelected={selectedDay === dayData.day}
-            onClick={() => onDaySelect(dayData.day)}
-          />
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-          >
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+    >
+      <div className="flex flex-col gap-12">
+        {course.map((dayData, dayIndex) => (
+          <div key={dayData.day}>
+            <DayHeader
+              day={dayData.day}
+              showRefresh={false}
+              isSelected={selectedDay === dayData.day}
+              onClick={() => onDaySelect(dayData.day)}
+            />
             <SortableContext
               items={dayData.places.map((p) => `${dayData.day}-${p.id}`)}
               strategy={verticalListSortingStrategy}
@@ -61,9 +59,9 @@ export default function EditCourseList({
                 />
               ))}
             </SortableContext>
-          </DndContext>
-        </div>
-      ))}
-    </div>
+          </div>
+        ))}
+      </div>
+    </DndContext>
   );
 }

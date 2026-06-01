@@ -25,6 +25,7 @@ import EditCourseList from '../../components/result/edit/EditCourseList.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
+  const setCourse = useCourseStore((state) => state.setCourse);
   const deletePlace = useCourseStore((state) => state.deletePlace);
   const reorderPlaces = useCourseStore((state) => state.reorderPlaces);
   const navigate = useNavigate();
@@ -32,11 +33,24 @@ export default function ResultPage() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [isEditing, setIsEditing] = useState(false);
   const [checkedPlaces, setCheckedPlaces] = useState([]);
+  const [originalCourse, setOriginalCourse] = useState(null);
 
-  const selectedDayIndex = course.findIndex((day) => day.day === selectedDay);
   const selectedPlaces = calcPlaceTimes(
     course.find((day) => day.day === selectedDay)?.places || []
   );
+
+  const handleEditStart = () => {
+    setOriginalCourse(course);
+    setIsEditing(true);
+  };
+
+  const handleEditCancel = () => {
+    if (originalCourse) {
+      setCourse(originalCourse);
+    }
+    setIsEditing(false);
+    setCheckedPlaces([]);
+  };
 
   const handleCheck = (dayIndex, placeIndex) => {
     setCheckedPlaces((prev) => {
@@ -64,20 +78,35 @@ export default function ResultPage() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    // active.id에서 day 추출 (ex. "1-1" → day 1)
-    const draggedDay = Number(active.id.toString().split('-')[0]);
-    const dayIndex = course.findIndex((day) => day.day === draggedDay);
-    const places = course[dayIndex].places;
+    const fromDay = Number(active.id.toString().split('-')[0]);
+    const toDay = Number(over.id.toString().split('-')[0]);
+    const fromDayIndex = course.findIndex((day) => day.day === fromDay);
+    const toDayIndex = course.findIndex((day) => day.day === toDay);
 
-    const oldIndex = places.findIndex(
-      (p) => `${draggedDay}-${p.id}` === active.id
-    );
-    const newIndex = places.findIndex(
-      (p) => `${draggedDay}-${p.id}` === over.id
-    );
+    if (fromDay === toDay) {
+      // 같은 day 내 이동
+      const places = course[fromDayIndex].places;
+      const oldIndex = places.findIndex(
+        (p) => `${fromDay}-${p.id}` === active.id
+      );
+      const newIndex = places.findIndex(
+        (p) => `${fromDay}-${p.id}` === over.id
+      );
+      reorderPlaces(fromDayIndex, arrayMove(places, oldIndex, newIndex));
+    } else {
+      const fromPlaces = [...course[fromDayIndex].places];
+      const toPlaces = [...course[toDayIndex].places];
+      const fromIndex = fromPlaces.findIndex(
+        (p) => `${fromDay}-${p.id}` === active.id
+      );
+      const toIndex = toPlaces.findIndex((p) => `${toDay}-${p.id}` === over.id);
 
-    if (oldIndex !== -1 && newIndex !== -1) {
-      reorderPlaces(dayIndex, arrayMove(places, oldIndex, newIndex));
+      const [movedPlace] = fromPlaces.splice(fromIndex, 1);
+      const newId = Date.now(); // 여기 추가
+      toPlaces.splice(toIndex, 0, { ...movedPlace, id: newId });
+
+      reorderPlaces(fromDayIndex, fromPlaces);
+      reorderPlaces(toDayIndex, toPlaces);
     }
   };
 
@@ -92,7 +121,7 @@ export default function ResultPage() {
       {isEditing ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
           <TopBar
-            onClick={handleEditComplete}
+            onClick={handleEditCancel}
             text="완료"
             className3="text-primary text-16-sb"
             onTextClick={handleEditComplete}
@@ -147,7 +176,7 @@ export default function ResultPage() {
               onAdd={() =>
                 navigate('/select/address/search', { state: { mode: 'add' } })
               }
-              onEdit={() => setIsEditing(true)}
+              onEdit={() => handleEditStart()}
               onSave={() => console.log('저장')}
             />
           </div>
