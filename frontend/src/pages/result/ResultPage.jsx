@@ -33,6 +33,7 @@ export default function ResultPage() {
     handleDelete,
     handleDragEnd,
   } = useCourseEdit();
+  console.log('isEditing:', isEditing, 'checkedPlaces:', checkedPlaces);
 
   // 선택된 day의 장소 목록 (시간 계산 포함)
   const selectedPlaces = calcPlaceTimes(
@@ -67,26 +68,26 @@ export default function ResultPage() {
         initialHeight={400}
         snapPoints={[100, 400, 700]}
         maxHeightPercent={75}
-      >
-        {isEditing ? (
-          <>
-            {/*편집 모드 - 드래그 정렬 + 체크박스 삭제*/}
-            <EditCourseList
-              course={course}
-              selectedDay={selectedDay}
-              onDaySelect={setSelectedDay}
-              checkedPlaces={checkedPlaces}
-              onCheck={handleCheck}
-              onDragEnd={handleDragEnd}
+        footer={
+          isEditing && checkedPlaces.length > 0 ? (
+            <FullWidthButton
+              text="삭제하기"
+              className="bg-primary rounded-[5px]"
+              onClick={handleDelete}
             />
-            {checkedPlaces.length > 0 && (
-              <FullWidthButton
-                text="삭제하기"
-                className="bg-primary rounded-[5px] mt-4"
-                onClick={handleDelete}
-              />
-            )}
-          </>
+          ) : null
+        }
+      >
+        {/*편집 모드 - 드래그 정렬 + 체크박스 삭제*/}
+        {isEditing ? (
+          <EditCourseList
+            course={course}
+            selectedDay={selectedDay}
+            onDaySelect={setSelectedDay}
+            checkedPlaces={checkedPlaces}
+            onCheck={handleCheck}
+            onDragEnd={handleDragEnd}
+          />
         ) : (
           <div className="flex flex-col gap-12">
             {/*일반 모드 - 코스 리스트*/}
