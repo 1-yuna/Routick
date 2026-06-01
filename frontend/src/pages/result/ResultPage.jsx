@@ -60,6 +60,7 @@ export default function ResultPage() {
                     key={index}
                     index={index}
                     place={place}
+                    transport={dayData.transport}
                     isLast={index === dayData.places.length - 1}
                     onCardClick={() =>
                       navigate(`/place/${place.id}`, { state: { ...place } })

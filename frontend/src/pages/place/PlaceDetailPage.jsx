@@ -7,6 +7,7 @@ import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import PlaceCard from '../../components/place/PlaceCard.jsx';
 import PlaceInfoModal from '../../components/place/PlaceInfoModal.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
+import { getTransportTime } from '../../utils/directionUtils.jsx';
 import useCourseStore from '../../store/courseStore.jsx';
 
 // 장소 상세보기 페이지 - mode가 'add'면 장소 추가, 아니면 일반 상세보기
@@ -22,9 +23,20 @@ export default function PlaceDetailPage() {
   if (!place) return null;
 
   // 머무를 시간 입력 후 코스에 장소 추가
-  const handleConfirm = ({ stayTime, category }) => {
-    addPlace({ ...place, stayTime, category });
-    console.log('category:', place.category);
+  const handleConfirm = async ({ stayTime, category }) => {
+    const course = useCourseStore.getState().course;
+    const day1Places = course[0].places;
+    const lastPlace = day1Places[day1Places.length - 1];
+    const transport = course[0].transport;
+
+    // 마지막 장소 → 추가 장소 이동시간 계산
+    const transportTime = await getTransportTime(
+      { lat: lastPlace.lat, lng: lastPlace.lng },
+      { lat: place.lat, lng: place.lng },
+      transport
+    );
+
+    addPlace({ ...place, stayTime, category, transportTime });
     navigate('/result');
   };
 

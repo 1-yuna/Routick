@@ -3,7 +3,13 @@ import CarIcon from '../../assets/icons/car.svg?react';
 import WalkIcon from '../../assets/icons/walk.svg?react';
 
 // 결과 페이지 - 코스 리스트 아이템 (시간 + 타임라인 + 장소 카드 + 이동수단)
-export default function CourseItem({ place, isLast, onCardClick, index }) {
+export default function CourseItem({
+  place,
+  isLast,
+  onCardClick,
+  index,
+  transport,
+}) {
   // 너비
   const TIME_WIDTH = 'w-8';
   const DOT_WIDTH = 'w-5';
@@ -87,15 +93,15 @@ export default function CourseItem({ place, isLast, onCardClick, index }) {
 
           {/*이동수단 아이콘 + 텍스트 - transport 없으면 표시 안 함*/}
           <div className="flex items-center gap-2 py-4">
-            {place.transport && (
+            {transport && (
               <div className="flex items-center gap-2 py-4">
-                {place.transport === '자동차' ? (
+                {transport === '자동차' ? (
                   <CarIcon className="w-4 h-4 text-gray2" />
                 ) : (
                   <WalkIcon className="w-4 h-4 text-gray2" />
                 )}
                 <span className="text-12-rg text-gray2">
-                  {place.transport} {place.transportTime}분
+                  {transport} {place.transportTime}분
                 </span>
               </div>
             )}

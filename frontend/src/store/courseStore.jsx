@@ -5,6 +5,7 @@ import SampleImage from '../assets/images/mock/sample.png';
 const mockCourse = [
   {
     day: 1,
+    transport: '도보',
     places: [
       {
         id: 1,
@@ -15,8 +16,6 @@ const mockCourse = [
         reviewCount: 1243,
         description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
         src: SampleImage,
-        transport: '도보',
-        transportTime: 10,
         lat: 37.5479,
         lng: 126.9228,
       },
@@ -29,7 +28,6 @@ const mockCourse = [
         reviewCount: 832,
         description: '한강뷰가 보이는 분위기 좋은 카페',
         src: SampleImage,
-        transport: '도보',
         transportTime: 15,
         lat: 37.5497,
         lng: 126.9143,
@@ -43,6 +41,7 @@ const mockCourse = [
         reviewCount: 512,
         description: '홍대 특유의 젊고 활기찬 분위기',
         src: SampleImage,
+        transportTime: 15,
         lat: 37.5564,
         lng: 126.9238,
       },
@@ -50,6 +49,7 @@ const mockCourse = [
   },
   {
     day: 2,
+    transport: '도보',
     places: [
       {
         id: 1,
@@ -60,8 +60,6 @@ const mockCourse = [
         reviewCount: 1023,
         description: '감성적인 카페들이 모여있는 거리',
         src: SampleImage,
-        transport: '도보',
-        transportTime: 10,
         lat: 37.5617,
         lng: 126.9237,
       },
@@ -74,7 +72,6 @@ const mockCourse = [
         reviewCount: 2341,
         description: '한강을 바라보며 쉬어가기 좋은 공원',
         src: SampleImage,
-        transport: '자동차',
         transportTime: 15,
         lat: 37.5537,
         lng: 126.9008,
@@ -88,7 +85,6 @@ const mockCourse = [
         reviewCount: 743,
         description: '다양한 맛집들이 모여있는 거리',
         src: SampleImage,
-        transport: '도보',
         transportTime: 10,
         lat: 37.5496,
         lng: 126.9143,
