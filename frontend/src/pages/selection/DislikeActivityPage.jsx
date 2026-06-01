@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import CancelIcon from '../../assets/icons/cancel.svg?react';
-import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
+
 import SelectionInput from '../../common/input/SelectionInput.jsx';
+import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
+import CancelIcon from '../../assets/icons/cancel.svg?react';
 import useSelectionStore from '../../store/selectionStore.jsx';
 
-// 키워드 태그
 function KeywordTag({ keyword, onRemove }) {
   return (
     <div className="flex items-center gap-1 px-3 py-1 rounded-full border border-line2 text-14-rg text-gray2">
@@ -18,7 +18,7 @@ function KeywordTag({ keyword, onRemove }) {
   );
 }
 
-// 선택8 - 싫어하는 활동
+// 선택 8단계 - 비선호 키워드 (다중 입력)
 export default function DislikeActivityPage() {
   const navigate = useNavigate();
   const dislike = useSelectionStore((state) => state.dislike);

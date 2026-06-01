@@ -1,9 +1,10 @@
+import { useNavigate } from 'react-router-dom';
+
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
-import { useNavigate } from 'react-router-dom';
 
-// 선택2 - 여행 기간
+// 선택 2선택 - 여행 기간 (단일 선택)
 export default function TravelPeriodPage() {
   const navigate = useNavigate();
   const period = useSelectionStore((state) => state.period);

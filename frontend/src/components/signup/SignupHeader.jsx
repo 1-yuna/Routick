@@ -1,4 +1,4 @@
-// 헤더
+// 회원가입 - 헤더
 export default function SignupHeader() {
   return (
     <div className="flex flex-col text-16-sb text-black1">

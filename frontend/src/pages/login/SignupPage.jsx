@@ -5,9 +5,8 @@ import FullWidthButton from '../../common/button/FullWidthButton.jsx';
 import SignupHeader from '../../components/signup/SignupHeader.jsx';
 import AccountInfoSection from '../../components/signup/AccountInfoSection.jsx';
 import PasswordSection from '../../components/signup/PasswordSection.jsx';
-
-import LeftIcon from '../../assets/icons/left.svg?react';
 import useSignup from '../../hooks/useSignup.jsx';
+import LeftIcon from '../../assets/icons/left.svg?react';
 
 // 회원가입 페이지
 export default function SignUpPage() {
@@ -36,10 +35,10 @@ export default function SignUpPage() {
       </TopBar>
 
       <div className="flex flex-col gap-8 pt-8">
-        {/* 헤더 */}
+        {/*헤더*/}
         <SignupHeader />
 
-        {/* 기본 정보 폼 */}
+        {/*기본 정보 폼*/}
         <AccountInfoSection
           showVerify={showVerify}
           time={time}
@@ -50,7 +49,7 @@ export default function SignUpPage() {
           isVerified={isVerified}
         />
 
-        {/* 비밀번호 정보 폼 */}
+        {/*비밀번호 정보 폼*/}
         <PasswordSection
           password={password}
           passwordCheck={passwordCheck}

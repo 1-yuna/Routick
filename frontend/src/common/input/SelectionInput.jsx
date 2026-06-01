@@ -1,4 +1,4 @@
-// 입력창
+// 공통 입력창 - onClick 있으면 readOnly(페이지 이동용), 없으면 일반 입력
 export default function SelectionInput({
   placeholder,
   value,

@@ -1,24 +1,26 @@
 // pages/result/ResultPage.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import BottomSheet from '../../common/sheet/BottomSheet.jsx';
 import CourseItem from '../../components/result/CourseItem.jsx';
-import SampleImage from '../../assets/images/mock/sample.png';
-import CancelIcon from '../../assets/icons/cancel.svg?react';
 import DayHeader from '../../components/result/DayHeader.jsx';
 import CourseActions from '../../components/result/CourseActions.jsx';
-import useCourseStore from '../../store/courseStore.jsx';
 import { calcPlaceTimes } from '../../utils/timeUtils.jsx';
+import CancelIcon from '../../assets/icons/cancel.svg?react';
+import useCourseStore from '../../store/courseStore.jsx';
 
+// 결과 페이지 - 코스 지도 및 바텀시트로 일정 표시
 export default function ResultPage() {
   // 코스 데이터
   const course = useCourseStore((state) => state.course);
   const navigate = useNavigate();
-  const [sheetY, setSheetY] = useState(400);
-  const [selectedDay, setSelectedDay] = useState(1);
+  const [sheetY, setSheetY] = useState(400); // 바텀시트 높이
+  const [selectedDay, setSelectedDay] = useState(1); // 선택된 day
 
+  // 선택된 day의 장소 목록 (시간 계산 포함)
   const selectedPlaces = calcPlaceTimes(
     course.find((day) => day.day === selectedDay)?.places || []
   );
@@ -28,7 +30,7 @@ export default function ResultPage() {
       {/*상단 바*/}
       <MapTopBar onClick={() => navigate('/home')} icon={CancelIcon} />
 
-      {/*지도*/}
+      {/*지도 - 선택된 day의 장소 마커 및 동선 표시*/}
       <KakaoMap places={selectedPlaces} padding={[50, 50, sheetY + 50, 50]} />
 
       {/*바텀시트*/}
@@ -51,7 +53,7 @@ export default function ResultPage() {
                 onClick={() => setSelectedDay(dayData.day)}
               />
 
-              {/*코스*/}
+              {/*코스 리스트*/}
               <div>
                 {calcPlaceTimes(dayData.places).map((place, index) => (
                   <CourseItem
@@ -68,7 +70,7 @@ export default function ResultPage() {
             </div>
           ))}
 
-          {/*버튼*/}
+          {/*장소 추가 / 편집 / 저장 버튼*/}
           <CourseActions
             onAdd={() =>
               navigate('/select/address/search', { state: { mode: 'add' } })

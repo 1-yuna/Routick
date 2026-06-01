@@ -1,12 +1,13 @@
-// components/home/HotPlaceItem.jsx
 import StarIcon from '../../assets/icons/star.svg?react';
 
+// 놀거리 추천 페이지 - 장소 리스트 아이템 (이미지 + 순위 번호 + 정보)
+// 1~3위는 bg-label, 4위 이하는 bg-gray2
 export default function PlaceItem({ place, index, onClick }) {
   const { name, rating, reviewCount, address, src } = place;
 
   return (
     <div className="flex gap-4 cursor-pointer" onClick={onClick}>
-      {/*이미지 + 번호*/}
+      {/*이미지 + 순위 번호*/}
       <div className="relative flex-shrink-0">
         <img
           src={src}
@@ -20,7 +21,7 @@ export default function PlaceItem({ place, index, onClick }) {
         </div>
       </div>
 
-      {/*정보*/}
+      {/*장소 정보*/}
       <div className="flex flex-col py-1 justify-between">
         <div className="flex flex-col">
           <p className="text-16-sb text-black1">{name}</p>

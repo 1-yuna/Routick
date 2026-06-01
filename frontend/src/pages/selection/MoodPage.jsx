@@ -1,9 +1,10 @@
+import { useNavigate } from 'react-router-dom';
+
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
-import { useNavigate } from 'react-router-dom';
 
-// 선택5 - 분위기
+// 선택 5단계 - 분위기 선호 선택 (다중 선택)
 export default function MoodPage() {
   const navigate = useNavigate();
   const mood = useSelectionStore((state) => state.mood);

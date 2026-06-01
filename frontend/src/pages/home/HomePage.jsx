@@ -1,15 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 
 import BottomBar from '../../common/bar/BottomBar.jsx';
+import TopBar from '../../common/bar/TopBar.jsx';
 import TopCardSection from '../../components/home/TopCardSection.jsx';
 import CourseBanner from '../../components/home/CourseBanner.jsx';
-import TopBar from '../../common/bar/TopBar.jsx';
 import PlaySection from '../../components/home/PlaySection.jsx';
 import home from '../../assets/images/home.png';
 import sample from '../../assets/images/mock/sample.png';
 import logo from '../../assets/images/logo.png';
 import useCourseStore from '../../store/selectionStore.jsx';
 
+// TODO: API 연동 시 제거
 const mockTopPlaces = [
   {
     id: 1,
@@ -89,7 +90,7 @@ export default function HomePage() {
       </TopBar>
 
       <div className="flex flex-col gap-10 overflow-y-auto no-scrollbar">
-        {/*Card*/}
+        {/*배너*/}
         <CourseBanner
           name="윤아"
           image={home}

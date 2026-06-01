@@ -1,9 +1,10 @@
+import { useNavigate } from 'react-router-dom';
+
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
-import { useNavigate } from 'react-router-dom';
 
-// 선택6 - 활동
+// 선택 6단계 - 활동 선택 (다중 선택)
 export default function ActivityPage() {
   const navigate = useNavigate();
   const activity = useSelectionStore((state) => state.activity);

@@ -1,6 +1,6 @@
 import CameraIcon from '../../assets/icons/camera.svg?react';
 
-// 상세보기 - 기본 이미지
+// 이미지가 없을 경우 - 기본 이미지
 export default function PlaceImageDefault({ className }) {
   return (
     <div className={`bg-button flex items-center justify-center ${className}`}>

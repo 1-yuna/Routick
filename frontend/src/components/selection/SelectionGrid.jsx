@@ -1,4 +1,6 @@
-// 선택 버튼
+// 공통 선택 버튼 그리드
+// - selected가 배열이면 다중 선택, 문자열이면 단일 선택
+// - 선택된 항목은 primaryOpacity 배경, 미선택은 button 배경
 export default function SelectionGrid({ items, selected, onSelect }) {
   return (
     <div className="grid grid-cols-2 gap-3">

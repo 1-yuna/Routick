@@ -1,27 +1,27 @@
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import TopBar from '../../common/bar/TopBar.jsx';
-import LeftIcon from '../../assets/icons/left.svg?react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import PlaceCard from '../../components/place/PlaceCard.jsx';
-import { useState } from 'react';
-import SampleImage from '../../assets/images/mock/sample.png';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
-import useCourseStore from '../../store/courseStore.jsx';
+import PlaceCard from '../../components/place/PlaceCard.jsx';
 import TimeInputModal from '../../components/place/TimeInputModal.jsx';
+import LeftIcon from '../../assets/icons/left.svg?react';
+import useCourseStore from '../../store/courseStore.jsx';
 
-// 상세보기 페이지
+// 장소 상세보기 페이지 - mode가 'add'면 장소 추가, 아니면 일반 상세보기
 export default function PlaceDetailPage() {
   const [showModal, setShowModal] = useState(false);
 
-  // 현재 페이지 정보 가져오기
   const location = useLocation();
   const mode = location.state?.mode;
   const addPlace = useCourseStore((state) => state.addPlace);
-
   const navigate = useNavigate();
+
   const place = location.state;
   if (!place) return null;
 
+  // 머무를 시간 입력 후 코스에 장소 추가
   const handleConfirm = (stayTime) => {
     addPlace({ ...place, stayTime });
     navigate('/result');
@@ -29,6 +29,7 @@ export default function PlaceDetailPage() {
 
   return (
     <div className="relative w-full h-screen">
+      {/*머무를 시간 입력 모달*/}
       {showModal && (
         <TimeInputModal
           onConfirm={handleConfirm}
@@ -36,7 +37,7 @@ export default function PlaceDetailPage() {
         />
       )}
 
-      {/* mode가 'add'면 TopBar, 아니면 MapTopBar*/}
+      {/*상단 바 - 장소 추가 모드면 TopBar, 아니면 MapTopBar*/}
       {mode === 'add' ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
           <TopBar

@@ -1,7 +1,7 @@
-// store/courseStore.jsx
 import { create } from 'zustand';
 import SampleImage from '../assets/images/mock/sample.png';
 
+// TODO: API 연동 시 제거
 const mockCourse = [
   {
     day: 1,
@@ -97,9 +97,11 @@ const mockCourse = [
   },
 ];
 
+// 코스 결과 데이터 전역 상태 관리
 const useCourseStore = create((set) => ({
   course: mockCourse,
 
+  // day1 마지막에 장소 추가
   addPlace: (place) =>
     set((state) => ({
       course: state.course.map((day, index) =>
@@ -107,6 +109,7 @@ const useCourseStore = create((set) => ({
       ),
     })),
 
+  // 홈으로 돌아갈 때 초기화
   reset: () => set({ course: mockCourse }),
 }));
 

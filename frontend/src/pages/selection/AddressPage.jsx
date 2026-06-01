@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+
 import SelectionInput from '../../common/input/SelectionInput.jsx';
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
 
-// 선택1 - 주소 찾기
+// 선택 1단계 - 주소 페이지
 export default function AddressPage() {
   const navigate = useNavigate();
   const address = useSelectionStore((state) => state.address);

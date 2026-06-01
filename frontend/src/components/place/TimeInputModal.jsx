@@ -1,7 +1,7 @@
-// common/modal/TimeInputModal.jsx
 import { useState } from 'react';
 import TimeModal from '../../common/modal/TimeModal.jsx';
 
+// 머무를 시간 입력 모달 - 시간(0~23):분(0~59) 입력 후 분 단위로 변환해서 전달
 export default function TimeInputModal({ onConfirm, onCancel }) {
   const [hour, setHour] = useState('01');
   const [minute, setMinute] = useState('00');
@@ -12,6 +12,7 @@ export default function TimeInputModal({ onConfirm, onCancel }) {
       onConfirm={() => onConfirm(Number(hour) * 60 + Number(minute))}
       onCancel={onCancel}
     >
+      {/*시간:분 입력*/}
       <div className="flex gap-1">
         <input
           type="number"

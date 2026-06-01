@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
 import SelectionInput from '../../common/input/SelectionInput.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import CloseIcon from '../../assets/icons/close.svg?react';
@@ -8,7 +9,7 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 
 const KAKAO_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY;
 
-// API 호출
+// 주소 검색 API 페이지
 const searchPlaces = async (query) => {
   const res = await fetch(
     `https://dapi.kakao.com/v2/local/search/keyword.json?query=${query}`,

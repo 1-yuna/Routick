@@ -1,9 +1,10 @@
+import { useNavigate } from 'react-router-dom';
+
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
-import { useNavigate } from 'react-router-dom';
 
-// 선택6 - 이동 수단
+// 선택 6단계 - 이동 수단 (단일 선택)
 export default function TransportPage() {
   const navigate = useNavigate();
   const transport = useSelectionStore((state) => state.transport);

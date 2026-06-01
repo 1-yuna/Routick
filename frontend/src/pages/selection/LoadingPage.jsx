@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import logo from '../../assets/images/logo.png';
 
 // 로딩 페이지

@@ -1,9 +1,10 @@
+import { useNavigate } from 'react-router-dom';
+
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
-import { useNavigate } from 'react-router-dom';
 
-// 선택4 - 여행 기간
+// 선택 4단계 - 연령대 (단일 선택)
 export default function AgeGroupPage() {
   const navigate = useNavigate();
   const age = useSelectionStore((state) => state.age);

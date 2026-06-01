@@ -1,9 +1,11 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
+
 import TopBar from '../../common/bar/TopBar.jsx';
-import LeftIcon from '../../assets/icons/left.svg?react';
 import HotPlaceItem from '../../components/home/PlaceItem.jsx';
 import SampleImage from '../../assets/images/mock/sample.png';
+import LeftIcon from '../../assets/icons/left.svg?react';
 
+// TODO: API 연동 시 제거
 const mockPlaces = [
   {
     id: 1,
@@ -90,7 +92,7 @@ const TITLE_MAP = {
   nature: '자연',
 };
 
-// 놀거리 추천 페이지
+// 놀거리 추천 페이지 - type(hotplace/exhibition/nature)에 따라 다른 장소 목록 표시
 export default function PlayListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -99,6 +101,7 @@ export default function PlayListPage() {
 
   return (
     <div className="px-6 pt-12 flex flex-col h-screen bg-white">
+      {/*상단 바*/}
       <TopBar
         className="bg-white border-b border-line1"
         title={title}
@@ -107,6 +110,7 @@ export default function PlayListPage() {
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
 
+      {/*장소 목록*/}
       <div className="overflow-y-auto flex flex-col gap-6 py-6 no-scrollbar">
         {mockPlaces.map((place, index) => (
           <HotPlaceItem
