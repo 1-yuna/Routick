@@ -1,36 +1,110 @@
-// pages/result/ResultPage.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DndContext, closestCenter } from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
 
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
+import TopBar from '../../common/bar/TopBar.jsx';
 import BottomSheet from '../../common/sheet/BottomSheet.jsx';
-import CourseItem from '../../components/result/CourseItem.jsx';
+import CourseItem from '../../components/result/view/CourseItem.jsx';
+import EditCourseItem from '../../components/result/edit/EditCourseItem.jsx';
 import DayHeader from '../../components/result/DayHeader.jsx';
 import CourseActions from '../../components/result/CourseActions.jsx';
+import FullWidthButton from '../../common/button/FullWidthButton.jsx';
 import { calcPlaceTimes } from '../../utils/timeUtils.jsx';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
+import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
+import CourseList from '../../components/result/view/CourseList.jsx';
+import EditCourseList from '../../components/result/edit/EditCourseList.jsx';
 
-// 결과 페이지 - 코스 지도 및 바텀시트로 일정 표시
 export default function ResultPage() {
-  // 코스 데이터
   const course = useCourseStore((state) => state.course);
+  const deletePlace = useCourseStore((state) => state.deletePlace);
+  const reorderPlaces = useCourseStore((state) => state.reorderPlaces);
   const navigate = useNavigate();
-  const [sheetY, setSheetY] = useState(400); // 바텀시트 높이
-  const [selectedDay, setSelectedDay] = useState(1); // 선택된 day
+  const [sheetY, setSheetY] = useState(400);
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [isEditing, setIsEditing] = useState(false);
+  const [checkedPlaces, setCheckedPlaces] = useState([]);
 
-  // 선택된 day의 장소 목록 (시간 계산 포함)
+  const selectedDayIndex = course.findIndex((day) => day.day === selectedDay);
   const selectedPlaces = calcPlaceTimes(
     course.find((day) => day.day === selectedDay)?.places || []
   );
 
+  const handleCheck = (dayIndex, placeIndex) => {
+    setCheckedPlaces((prev) => {
+      const exists = prev.some(
+        (p) => p.dayIndex === dayIndex && p.placeIndex === placeIndex
+      );
+      return exists
+        ? prev.filter(
+            (p) => !(p.dayIndex === dayIndex && p.placeIndex === placeIndex)
+          )
+        : [...prev, { dayIndex, placeIndex }];
+    });
+  };
+
+  const handleDelete = () => {
+    checkedPlaces
+      .sort((a, b) => b.placeIndex - a.placeIndex)
+      .forEach(({ dayIndex, placeIndex }) => {
+        deletePlace(dayIndex, placeIndex);
+      });
+    setCheckedPlaces([]);
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // active.id에서 day 추출 (ex. "1-1" → day 1)
+    const draggedDay = Number(active.id.toString().split('-')[0]);
+    const dayIndex = course.findIndex((day) => day.day === draggedDay);
+    const places = course[dayIndex].places;
+
+    const oldIndex = places.findIndex(
+      (p) => `${draggedDay}-${p.id}` === active.id
+    );
+    const newIndex = places.findIndex(
+      (p) => `${draggedDay}-${p.id}` === over.id
+    );
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      reorderPlaces(dayIndex, arrayMove(places, oldIndex, newIndex));
+    }
+  };
+
+  const handleEditComplete = () => {
+    setIsEditing(false);
+    setCheckedPlaces([]);
+  };
+
   return (
     <div className="relative w-full h-screen">
       {/*상단 바*/}
-      <MapTopBar onClick={() => navigate('/home')} icon={CancelIcon} />
+      {isEditing ? (
+        <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
+          <TopBar
+            onClick={handleEditComplete}
+            text="완료"
+            className3="text-primary text-16-sb"
+            onTextClick={handleEditComplete}
+          >
+            <LeftIcon className="w-5 h-10 text-primary" />
+          </TopBar>
+        </div>
+      ) : (
+        <MapTopBar onClick={() => navigate('/home')} icon={CancelIcon} />
+      )}
 
-      {/*지도 - 선택된 day의 장소 마커 및 동선 표시*/}
+      {/*지도*/}
       <KakaoMap places={selectedPlaces} padding={[50, 50, sheetY + 50, 50]} />
 
       {/*바텀시트*/}
@@ -41,45 +115,43 @@ export default function ResultPage() {
         snapPoints={[100, 400, 700]}
         maxHeightPercent={75}
       >
-        {/*바텀시트 바디*/}
-        <div className="flex flex-col gap-12">
-          {course.map((dayData, dayIndex) => (
-            <div key={dayData.day}>
-              {/*헤더*/}
-              <DayHeader
-                day={dayData.day}
-                showRefresh={dayIndex === 0}
-                isSelected={selectedDay === dayData.day}
-                onClick={() => setSelectedDay(dayData.day)}
+        {isEditing ? (
+          <>
+            <EditCourseList
+              course={course}
+              selectedDay={selectedDay}
+              onDaySelect={setSelectedDay}
+              checkedPlaces={checkedPlaces}
+              onCheck={handleCheck}
+              onDragEnd={handleDragEnd}
+            />
+            {checkedPlaces.length > 0 && (
+              <FullWidthButton
+                text="삭제하기"
+                className="bg-primary rounded-[5px] mt-4"
+                onClick={handleDelete}
               />
-
-              {/*코스 리스트*/}
-              <div>
-                {calcPlaceTimes(dayData.places).map((place, index) => (
-                  <CourseItem
-                    key={index}
-                    index={index}
-                    place={place}
-                    transport={dayData.transport}
-                    isLast={index === dayData.places.length - 1}
-                    onCardClick={() =>
-                      navigate(`/place/${place.id}`, { state: { ...place } })
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-
-          {/*장소 추가 / 편집 / 저장 버튼*/}
-          <CourseActions
-            onAdd={() =>
-              navigate('/select/address/search', { state: { mode: 'add' } })
-            }
-            onEdit={() => console.log('편집')}
-            onSave={() => console.log('저장')}
-          />
-        </div>
+            )}
+          </>
+        ) : (
+          <div className="flex flex-col gap-12">
+            <CourseList
+              course={course}
+              selectedDay={selectedDay}
+              onDaySelect={setSelectedDay}
+              onCardClick={(place) =>
+                navigate(`/place/${place.id}`, { state: { ...place } })
+              }
+            />
+            <CourseActions
+              onAdd={() =>
+                navigate('/select/address/search', { state: { mode: 'add' } })
+              }
+              onEdit={() => setIsEditing(true)}
+              onSave={() => console.log('저장')}
+            />
+          </div>
+        )}
       </BottomSheet>
     </div>
   );

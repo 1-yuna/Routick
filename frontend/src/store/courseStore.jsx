@@ -105,6 +105,27 @@ const useCourseStore = create((set) => ({
       ),
     })),
 
+  // 장소 삭제
+  deletePlace: (dayIndex, placeIndex) =>
+    set((state) => ({
+      course: state.course.map((day, dIdx) =>
+        dIdx === dayIndex
+          ? {
+              ...day,
+              places: day.places.filter((_, pIdx) => pIdx !== placeIndex),
+            }
+          : day
+      ),
+    })),
+
+  // 장소 순서 변경
+  reorderPlaces: (dayIndex, newPlaces) =>
+    set((state) => ({
+      course: state.course.map((day, dIdx) =>
+        dIdx === dayIndex ? { ...day, places: newPlaces } : day
+      ),
+    })),
+
   // 홈으로 돌아갈 때 초기화
   reset: () => set({ course: mockCourse }),
 }));

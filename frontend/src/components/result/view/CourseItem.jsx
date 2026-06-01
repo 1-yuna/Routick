@@ -1,6 +1,6 @@
-import StarIcon from '../../assets/icons/star.svg?react';
-import CarIcon from '../../assets/icons/car.svg?react';
-import WalkIcon from '../../assets/icons/walk.svg?react';
+import StarIcon from '../../../assets/icons/star.svg?react';
+import CarIcon from '../../../assets/icons/car.svg?react';
+import WalkIcon from '../../../assets/icons/walk.svg?react';
 
 // 결과 페이지 - 코스 리스트 아이템 (시간 + 타임라인 + 장소 카드 + 이동수단)
 export default function CourseItem({
