@@ -1,19 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DndContext, closestCenter } from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/sortable';
 
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import TopBar from '../../common/bar/TopBar.jsx';
 import BottomSheet from '../../common/sheet/BottomSheet.jsx';
-import CourseItem from '../../components/result/view/CourseItem.jsx';
-import EditCourseItem from '../../components/result/edit/EditCourseItem.jsx';
-import DayHeader from '../../components/result/DayHeader.jsx';
 import CourseActions from '../../components/result/CourseActions.jsx';
 import FullWidthButton from '../../common/button/FullWidthButton.jsx';
 import { calcPlaceTimes } from '../../utils/timeUtils.jsx';
@@ -22,102 +13,34 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import CourseList from '../../components/result/view/CourseList.jsx';
 import EditCourseList from '../../components/result/edit/EditCourseList.jsx';
+import useCourseEdit from '../../hooks/useCourseEdit.jsx';
 
+// 결과 페이지 - 코스 지도 및 바텀시트로 일정 표시
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
-  const setCourse = useCourseStore((state) => state.setCourse);
-  const deletePlace = useCourseStore((state) => state.deletePlace);
-  const reorderPlaces = useCourseStore((state) => state.reorderPlaces);
   const navigate = useNavigate();
   const [sheetY, setSheetY] = useState(400);
   const [selectedDay, setSelectedDay] = useState(1);
-  const [isEditing, setIsEditing] = useState(false);
-  const [checkedPlaces, setCheckedPlaces] = useState([]);
-  const [originalCourse, setOriginalCourse] = useState(null);
 
+  const {
+    isEditing,
+    checkedPlaces,
+    handleEditStart,
+    handleEditCancel,
+    handleEditComplete,
+    handleCheck,
+    handleDelete,
+    handleDragEnd,
+  } = useCourseEdit();
+
+  // 선택된 day의 장소 목록 (시간 계산 포함)
   const selectedPlaces = calcPlaceTimes(
     course.find((day) => day.day === selectedDay)?.places || []
   );
 
-  const handleEditStart = () => {
-    setOriginalCourse(course);
-    setIsEditing(true);
-  };
-
-  const handleEditCancel = () => {
-    if (originalCourse) {
-      setCourse(originalCourse);
-    }
-    setIsEditing(false);
-    setCheckedPlaces([]);
-  };
-
-  const handleCheck = (dayIndex, placeIndex) => {
-    setCheckedPlaces((prev) => {
-      const exists = prev.some(
-        (p) => p.dayIndex === dayIndex && p.placeIndex === placeIndex
-      );
-      return exists
-        ? prev.filter(
-            (p) => !(p.dayIndex === dayIndex && p.placeIndex === placeIndex)
-          )
-        : [...prev, { dayIndex, placeIndex }];
-    });
-  };
-
-  const handleDelete = () => {
-    checkedPlaces
-      .sort((a, b) => b.placeIndex - a.placeIndex)
-      .forEach(({ dayIndex, placeIndex }) => {
-        deletePlace(dayIndex, placeIndex);
-      });
-    setCheckedPlaces([]);
-  };
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const fromDay = Number(active.id.toString().split('-')[0]);
-    const toDay = Number(over.id.toString().split('-')[0]);
-    const fromDayIndex = course.findIndex((day) => day.day === fromDay);
-    const toDayIndex = course.findIndex((day) => day.day === toDay);
-
-    if (fromDay === toDay) {
-      // 같은 day 내 이동
-      const places = course[fromDayIndex].places;
-      const oldIndex = places.findIndex(
-        (p) => `${fromDay}-${p.id}` === active.id
-      );
-      const newIndex = places.findIndex(
-        (p) => `${fromDay}-${p.id}` === over.id
-      );
-      reorderPlaces(fromDayIndex, arrayMove(places, oldIndex, newIndex));
-    } else {
-      const fromPlaces = [...course[fromDayIndex].places];
-      const toPlaces = [...course[toDayIndex].places];
-      const fromIndex = fromPlaces.findIndex(
-        (p) => `${fromDay}-${p.id}` === active.id
-      );
-      const toIndex = toPlaces.findIndex((p) => `${toDay}-${p.id}` === over.id);
-
-      const [movedPlace] = fromPlaces.splice(fromIndex, 1);
-      const newId = Date.now(); // 여기 추가
-      toPlaces.splice(toIndex, 0, { ...movedPlace, id: newId });
-
-      reorderPlaces(fromDayIndex, fromPlaces);
-      reorderPlaces(toDayIndex, toPlaces);
-    }
-  };
-
-  const handleEditComplete = () => {
-    setIsEditing(false);
-    setCheckedPlaces([]);
-  };
-
   return (
     <div className="relative w-full h-screen">
-      {/*상단 바*/}
+      {/*상단 바 - 편집 모드면 TopBar, 아니면 MapTopBar*/}
       {isEditing ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
           <TopBar
@@ -133,7 +56,7 @@ export default function ResultPage() {
         <MapTopBar onClick={() => navigate('/home')} icon={CancelIcon} />
       )}
 
-      {/*지도*/}
+      {/*지도 - 선택된 day의 장소 마커 및 동선 표시*/}
       <KakaoMap places={selectedPlaces} padding={[50, 50, sheetY + 50, 50]} />
 
       {/*바텀시트*/}
@@ -146,6 +69,7 @@ export default function ResultPage() {
       >
         {isEditing ? (
           <>
+            {/*편집 모드 - 드래그 정렬 + 체크박스 삭제*/}
             <EditCourseList
               course={course}
               selectedDay={selectedDay}
@@ -164,6 +88,7 @@ export default function ResultPage() {
           </>
         ) : (
           <div className="flex flex-col gap-12">
+            {/*일반 모드 - 코스 리스트*/}
             <CourseList
               course={course}
               selectedDay={selectedDay}
@@ -172,11 +97,12 @@ export default function ResultPage() {
                 navigate(`/place/${place.id}`, { state: { ...place } })
               }
             />
+            {/*장소 추가 / 편집 / 저장 버튼*/}
             <CourseActions
               onAdd={() =>
                 navigate('/select/address/search', { state: { mode: 'add' } })
               }
-              onEdit={() => handleEditStart()}
+              onEdit={handleEditStart}
               onSave={() => console.log('저장')}
             />
           </div>
