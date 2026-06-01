@@ -12,6 +12,10 @@ const getWalkTime = (origin, destination) => {
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
   const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); // 직선거리 (km)
+  console.log('출발:', origin);
+  console.log('도착:', destination);
+  console.log('직선거리(km):', distance);
+  console.log('계산된 시간(분):', Math.ceil((distance / 4) * 60));
   return Math.ceil((distance / 4) * 60); // 분 단위로 변환
 };
 
@@ -28,4 +32,24 @@ export const getTransportTime = async (origin, destination, transport) => {
   });
   const data = await res.json();
   return Math.ceil(data.routes[0].summary.duration / 60); // 초 → 분 변환
+};
+
+export const calcAllTransportTimes = async (course) => {
+  return Promise.all(
+    course.map(async (dayData) => {
+      const updatedPlaces = await Promise.all(
+        dayData.places.map(async (place, index) => {
+          if (index === dayData.places.length - 1) return place;
+          const nextPlace = dayData.places[index + 1];
+          const transportTime = await getTransportTime(
+            { lat: place.lat, lng: place.lng },
+            { lat: nextPlace.lat, lng: nextPlace.lng },
+            dayData.transport
+          );
+          return { ...place, transportTime };
+        })
+      );
+      return { ...dayData, places: updatedPlaces };
+    })
+  );
 };

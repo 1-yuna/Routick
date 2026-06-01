@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import useCourseStore from '../store/courseStore.jsx';
+import { calcAllTransportTimes } from '../utils/directionUtils.jsx';
 
 // 코스 편집 관련 로직 (체크박스 삭제, 드래그 순서 변경, 편집 취소/완료)
 export default function useCourseEdit() {
@@ -26,8 +27,10 @@ export default function useCourseEdit() {
     setCheckedPlaces([]);
   };
 
-  // 편집 완료
-  const handleEditComplete = () => {
+  // 편집 완료 - 이동시간 재계산
+  const handleEditComplete = async () => {
+    const updatedCourse = await calcAllTransportTimes(course);
+    setCourse(updatedCourse);
     setIsEditing(false);
     setCheckedPlaces([]);
   };
