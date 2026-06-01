@@ -5,7 +5,7 @@ import KakaoMap from '../../common/map/KakaoMap.jsx';
 import TopBar from '../../common/bar/TopBar.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import PlaceCard from '../../components/place/PlaceCard.jsx';
-import TimeInputModal from '../../components/place/TimeInputModal.jsx';
+import PlaceInfoModal from '../../components/place/PlaceInfoModal.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 
@@ -22,8 +22,9 @@ export default function PlaceDetailPage() {
   if (!place) return null;
 
   // 머무를 시간 입력 후 코스에 장소 추가
-  const handleConfirm = (stayTime) => {
-    addPlace({ ...place, stayTime });
+  const handleConfirm = ({ stayTime, category }) => {
+    addPlace({ ...place, stayTime, category });
+    console.log('category:', place.category);
     navigate('/result');
   };
 
@@ -31,7 +32,7 @@ export default function PlaceDetailPage() {
     <div className="relative w-full h-screen">
       {/*머무를 시간 입력 모달*/}
       {showModal && (
-        <TimeInputModal
+        <PlaceInfoModal
           onConfirm={handleConfirm}
           onCancel={() => setShowModal(false)}
         />

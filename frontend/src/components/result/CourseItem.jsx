@@ -12,10 +12,12 @@ export default function CourseItem({ place, isLast, onCardClick, index }) {
   const CATEGORY_COLOR = {
     food: 'bg-food',
     lodging: 'bg-lodging',
+    etc: 'bg-primary',
   };
   const CATEGORY_BORDER = {
     food: 'border-food',
     lodging: 'border-lodging',
+    etc: 'border-primary',
   };
 
   return (

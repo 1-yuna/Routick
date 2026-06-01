@@ -1,8 +1,8 @@
 // 공통 모달 - 텍스트, 컨텐츠(children), 취소/확인 버튼
-export default function TimeModal({ text, children, onConfirm, onCancel }) {
+export default function BaseModal({ text, children, onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-[10px] p-5 w-[298px] h-[144px] flex flex-col justify-between">
+      <div className="bg-white rounded-[10px] gap-3 p-5 w-[298px] flex flex-col justify-between">
         {/*안내 텍스트*/}
         <p className="text-16-sb text-gray2">{text}</p>
 
