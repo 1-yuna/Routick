@@ -26,7 +26,7 @@ export default function AddressSearchPage() {
   const mode = location.state?.mode;
 
   const navigate = useNavigate();
-  const [query, setQuery] = useState(location.state?.address || '');
+  const [query, setQuery] = useState(location.state?.address?.name || '');
   const [results, setResults] = useState([]);
   const setAddress = useSelectionStore((state) => state.setAddress);
 

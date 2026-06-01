@@ -9,7 +9,7 @@ export default function LoadingPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate('/map');
+      navigate('/result');
     }, 3000);
     return () => clearTimeout(timer);
   }, [navigate]);

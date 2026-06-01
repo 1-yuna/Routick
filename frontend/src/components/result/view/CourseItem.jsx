@@ -1,6 +1,7 @@
 import StarIcon from '../../../assets/icons/star.svg?react';
 import CarIcon from '../../../assets/icons/car.svg?react';
 import WalkIcon from '../../../assets/icons/walk.svg?react';
+import PlaceImageDefault from '../../../common/imageDefault/PlaceImageDefault.jsx';
 
 // 결과 페이지 - 코스 리스트 아이템 (시간 + 타임라인 + 장소 카드 + 이동수단)
 export default function CourseItem({
@@ -57,11 +58,15 @@ export default function CourseItem({
           onClick={onCardClick}
         >
           {/*사진*/}
-          <img
-            src={place.src}
-            alt={place.name}
-            className="w-20 h-20 rounded-[8px] object-cover flex-shrink-0"
-          />
+          {place.src ? (
+            <img
+              src={place.src}
+              alt={place.name}
+              className="w-20 h-20 rounded-[8px] object-cover flex-shrink-0"
+            />
+          ) : (
+            <PlaceImageDefault className="w-20 h-20 rounded-[8px]" />
+          )}
           {/*장소 정보*/}
           <div className="flex flex-col justify-between">
             <div className="flex flex-col gap-1">
