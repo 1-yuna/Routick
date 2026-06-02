@@ -16,8 +16,9 @@ import TransportPage from '../pages/selection/TransportPage.jsx';
 import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import LoadingPage from '../pages/selection/LoadingPage.jsx';
 import ResultPage from '../pages/result/ResultPage.jsx';
-import MyPage from '../pages/MyPage.jsx';
 import MyTripPage from '../pages/myTrip/MyTripPage.jsx';
+import MyPage from '../pages/myProfile/MyPage.jsx';
+import EditProfilePage from '../pages/myProfile/EditProfilePage.jsx';
 
 export default function Router() {
   return (
@@ -46,6 +47,7 @@ export default function Router() {
 
         <Route path="/mytrip" element={<MyTripPage />} />
         <Route path="/mypage" element={<MyPage />} />
+        <Route path="/my/profile" element={<EditProfilePage />} />
       </Routes>
     </BrowserRouter>
   );

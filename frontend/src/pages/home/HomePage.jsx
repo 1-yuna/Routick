@@ -82,10 +82,7 @@ export default function HomePage() {
   return (
     <div className="pt-12 pb-32 flex flex-col h-screen bg-default">
       {/*상단 바*/}
-      <TopBar
-        className="px-6 bg-white border-b border-line1"
-        onClick={() => navigate('/home')}
-      >
+      <TopBar className="px-6 border-b border-line1">
         <img className="w-22 h-11 object-contain" src={logo} />
       </TopBar>
 
@@ -94,7 +91,7 @@ export default function HomePage() {
         <CourseBanner
           name="윤아"
           image={home}
-          className="px-6 pt-8 "
+          className="px-6 pt-8"
           onClick={() => {
             reset();
             navigate('/select/address');
