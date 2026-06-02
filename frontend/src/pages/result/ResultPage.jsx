@@ -20,7 +20,6 @@ import TitleInputModal from '../../components/result/save/TitleInputModal.jsx';
 // 결과 페이지 - 코스 지도 및 바텀시트로 일정 표시
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
-  console.log('course:', course);
   const navigate = useNavigate();
   const [sheetY, setSheetY] = useState(400);
   const [selectedDay, setSelectedDay] = useState(1);
@@ -37,7 +36,6 @@ export default function ResultPage() {
     handleDelete,
     handleDragEnd,
   } = useCourseEdit();
-  console.log('isEditing:', isEditing, 'checkedPlaces:', checkedPlaces);
 
   // 선택된 day의 장소 목록 (시간 계산 포함)
   const selectedPlaces = calcPlaceTimes(
