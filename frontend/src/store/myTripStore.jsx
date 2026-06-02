@@ -85,6 +85,14 @@ const useMyTripStore = create((set) => ({
         trip.id === id ? { ...trip, src: imageUrl } : trip
       ),
     })),
+
+  // 여행 제목 변경
+  updateTripTitle: (id, title) =>
+    set((state) => ({
+      trips: state.trips.map((trip) =>
+        trip.id === id ? { ...trip, title } : trip
+      ),
+    })),
 }));
 
 export default useMyTripStore;

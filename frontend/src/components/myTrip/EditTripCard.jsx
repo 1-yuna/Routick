@@ -3,14 +3,18 @@ import CancelIcon from '../../assets/icons/cancel.svg?react';
 import ImageIcon from '../../assets/icons/image.svg?react';
 import { useState } from 'react';
 import useMyTripStore from '../../store/myTripStore.jsx';
+import BaseModal from '../../common/modal/BaseModal.jsx';
 
 // 여행 편집 카드
 export default function EditTripCard({ trip, isChecked, onCheck }) {
   const { title, src } = trip;
   const [showImageSheet, setShowImageSheet] = useState(false);
   const [isImageSelected, setIsImageSelected] = useState(false);
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [newTitle, setNewTitle] = useState(title);
 
   const updateTripImage = useMyTripStore((state) => state.updateTripImage);
+  const updateTripTitle = useMyTripStore((state) => state.updateTripTitle);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -19,6 +23,11 @@ export default function EditTripCard({ trip, isChecked, onCheck }) {
     // store에 저장
     updateTripImage(trip.id, imageUrl);
     setShowImageSheet(false);
+  };
+
+  const handleTitleConfirm = () => {
+    updateTripTitle(trip.id, newTitle);
+    setShowTitleModal(false);
   };
 
   return (
@@ -103,7 +112,30 @@ export default function EditTripCard({ trip, isChecked, onCheck }) {
             </div>
           )}
         </div>
-        <p className="p-3 text-14-sb text-black1">{title}</p>
+        {/*제목*/}
+        <p
+          className="p-3 text-14-sb text-black1 cursor-pointer flex-1"
+          onClick={() => setShowTitleModal(true)}
+        >
+          {title}
+        </p>
+
+        {/*제목 수정 모달*/}
+        {showTitleModal && (
+          <BaseModal
+            text="수정할 여행 제목을 입력해주세요!"
+            onConfirm={handleTitleConfirm}
+            onCancel={() => setShowTitleModal(false)}
+          >
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder={title}
+              className="w-full h-10 border border-line2 rounded-[5px] px-3 text-14-rg text-black1 outline-none"
+            />
+          </BaseModal>
+        )}
       </div>
     </div>
   );
