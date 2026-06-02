@@ -77,6 +77,14 @@ const useMyTripStore = create((set) => ({
     set((state) => ({
       trips: state.trips.filter((trip) => !ids.includes(trip.id)),
     })),
+
+  // 여행 이미지 변경
+  updateTripImage: (id, imageUrl) =>
+    set((state) => ({
+      trips: state.trips.map((trip) =>
+        trip.id === id ? { ...trip, src: imageUrl } : trip
+      ),
+    })),
 }));
 
 export default useMyTripStore;
