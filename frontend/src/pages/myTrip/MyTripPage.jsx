@@ -60,26 +60,35 @@ export default function MyTripPage() {
       )}
 
       {/*여행 목록*/}
-      <div
-        className={`overflow-y-auto no-scrollbar flex flex-col px-6 py-4 flex-1 ${isEditing ? '' : 'gap-4'}`}
-      >
-        {trips.map((trip) =>
-          isEditing ? (
-            <EditTripCard
-              key={trip.id}
-              trip={trip}
-              isChecked={checkedTrips.includes(trip.id)}
-              onCheck={() => handleCheck(trip.id)}
-            />
-          ) : (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              onClick={() => navigate('/result', { state: { from: 'mytrip' } })}
-            />
-          )
-        )}
-      </div>
+      {/*여행 목록*/}
+      {trips.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-14-rg text-gray2">아직 저장된 여행이 없어요 🥲</p>
+        </div>
+      ) : (
+        <div
+          className={`overflow-y-auto no-scrollbar flex flex-col px-6 py-4 flex-1 ${isEditing ? '' : 'gap-4'}`}
+        >
+          {trips.map((trip) =>
+            isEditing ? (
+              <EditTripCard
+                key={trip.id}
+                trip={trip}
+                isChecked={checkedTrips.includes(trip.id)}
+                onCheck={() => handleCheck(trip.id)}
+              />
+            ) : (
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                onClick={() =>
+                  navigate('/result', { state: { from: 'mytrip' } })
+                }
+              />
+            )
+          )}
+        </div>
+      )}
 
       {/*삭제 버튼*/}
       {isEditing && checkedTrips.length > 0 && (
