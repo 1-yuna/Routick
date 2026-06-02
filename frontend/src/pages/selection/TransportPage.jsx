@@ -6,9 +6,9 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 
 // 선택 6단계 - 이동 수단 (단일 선택)
 export default function TransportPage() {
-  const navigate = useNavigate();
   const transport = useSelectionStore((state) => state.transport);
   const setTransport = useSelectionStore((state) => state.setTransport);
+  const navigate = useNavigate();
 
   const TRANSPORT_OPTIONS = [
     { label: '도보', value: 'walk' },

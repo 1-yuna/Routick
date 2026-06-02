@@ -6,9 +6,9 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 
 // 선택 4단계 - 연령대 (단일 선택)
 export default function AgeGroupPage() {
-  const navigate = useNavigate();
   const age = useSelectionStore((state) => state.age);
   const setAge = useSelectionStore((state) => state.setAge);
+  const navigate = useNavigate();
 
   const AGE_OPTIONS = [
     { label: '10대', value: 'teens' },

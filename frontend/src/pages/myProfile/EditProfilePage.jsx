@@ -11,8 +11,8 @@ import useUserStore from '../../store/userStore.jsx';
 
 // 프로필 변경 페이지
 export default function EditProfilePage() {
-  const navigate = useNavigate();
   const { user, updateUser } = useUserStore();
+  const navigate = useNavigate();
   const [name, setName] = useState(user.name);
   const [src, setSrc] = useState(user.src);
 

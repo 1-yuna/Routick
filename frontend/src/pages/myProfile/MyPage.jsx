@@ -9,8 +9,8 @@ import useUserStore from '../../store/userStore.jsx';
 
 // 내 정보 페이지
 export default function MyPage() {
-  const navigate = useNavigate();
   const { user } = useUserStore();
+  const navigate = useNavigate();
 
   return (
     <div className="pt-12 pb-32 flex flex-col h-screen bg-white">

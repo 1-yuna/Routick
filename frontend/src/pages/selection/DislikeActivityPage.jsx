@@ -20,9 +20,9 @@ function KeywordTag({ keyword, onRemove }) {
 
 // 선택 8단계 - 비선호 키워드 (다중 입력)
 export default function DislikeActivityPage() {
-  const navigate = useNavigate();
   const dislike = useSelectionStore((state) => state.dislike);
   const setDislike = useSelectionStore((state) => state.setDislike);
+  const navigate = useNavigate();
   const [input, setInput] = useState('');
 
   const handleKeyDown = (e) => {

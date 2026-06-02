@@ -6,9 +6,9 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 
 // 선택 2선택 - 여행 기간 (단일 선택)
 export default function TravelPeriodPage() {
-  const navigate = useNavigate();
   const period = useSelectionStore((state) => state.period);
   const setPeriod = useSelectionStore((state) => state.setPeriod);
+  const navigate = useNavigate();
 
   const PERIOD_OPTIONS = [
     { label: '당일치기', value: 'day' },

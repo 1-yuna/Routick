@@ -6,9 +6,9 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 
 // 선택 5단계 - 분위기 선호 선택 (다중 선택)
 export default function MoodPage() {
-  const navigate = useNavigate();
   const mood = useSelectionStore((state) => state.mood);
   const setMood = useSelectionStore((state) => state.setMood);
+  const navigate = useNavigate();
 
   const MOOD_OPTIONS = [
     { label: '활기찬', value: 'energetic' },

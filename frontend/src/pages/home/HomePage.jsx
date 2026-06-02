@@ -77,9 +77,9 @@ const mockTopPlaces = [
 
 // 홈 페이지
 export default function HomePage() {
+  const reset = useCourseStore((state) => state.reset);
   const navigate = useNavigate();
   const [location, setLocation] = useState(null);
-  const reset = useCourseStore((state) => state.reset);
 
   // 현재 위치 수집
   useEffect(() => {

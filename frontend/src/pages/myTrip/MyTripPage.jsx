@@ -12,11 +12,11 @@ import useMyTripStore from '../../store/myTripStore.jsx';
 
 // 내 여행 페이지
 export default function MyTripPage() {
+  const trips = useMyTripStore((state) => state.trips);
+  const deleteTrips = useMyTripStore((state) => state.deleteTrips);
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [checkedTrips, setCheckedTrips] = useState([]);
-  const trips = useMyTripStore((state) => state.trips);
-  const deleteTrips = useMyTripStore((state) => state.deleteTrips);
 
   const handleCheck = (id) => {
     setCheckedTrips((prev) =>

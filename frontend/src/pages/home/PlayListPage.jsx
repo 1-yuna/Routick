@@ -94,8 +94,8 @@ const TITLE_MAP = {
 
 // 놀거리 추천 페이지 - type(hotplace/exhibition/nature)에 따라 다른 장소 목록 표시
 export default function PlayListPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const type = searchParams.get('type') || 'hotplace';
   const title = TITLE_MAP[type] || '핫플';
 

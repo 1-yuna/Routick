@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 const KAKAO_API_KEY = import.meta.env.VITE_KAKAO_REST_API_KEY;
 
 // 도보 이동시간 추정 - 직선거리 기반 (평균 도보 속도 4km/h)
@@ -26,12 +28,17 @@ export const getTransportTime = async (origin, destination, transport) => {
   if (transport === '도보') {
     return getWalkTime(origin, destination);
   }
-  const url = `https://apis-navi.kakaomobility.com/v1/directions?origin=${origin.lng},${origin.lat}&destination=${destination.lng},${destination.lat}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` },
-  });
-  const data = await res.json();
-  return Math.ceil(data.routes[0].summary.duration / 60); // 초 → 분 변환
+  const res = await axios.get(
+    `https://apis-navi.kakaomobility.com/v1/directions`,
+    {
+      params: {
+        origin: `${origin.lng},${origin.lat}`,
+        destination: `${destination.lng},${destination.lat}`,
+      },
+      headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` },
+    }
+  );
+  return Math.ceil(res.data.routes[0].summary.duration / 60);
 };
 
 export const calcAllTransportTimes = async (course) => {

@@ -6,9 +6,9 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 
 // 선택 2단계 - 일행 유형 (단일 선택)
 export default function CompanionPage() {
-  const navigate = useNavigate();
   const companion = useSelectionStore((state) => state.companion);
   const setCompanion = useSelectionStore((state) => state.setCompanion);
+  const navigate = useNavigate();
 
   const COMPANION_OPTIONS = [
     { label: '홀로', value: 'solo' },

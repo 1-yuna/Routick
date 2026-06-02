@@ -6,9 +6,9 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 
 // 선택 6단계 - 활동 선택 (다중 선택)
 export default function ActivityPage() {
-  const navigate = useNavigate();
   const activity = useSelectionStore((state) => state.activity);
   const setActivity = useSelectionStore((state) => state.setActivity);
+  const navigate = useNavigate();
 
   const ACTIVITY_OPTIONS = [
     { label: '관광/전시', value: 'sightseeing' },
