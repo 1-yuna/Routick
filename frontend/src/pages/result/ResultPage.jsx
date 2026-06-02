@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
@@ -21,6 +21,8 @@ import TitleInputModal from '../../components/result/save/TitleInputModal.jsx';
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromMyTrip = location.state?.from === 'mytrip';
   const [sheetY, setSheetY] = useState(400);
   const [selectedDay, setSelectedDay] = useState(1);
   const [showTitleModal, setShowTitleModal] = useState(false);
@@ -76,7 +78,10 @@ export default function ResultPage() {
           </TopBar>
         </div>
       ) : (
-        <MapTopBar onClick={() => navigate('/home')} icon={CancelIcon} />
+        <MapTopBar
+          onClick={() => (fromMyTrip ? navigate(-1) : navigate('/home'))}
+          icon={fromMyTrip ? LeftIcon : CancelIcon}
+        />
       )}
 
       {/*지도 - 선택된 day의 장소 마커 및 동선 표시*/}

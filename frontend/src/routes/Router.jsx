@@ -17,7 +17,7 @@ import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import LoadingPage from '../pages/selection/LoadingPage.jsx';
 import ResultPage from '../pages/result/ResultPage.jsx';
 import MyPage from '../pages/MyPage.jsx';
-import MyTripPage from '../pages/MyTripPage.jsx';
+import MyTripPage from '../pages/myTrip/MyTripPage.jsx';
 
 export default function Router() {
   return (
