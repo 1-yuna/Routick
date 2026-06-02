@@ -1,3 +1,7 @@
+import MapIcon from '../../assets/icons/map.svg?react';
+import CarIcon from '../../assets/icons/car.svg?react';
+import WalkIcon from '../../assets/icons/walk.svg?react';
+
 // 여행 카드
 export default function TripCard({ trip, onClick }) {
   const { title, address, transport, tags, hashtags, src } = trip;
