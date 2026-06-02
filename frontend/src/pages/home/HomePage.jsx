@@ -9,6 +9,7 @@ import home from '../../assets/images/home.png';
 import sample from '../../assets/images/mock/sample.png';
 import logo from '../../assets/images/logo.png';
 import useCourseStore from '../../store/selectionStore.jsx';
+import { useEffect, useState } from 'react';
 
 // TODO: API 연동 시 제거
 const mockTopPlaces = [
@@ -77,7 +78,26 @@ const mockTopPlaces = [
 // 홈 페이지
 export default function HomePage() {
   const navigate = useNavigate();
+  const [location, setLocation] = useState(null);
   const reset = useCourseStore((state) => state.reset);
+
+  // 현재 위치 수집
+  useEffect(() => {
+    console.log('geolocation 시작');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        console.log('현재 위치:', { lat, lng });
+        setLocation({ lat, lng });
+      },
+      (error) => {
+        console.error('위치 가져오기 실패:', error.code, error.message);
+        // 위치 가져오기 실패 시 서울 기본값
+        setLocation({ lat: 37.5665, lng: 126.978 });
+      }
+    );
+  }, []);
 
   return (
     <div className="pt-12 pb-32 flex flex-col h-screen bg-default">
