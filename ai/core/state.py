@@ -130,6 +130,9 @@ class TravelState(TypedDict):
     retry_count: int
     step: str
 
+    # 최종 응답
+    response: dict
+
 
 # ─── 초기화 함수 ───
 def make_initial_state(user_input: UserInput) -> TravelState:
@@ -148,4 +151,5 @@ def make_initial_state(user_input: UserInput) -> TravelState:
         "warnings": [],
         "retry_count": 0,
         "step": "initialized",
+        "response": {},
     }
