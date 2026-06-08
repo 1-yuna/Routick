@@ -55,6 +55,7 @@ def generate_response(state: dict) -> dict:
                 "placeUrl":             p.get("place_url", ""),
                 "lat":                  p.get("lat", 0.0),
                 "lng":                  p.get("lng", 0.0),
+                "bucket":               p.get("bucket", "other"),
                 "description":          item.get("recommendation_reason", ""),
                 "stayMinutes":          stay_minutes,
                 "arriveTime":           item.get("arrive_at", ""),
