@@ -82,8 +82,6 @@ async def second_filter_candidates(state: dict) -> dict:
     # ─── 4. 점수 계산 ───
     scored = []
     for place in enriched:
-        print("moods_kr:", moods_kr)
-        print("atmosphere:", place.get("atmosphere"))
         mood_score      = calc_mood_score(place, moods_kr)
         activity_score  = calc_activity_score(place, activities_kr)
         party_fit_score = calc_party_fit_score(place, companion_kr)
