@@ -124,7 +124,10 @@ async def select_itinerary(state: dict) -> dict:
 
             used_place_ids.add(pid)
             item_copy = dict(item)
-            item_copy["recommendation_reason"] = recommendation_reasons.get(pid, "")
+            item_copy["recommendation_reason"] = (
+                recommendation_reasons.get(pid, "")
+                or item["place"].get("summary", "")
+            )
             item_copy["day_number"] = day_number
             day_itinerary.append(item_copy)
 

@@ -89,6 +89,18 @@ async def second_filter_candidates(state: dict) -> dict:
             if any(kw in category for kw in ["제과", "베이커리", "디저트"]):
                 forced_bucket = "cafe"
 
+        # category_group_code 없을 때 category 텍스트로 판단
+        if not forced_bucket:
+            category = place.get("category", "") or ""
+            if any(kw in category for kw in ["숙박", "호텔", "게스트하우스", "펜션", "리조트"]):
+                forced_bucket = "lodging"
+            elif any(kw in category for kw in ["음식점", "한식", "양식", "일식", "중식", "분식"]):
+                forced_bucket = "food"
+            elif "카페" in category:
+                forced_bucket = "cafe"
+            elif any(kw in category for kw in ["관광", "문화", "전시", "박물", "체험", "스포츠", "레저", "문화유적", "공원", "해수욕장", "해변"]):
+                forced_bucket = "activity"
+
         bucket = forced_bucket if forced_bucket else (enrich.get("bucket") or classify_fallback(place))
 
         enriched.append({

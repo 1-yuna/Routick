@@ -42,13 +42,13 @@ def generate_response(state: dict) -> dict:
             ]
 
         places = []
-        for item in itinerary:
+        for order, item in enumerate(itinerary, start=1):
             p = item["place"]
             bucket = p.get("bucket", "other")
             stay_minutes = STAY_MINUTES.get(bucket, 60)
 
             places.append({
-                "placeOrder":           item["order"],
+                "placeOrder":           order,
                 "placeId":              p.get("id", ""),
                 "name":                 p.get("name", ""),
                 "address":              p.get("road_address_name", ""),
