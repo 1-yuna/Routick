@@ -13,7 +13,7 @@ mock_user_input: UserInput = {
     "destination": "해운대역",
     "lat": 35.1631,
     "lng": 129.1635,
-    "travel_days": 1,
+    "travel_days": 2,
     "companion": "couple",
     "age_group": "20s",
     "moods": ["active", "healing"],

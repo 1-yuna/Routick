@@ -11,7 +11,7 @@
 #   5. 체인 브랜드 후순위
 #   6. 카페,음식점 우선 순위로 바꾼 뒤 (필수적으로 포함되어야하기 때문) > 카페, 음식점 수 줄이기
 # ─────────────────────────────────────────────────────────────────────
-from constants.keywords import EXCLUDE_KEYWORDS, PARTY_EXCLUDE_KEYWORDS
+from constants.place_keywords import EXCLUDE_KEYWORDS, PARTY_EXCLUDE_KEYWORDS
 
 
 # ─── dislike 키워드 제거 ───

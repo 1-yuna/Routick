@@ -17,7 +17,7 @@ import asyncio
 import os
 import httpx
 
-from constants.keywords import KEYWORD_EXPANSIONS
+from constants.place_keywords import KEYWORD_EXPANSIONS
 
 # ─── 카카오 API 키 ───
 KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
