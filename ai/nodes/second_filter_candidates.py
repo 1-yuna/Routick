@@ -1,14 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────
 # second_filter_candidates
 # ─────────────────────────────────────────────────────────────────────
-# API/LLM + 점수 계산 + 30개 축약
+# 네이버 블로그 + GPT-4o-mini로 장소 데이터 보강
+# + 점수 계산 + travel_days 기반 동적 shortlist 구성
 #
 # 흐름:
 #   1. 네이버 블로그 snippet 수집 (search_naver_blogs)
-#   2. LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
-#   3. filtered_candidates에 보강 데이터 머지
-#   4. 점수 계산 → scored_candidates (scoring)
-#   5. 카테고리 quota 분배 → shortlist - 30개 축약(shortlist)
+#   2. GPT-4o-mini로 장소 데이터 보강 (enrich_with_llm)
+#   3. LLM 실패 시 fallback 분류 (classify_fallback)
+#   4. 점수 계산 (scoring)
+#   5. shortlist 선별 (select_shortlist)
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.second_filter.search_naver_blogs import search_naver_blogs
@@ -18,18 +19,17 @@ from utils.second_filter.shortlist import select_shortlist, classify_fallback
 import time
 
 
-# ─── [노드] 30개 축약  ───
+# ─── [노드] 2차 필터링 및 점수화 ───
 async def second_filter_candidates(state: dict) -> dict:
     filtered = state["filtered_candidates"]
     ui = state["user_input"]
     warnings: list[str] = []
 
-    mood_preferences = ui.get("mood_preferences") or []
-    activity_preferences = ui.get("activity_preferences") or []
-    party_type = ui.get("party_type", "")
-    party_size = ui.get("party_size", 1)
+    moods_kr = ui.get("moods_kr") or []
+    activities_kr = ui.get("activities_kr") or []
+    companion_kr = ui.get("companion_kr", "")
     age_group = ui.get("age_group", "")
-    duration = ui.get("duration", "당일")
+    travel_days = ui.get("travel_days", 1)
 
     if not filtered:
         warnings.append("filtered_candidates 비어있음 → 보강 스킵")
@@ -41,7 +41,7 @@ async def second_filter_candidates(state: dict) -> dict:
             "step": "enriched",
         }
 
-    # 네이버 블로그 snippet 수집 (search_naver_blogs)
+    # ─── 1. 네이버 블로그 snippet 수집 ───
     t1 = time.time()
     try:
         blog_data = await search_naver_blogs(filtered)
@@ -50,7 +50,7 @@ async def second_filter_candidates(state: dict) -> dict:
         blog_data = []
     print(f"⏱  네이버 블로그: {time.time() - t1:.1f}초 ({len(blog_data)}개)")
 
-    # LLM으로 카테고리/분위기/구성원/활동/재방문의사/요약 추출 (enrich_with_llm)
+    # ─── 2. GPT-4o-mini로 장소 데이터 보강 ───
     t2 = time.time()
     llm_results = []
     if blog_data:
@@ -62,7 +62,7 @@ async def second_filter_candidates(state: dict) -> dict:
         warnings.append("블로그 데이터 없음 → LLM 스킵")
     print(f"⏱  LLM 보강: {time.time() - t2:.1f}초 ({len(llm_results)}개)")
 
-    # filtered_candidates에 머지
+    # ─── 3. LLM 결과 머지 + fallback 분류 ───
     llm_map = {r["place_id"]: r for r in llm_results}
 
     enriched = []
@@ -71,50 +71,47 @@ async def second_filter_candidates(state: dict) -> dict:
         enrich = llm_map.get(place_id, {})
         enriched.append({
             **place,
-            "bucket": enrich.get("bucket") or classify_fallback(place),
-            "atmosphere": enrich.get("atmosphere", []),
-            "best_for": enrich.get("best_for", []),
-            "place_tags": enrich.get("place_tags", []),
+            "bucket":         enrich.get("bucket") or classify_fallback(place),
+            "atmosphere":     enrich.get("atmosphere", []),
+            "best_for":       enrich.get("best_for", []),
+            "place_tags":     enrich.get("place_tags", []),
             "revisit_intent": enrich.get("revisit_intent", "low"),
-            "summary": enrich.get("summary", ""),
+            "summary":        enrich.get("summary", ""),
         })
 
-    # 점수 계산 (scoring)
+    # ─── 4. 점수 계산 ───
     scored = []
     for place in enriched:
-        mood_score = calc_mood_score(place, mood_preferences)
-        activity_score = calc_activity_score(place, activity_preferences)
-        party_fit_score = calc_party_fit_score(place, party_type, party_size, age_group)
-        revisit_score = calc_revisit_score(place)
-        total_score = calc_total_score(
-            mood_score,
-            activity_score,
-            party_fit_score,
-            revisit_score,
-        )
+        print("moods_kr:", moods_kr)
+        print("atmosphere:", place.get("atmosphere"))
+        mood_score      = calc_mood_score(place, moods_kr)
+        activity_score  = calc_activity_score(place, activities_kr)
+        party_fit_score = calc_party_fit_score(place, companion_kr)
+        revisit_score   = calc_revisit_score(place)
+        total_score     = calc_total_score(mood_score, activity_score, party_fit_score, revisit_score)
+
         scored.append({
-            "place": place,
-            "mood_score": mood_score,
-            "activity_score": activity_score,
+            "place":           place,
+            "mood_score":      mood_score,
+            "activity_score":  activity_score,
             "party_fit_score": party_fit_score,
-            "revisit_score": revisit_score,
-            "total_score": total_score,
+            "revisit_score":   revisit_score,
+            "total_score":     total_score,
         })
 
-    # total_score 내림차순 정렬
     scored.sort(key=lambda x: x["total_score"], reverse=True)
 
-    # 30개 축약 (select_shortlist)
-    shortlist = select_shortlist(scored, duration=duration, target_count=30)
+    # ─── 5. shortlist 선별 ───
+    shortlist = select_shortlist(scored, travel_days=travel_days)
 
     if not shortlist:
         warnings.append("shortlist 비어있음")
 
     return {
         "user_input": ui,
-        "filtered_candidates": enriched, #50개
+        "filtered_candidates": enriched,
         "scored_candidates": scored,
-        "shortlist": shortlist, # 최종 선별 30
+        "shortlist": shortlist,
         "warnings": warnings,
         "step": "enriched",
     }

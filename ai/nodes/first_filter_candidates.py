@@ -143,6 +143,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
 
     return {
         "filtered_candidates": filtered,
+        "user_input": ui,
         "warnings": warnings,
         "step": "filtered",
     }

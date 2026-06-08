@@ -1,16 +1,15 @@
 # ─────────────────────────────────────────────────────────────────────
 # shortlist
 # ─────────────────────────────────────────────────────────────────────
-# scored_candidates → shortlist (카테고리 quota 분배)
+# scored_candidates → shortlist (travel_days 기반 quota 분배)
 #
 # 흐름:
-#   1. 가게를 5개 bucket(cafe/food/activity/lodging/other)으로 분류
-#      - LLM이 분류한 place["bucket"] 우선
-#      - 누락 시 classify_fallback(룰베이스)
-#   2. duration에 따라 quota 정의 (당일/숙박)
-#   3. quota만큼 점수순으로 뽑아서 shortlist 구성
+#   1. bucket으로 분류 (LLM 우선, 실패 시 classify_fallback)
+#   2. travel_days 기반 quota 정의
+#   3. quota만큼 점수순으로 선별
 #   4. 부족분은 점수순으로 보충
 # ─────────────────────────────────────────────────────────────────────
+
 VALID_BUCKETS = {"cafe", "food", "activity", "lodging", "other"}
 
 
@@ -30,23 +29,24 @@ def classify_fallback(place: dict) -> str:
     return "other"
 
 
-# ─── duration 기반 quota 정의 ───
-def get_quotas(duration: str) -> dict[str, int]:
-    if duration == "당일":
-        return {"cafe": 8, "food": 8, "activity": 14, "lodging": 0, "other": 5}
-    else:
-        return {"cafe": 7, "food": 7, "activity": 12, "lodging": 4, "other": 5}
+# ─── travel_days 기반 quota 정의 ───
+SHORTLIST_QUOTA = {
+    1: {"cafe": 5,  "food": 8,  "activity": 12, "lodging": 0, "other": 5},
+    2: {"cafe": 10, "food": 15, "activity": 25, "lodging": 5, "other": 5},
+    3: {"cafe": 15, "food": 22, "activity": 40, "lodging": 8, "other": 5},
+    4: {"cafe": 20, "food": 30, "activity": 55, "lodging": 10, "other": 5},
+}
 
 
 # ─── shortlist 선별 ───
 def select_shortlist(
     scored: list[dict],
-    duration: str = "당일",
-    target_count: int = 30,
+    travel_days: int = 1,
 ) -> list[dict]:
-    quotas = get_quotas(duration)
+    quotas = SHORTLIST_QUOTA.get(travel_days, SHORTLIST_QUOTA[1])
+    target_count = sum(quotas.values())
 
-    # 카테고리별 버킷에 분류 (점수순 자동 유지: scored가 이미 정렬돼있음)
+    # 카테고리별 버킷 분류 (점수순 유지)
     buckets: dict[str, list] = {k: [] for k in quotas}
     for item in scored:
         bucket = item["place"].get("bucket") or classify_fallback(item["place"])
@@ -54,12 +54,12 @@ def select_shortlist(
             bucket = "other"
         buckets[bucket].append(item)
 
-    # quota만큼 상위 N개 뽑기
+    # quota만큼 상위 N개 선별
     shortlist = []
     for bucket_name, limit in quotas.items():
         shortlist.extend(buckets[bucket_name][:limit])
 
-    # 부족하면 점수순으로 보충 (이미 들어간 건 제외)
+    # 부족분 점수순으로 보충
     if len(shortlist) < target_count:
         already_in = {id(item) for item in shortlist}
         for item in scored:
@@ -68,7 +68,5 @@ def select_shortlist(
                 if len(shortlist) >= target_count:
                     break
 
-    # 최종적으로 점수 내림차순 정렬 (보기 좋게)
     shortlist.sort(key=lambda x: x["total_score"], reverse=True)
-
     return shortlist[:target_count]

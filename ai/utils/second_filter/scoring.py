@@ -1,103 +1,85 @@
 # ─────────────────────────────────────────────────────────────────────
 # scoring
 # ─────────────────────────────────────────────────────────────────────
-# 분위기 점수 계산
+# 점수 계산
 #
 # 흐름:
-#   1. 분위기 점수 계산
-#   2. 활동 점수 계산
-#   3. 구성원 적합도 점수 (구성원, 인원수, 연령대)
-#   4. 재방문 의사
+#   1. mood_score    → 분위기 매칭 비율 기반 (최대 100점)
+#   2. activity_score → 활동 매칭 비율 기반 (최대 100점)
+#   3. party_fit_score → best_for에 companion 포함 시 (최대 40점)
+#   4. revisit_score  → 재방문 의사 (최대 30점)
 # ─────────────────────────────────────────────────────────────────────
-from constants.scoring import (PARTY_SIZE_PENALTY, AGE_PENALTY, REVISIT_SCORE_MAP)
+
+REVISIT_SCORE_MAP = {
+    "high":   30,
+    "medium": 15,
+    "low":    0,
+}
+
+# ─── best_for fallback (LLM 실패 시 카테고리 기반 기본값) ───
+BEST_FOR_FALLBACK = {
+    "CE7": ["연인", "친구", "혼자"],        # 카페
+    "FD6": ["연인", "친구", "가족", "혼자"], # 음식점
+    "AT4": ["연인", "친구", "가족"],         # 관광명소
+    "AD5": ["연인", "친구", "가족"],         # 숙박
+    "CT1": ["연인", "친구", "가족"],         # 문화시설
+}
 
 
-# ─── 분위기 점수 계산 ───
-def calc_mood_score(place: dict, mood_preferences: list[str]) -> int:
+# ─── 분위기 점수 (비율 기반) ───
+def calc_mood_score(place: dict, moods_kr: list[str]) -> float:
     atmosphere = place.get("atmosphere", [])
-    # 데이터 없으면 점수 없음
-    if not atmosphere or not mood_preferences:
+    if not atmosphere or not moods_kr:
         return 0
 
-    # 사용자가 원하는 분위기 중 몇 개가 매칭되는지 계산
-    return sum(10 for m in mood_preferences if m in atmosphere)
+    matched = sum(1 for m in moods_kr if m in atmosphere)
+    return round((matched / len(moods_kr)) * 100, 1)
 
 
-#  ─── 활동 점수 계산 ───
-def calc_activity_score(place, activity_preferences):
+# ─── 활동 점수 (비율 기반) ───
+def calc_activity_score(place: dict, activities_kr: list[str]) -> float:
     place_tags = set(place.get("place_tags", []))
-
-    if not place_tags or not activity_preferences:
+    if not place_tags or not activities_kr:
         return 0
 
-    score = 0
-
-    for a in activity_preferences:
-        if a in place_tags:
-            score += 10   # 핵심 매칭
-
-    return score
+    matched = sum(1 for a in activities_kr if a in place_tags)
+    return round((matched / len(activities_kr)) * 100, 1)
 
 
 # ─── 구성원 적합도 점수 ───
-def calc_party_fit_score(
-        place: dict,
-        party_type: str,
-        party_size: int,
-        age_group: str,
-) -> int:
+def calc_party_fit_score(place: dict, companion_kr: str) -> int:
     best_for = place.get("best_for", [])
-    category = place.get("category", "")
-    name = place.get("name", "")
+    code = place.get("category_group_code", "")
 
-    score = 0
+    # best_for 비어있으면 fallback 적용
+    if not best_for:
+        best_for = BEST_FOR_FALLBACK.get(code, ["연인", "친구", "가족", "혼자"])
 
-    # party_type 매칭
-    # 구성원 유형이 포함되어 있으면 +1
-    if best_for and party_type in best_for:
-        score += 20
+    # companion_kr을 best_for 비교용 키워드로 변환
+    companion_map = {
+        "혼자": "혼자",
+        "연인": "연인",
+        "친구": "친구",
+        "부모님과": "부모님과",
+        "자녀와": "자녀와",
+        "반려동물과": "반려동물과",
+    }
+    companion_key = companion_map.get(companion_kr, companion_kr)
 
-    # party_size 적합 여부
-    # 1인 - 단체/대형 장소 부적합, 5인 이상: 협소한 공간은 부적합
-    penalty_keywords = PARTY_SIZE_PENALTY.get(party_size, [])
-    if not any(kw in category or kw in name for kw in penalty_keywords):
-        score += 10   # 패널티 없으면 +1
-
-    # 연령대 적합 여부
-    # 연령대별로 부적합한 장소 키워드들 제외
-    age_penalties = AGE_PENALTY.get(age_group, [])
-    if not any(kw in category or kw in name for kw in age_penalties):
-        score += 10   # 문제 없으면 +1
-
-    return score
+    return 40 if companion_key in best_for else 0
 
 
-# ─── 재방문 의사 ───
+# ─── 재방문 의사 점수 ───
 def calc_revisit_score(place: dict) -> int:
     intent = place.get("revisit_intent", "low")
     return REVISIT_SCORE_MAP.get(intent, 0)
 
 
-# ─── 최종 종합 점수 ───
+# ─── 종합 점수 ───
 def calc_total_score(
-        mood_score: int,
-        activity_score: int,
+        mood_score: float,
+        activity_score: float,
         party_fit_score: int,
         revisit_score: int,
-) -> int:
-
-    score = 0
-
-    # 감성 요소
-    score += mood_score
-
-    # 구성 적합도
-    score += party_fit_score
-
-    # 활동 적합
-    score += activity_score
-
-    # 재방문 의사
-    score += revisit_score
-
-    return score
+) -> float:
+    return mood_score + activity_score + party_fit_score + revisit_score
