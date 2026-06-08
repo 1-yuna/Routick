@@ -65,13 +65,35 @@ async def second_filter_candidates(state: dict) -> dict:
     # ─── 3. LLM 결과 머지 + fallback 분류 ───
     llm_map = {r["place_id"]: r for r in llm_results}
 
+    # category_group_code 기반 bucket 강제 매핑
+    CODE_TO_BUCKET = {
+        "CE7": "cafe",
+        "FD6": "food",
+        "AD5": "lodging",
+        "AT4": "activity",
+        "CT1": "activity",
+    }
+
     enriched = []
     for place in filtered:
         place_id = place.get("id")
         enrich = llm_map.get(place_id, {})
+        code = place.get("category_group_code", "")
+
+        # category_group_code로 bucket 강제 지정 (LLM 결과보다 우선)
+        forced_bucket = CODE_TO_BUCKET.get(code)
+
+        # FD6이지만 베이커리/제과/디저트면 cafe로 분류
+        if code == "FD6":
+            category = place.get("category", "")
+            if any(kw in category for kw in ["제과", "베이커리", "디저트"]):
+                forced_bucket = "cafe"
+
+        bucket = forced_bucket if forced_bucket else (enrich.get("bucket") or classify_fallback(place))
+
         enriched.append({
             **place,
-            "bucket":         enrich.get("bucket") or classify_fallback(place),
+            "bucket":         bucket,
             "atmosphere":     enrich.get("atmosphere", []),
             "best_for":       enrich.get("best_for", []),
             "place_tags":     enrich.get("place_tags", []),
