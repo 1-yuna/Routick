@@ -1,171 +1,228 @@
 # ─────────────────────────────────────────────────────────────────────
 # place_filter_pipeline
 # ─────────────────────────────────────────────────────────────────────
-# 관련 없는 키워드 제거 함수
+# 1차 필터링 함수 모음
 #
 # 흐름:
-#   1. dislike 키워드 제거
+#   1. avoid_activities 키워드 제거
 #   2. 부적합 키워드 제거
-#   3. 구성원에 따라 부적합 키워드 제거
-#   4. 당일치기 경우 숙박 제거
-#   5. 체인 브랜드 후순위
-#   6. 카페,음식점 우선 순위로 바꾼 뒤 (필수적으로 포함되어야하기 때문) > 카페, 음식점 수 줄이기
+#   3. 동행 유형 기반 제거
+#   4. pet 우선순위 처리
+#   5. 음식점/카페 우선 + 유저 선택 activity 키워드 매칭 정렬
+#   6. 체인점 후순위 처리
+#   7. 세부 카테고리별 중복 제한
+#   8. 카테고리별 cap + 전체 cap 적용
 # ─────────────────────────────────────────────────────────────────────
-from constants.place_keywords import EXCLUDE_KEYWORDS, PARTY_EXCLUDE_KEYWORDS
+
+from constants.place_keywords import EXCLUDE_KEYWORDS, COMPANION_EXCLUDE_KEYWORDS
+from constants.place_keywords import KEYWORD_EXPANSIONS
 
 
-# ─── dislike 키워드 제거 ───
-def filter_by_dislike(
+# ─── travel_days 기반 전체 cap ───
+FILTER_CAP = {
+    1: 50,
+    2: 100,
+    3: 150,
+    4: 200,
+}
+
+# ─── travel_days 기반 카테고리별 cap ───
+CATEGORY_CAP = {
+    1: {"CE7": 10, "FD6": 10, "AD5": 0},
+    2: {"CE7": 15, "FD6": 15, "AD5": 15},
+    3: {"CE7": 20, "FD6": 20, "AD5": 20},
+    4: {"CE7": 30, "FD6": 30, "AD5": 30},
+}
+
+
+# ─── avoid_activities 키워드 제거 ───
+def filter_by_avoid(
         places: list[dict],
-        dislike_keywords: list[str],
+        avoid_activities: list[str],
 ) -> tuple[list[dict], int]:
-
-    if not dislike_keywords:
+    if not avoid_activities:
         return places, 0
 
     filtered = []
     for p in places:
         name = p.get("name", "")
         category = p.get("category", "")
-
-        # dislike 키워드 중 하나라도 이름/카테고리에 들어있으면 제외
-        if any(kw in name or kw in category for kw in dislike_keywords):
+        if any(kw in name or kw in category for kw in avoid_activities):
             continue
-
         filtered.append(p)
 
-    removed = len(places) - len(filtered)
-    return filtered, removed
+    return filtered, len(places) - len(filtered)
 
 
 # ─── 부적합 키워드 제거 ───
 def filter_by_irrelevant(places: list[dict]) -> tuple[list[dict], int]:
     filtered = []
     for p in places:
-        # 키워드로 제외
         name = p.get("name", "")
         category = p.get("category", "")
         if any(kw in name or kw in category for kw in EXCLUDE_KEYWORDS):
             continue
-
         filtered.append(p)
 
     return filtered, len(places) - len(filtered)
 
 
-# ─── 구성원에 따라 부적합 키워드 제거 ───
-def filter_by_party(
+# ─── 동행 유형 기반 제거 ───
+def filter_by_companion(
         places: list[dict],
-        party: str,
+        companion: str,
 ) -> tuple[list[dict], int]:
-
-    exclude_keywords = PARTY_EXCLUDE_KEYWORDS.get(party, [])
+    exclude_keywords = COMPANION_EXCLUDE_KEYWORDS.get(companion, [])
 
     if not exclude_keywords:
         return places, 0
 
     filtered = []
+    for p in places:
+        name = p.get("name", "")
+        category = p.get("category", "")
+        if any(kw in name or kw in category for kw in exclude_keywords):
+            continue
+        filtered.append(p)
+
+    return filtered, len(places) - len(filtered)
+
+
+# ─── pet 우선순위 처리 ───
+def boost_pet_places(places: list[dict]) -> list[dict]:
+    pet_keywords = ["펫", "반려동물", "애견", "도그"]
+    fallback_keywords = ["공원", "산책로"]
+
+    pet_places = []
+    others = []
 
     for p in places:
         name = p.get("name", "")
         category = p.get("category", "")
+        if any(kw in name or kw in category for kw in pet_keywords):
+            pet_places.append(p)
+        else:
+            others.append(p)
 
-        if any(
-                kw in name or kw in category
-                for kw in exclude_keywords
-        ):
-            continue
+    if not pet_places:
+        fallback = [p for p in others if any(
+            kw in p.get("name", "") or kw in p.get("category", "")
+            for kw in fallback_keywords
+        )]
+        rest = [p for p in others if p not in fallback]
+        return fallback + rest
 
-        filtered.append(p)
-
-    removed = len(places) - len(filtered)
-    return filtered, removed
-
-
-# ─── 당일이면 숙박 제거 ───
-def filter_by_accommodation(places: list[dict]) -> tuple[list[dict], int]:
-    filtered = [p for p in places if p.get("category_group_code") != "AD5"]
-    removed = len(places) - len(filtered)
-    return filtered, removed
+    return pet_places + others
 
 
-# 카테고리 depth가 4개면 체인 브랜드로 판단
+# ─── 체인점 후순위 정렬 (cap 없음) ───
 def is_chain_brand(category: str) -> bool:
     return len(category.split(" > ")) >= 4
 
-# ─── 체인점 후순위 ───
-def filter_by_brand_priority(
-        places: list[dict],
-        max_count: int = 50,
-) -> tuple[list[dict], int]:
+
+def sort_by_brand_priority(places: list[dict]) -> list[dict]:
     locals_ = [p for p in places if not is_chain_brand(p.get("category", ""))]
     chains = [p for p in places if is_chain_brand(p.get("category", ""))]
-
-    # 로컬 먼저 채우고 자리 남으면 체인 추가
-    result = locals_[:]
-    remaining = max_count - len(result)
-    if remaining > 0:
-        result += chains[:remaining]
-
-    removed = len(places) - len(result)
-    return result, removed
+    return locals_ + chains
 
 
-# ─── 음식점/카페 우선 정렬 ───
-def sort_by_priority(places: list[dict]) -> list[dict]:
+# ─── 유저 선택 activity 확장 키워드 수집 ───
+def get_activity_keywords(activities_kr: list[str]) -> list[str]:
+    keywords = []
+    for activity in activities_kr:
+        expanded = KEYWORD_EXPANSIONS.get(activity, [])
+        keywords.extend(expanded)
+    return list(set(keywords))
+
+
+# ─── 음식점/카페/숙소 우선 + 유저 선택 activity 키워드 매칭 정렬 ───
+def sort_by_priority(places: list[dict], activity_keywords: list[str] = None) -> list[dict]:
+    if activity_keywords is None:
+        activity_keywords = []
+
     def priority(p):
         code = p.get("category_group_code", "")
+        name = p.get("name", "")
+        category = p.get("category", "")
+
         if code == "FD6":   # 음식점 최우선
             return 0
         if code == "CE7":   # 카페 2순위
             return 1
-        return 2            # 나머지
+        if code == "AD5":   # 숙소 3순위
+            return 2
+        if activity_keywords and any(
+            kw in name or kw in category for kw in activity_keywords
+        ):
+            return 3        # 유저 선택 활동 매칭 장소
+        return 4            # 나머지
+
     return sorted(places, key=priority)
 
 
-# ─── 카페, 음식점 개수 줄이기 ───
+# ─── 세부 카테고리별 중복 제한 ───
+def filter_by_subcategory_cap(
+        places: list[dict],
+        max_per_subcategory: int = 3,
+) -> tuple[list[dict], int]:
+    subcategory_count = {}
+    filtered = []
+
+    for p in places:
+        category = p.get("category", "")
+        # 마지막 세부 카테고리 추출
+        # 예) "가정,생활 > 여가시설 > 노래방" → "노래방"
+        subcategory = category.split(" > ")[-1] if category else ""
+
+        count = subcategory_count.get(subcategory, 0)
+        if count >= max_per_subcategory:
+            continue
+
+        subcategory_count[subcategory] = count + 1
+        filtered.append(p)
+
+    return filtered, len(places) - len(filtered)
+
+
+# ─── 카테고리별 cap + 전체 cap 적용 ───
 def filter_by_category_cap(
         places: list[dict],
-        activity_preferences: list[str],
+        travel_days: int,
+        max_count: int,
 ) -> tuple[list[dict], int]:
-    # cap 설정
-    cafe_cap = 10 if "카페" in activity_preferences else 5
-    food_cap = 20
-    gym_cap = 5 if "헬스" in activity_preferences else 1
-    pc_cap = 5 if "PC방" in activity_preferences else 1
+    cap = CATEGORY_CAP.get(travel_days, CATEGORY_CAP[1])
+
+    cafe_cap = cap["CE7"]
+    food_cap = cap["FD6"]
+    lodging_cap = cap["AD5"]
+    others_cap = max_count - cafe_cap - food_cap - lodging_cap
 
     cafe_count = 0
     food_count = 0
-    gym_count = 0
-    pc_count = 0
+    lodging_count = 0
+    others_count = 0
     filtered = []
 
     for p in places:
         code = p.get("category_group_code", "")
-        name = p.get("name", "")
-        category = p.get("category", "")
 
-        if code == "CE7":  # 카페 먼저 체크
+        if code == "CE7":
             if cafe_count >= cafe_cap:
                 continue
             cafe_count += 1
-
-        elif code == "FD6":  # 음식점은 CE7 아닐 때만
+        elif code == "FD6":
             if food_count >= food_cap:
                 continue
             food_count += 1
-
-        elif "헬스" in name or "피트니스" in name or "필라테스" in name or "헬스" in category or "피트니스" in category:
-            if gym_count >= gym_cap:
+        elif code == "AD5":
+            if lodging_count >= lodging_cap:
                 continue
-            gym_count += 1
-
-        elif "PC방" in name or "PC방" in category:
-            if pc_count >= pc_cap:
+            lodging_count += 1
+        else:
+            if others_count >= others_cap:
                 continue
-            pc_count += 1
+            others_count += 1
 
         filtered.append(p)
 
-    removed = len(places) - len(filtered)
-    return filtered, removed
+    return filtered, len(places) - len(filtered)
