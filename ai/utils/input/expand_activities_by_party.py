@@ -1,21 +1,19 @@
 # ─────────────────────────────────────────────────────────────────────
-# expand_by_context
+# expand_activities_by_party (set_keyword_radius 내부에서 호출)
 # ─────────────────────────────────────────────────────────────────────
-# 구성원 기반 활동 키워드 보강 -> 많은 pool 받기 위해
+# 동행 유형 기반 활동 키워드 보강
 #
 # 흐름:
-#   1. 사용자 activity_preferences가 5개 미만일 떄 일행 정보 참고해서
-#     관련된 활동 키워드를 자동 추가
-#
+#   1. activities 5개 미만일 때
+#      동행 유형 기반으로 관련 키워드 자동 추가
 # ─────────────────────────────────────────────────────────────────────
 
-from constants.keywords import PARTY_TO_ACTIVITIES
+from constants.keywords import COMPANION_TO_ACTIVITIES
 
-
-# ─── 구성원 기반 활동 키워드 보강 ───
+# ─── 동행 유형 기반 활동 키워드 보강 ───
 def expand_activities_by_party(
     activity_preferences: list[str],
-    party_type: str,
+    companion: str,
     target_count: int = 5,
 ) -> list[str]:
 
@@ -26,8 +24,8 @@ def expand_activities_by_party(
     if len(expanded) >= target_count:
         return expanded
 
-    # 일행 유형 기반 보강
-    for activity in PARTY_TO_ACTIVITIES.get(party_type, []):
+    # 동행 유형 기반 보강
+    for activity in COMPANION_TO_ACTIVITIES.get(companion, []):
         if activity not in seen:
             expanded.append(activity)
             seen.add(activity)

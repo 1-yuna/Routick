@@ -9,23 +9,29 @@ from core.state import UserInput
 
 # ─── 사용자 mock 데이터 ───
 mock_user_input: UserInput = {
-    "location": "해운대역",
-    "party_size": 2,
-    "party_type": "연인",
-    "genders": "혼성",
-    "age_group": "20대",
-    "duration": "당일",
-    "mood_preferences": ["활기찬", "힐링", "이색"],
-    "activity_preferences": ["카페", "게임/보드게임", "동물체험", "액티비티","바다","이색체험"],
-    "dislike_keywords": [ "PC" ,"술집"],
+    # Spring에서 넘겨주는 값
+    "destination": "해운대역",
+    "lat": 35.1631,
+    "lng": 129.1635,
+    "travel_days": 1,
+    "companion": "couple",
+    "age_group": "20s",
+    "moods": ["active", "healing"],
+    "activities": ["nature/walk", "shopping"],
+    "transport": "walk",
+    "avoid_activities": [],
+    "start_time": "09:00",
+    "end_time": "22:00",
 
-    "trip_date": "2026-04-24",
-
+    # [preprocess_input] 내부 변환 후 채워지는 값
     "center_lat": None,
     "center_lng": None,
     "search_radius_km": None,
-
     "final_keywords": None,
-
-    "transport_mode": "도보",
+    "companion_kr": None,
+    "age_group_kr": None,
+    "moods_kr": None,
+    "activities_kr": None,
+    "transport_kr": None,
+    "duration_kr": None,
 }

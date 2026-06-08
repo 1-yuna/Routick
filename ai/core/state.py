@@ -1,21 +1,23 @@
 # ─────────────────────────────────────────────────────────────────────
-# make_initial_state
+# state
 # ─────────────────────────────────────────────────────────────────────
 # state 정의
 #
 # 흐름:
 #   1. 초기 상태 생성 && 사용자 입력 저장
-#      -  UserInput을 기반으로 TravelState 구조 생성
+#      - UserInput을 기반으로 TravelState 구조 생성
 #   2. 후보 수집 (candidates 생성)
 #      - Kakao API 기반 장소 검색
 #   3. 1차 필터링 (filtered_candidates 생성)
-#      - 50개로 필터
+#      - travel_days 기반 동적 cap으로 축약
 #   4. 2차 필터링 (scored_candidates 생성, shortlist 생성)
-#      - 점수화
-#      - 30개로 필터
-#
-# TODO: 장소 간 거리, 동선 최적화, 시간 기반? 등등
-#
+#      - 점수화 + travel_days 기반 shortlist 구성
+#   5. 이동시간 행렬 계산 (travel_matrix)
+#   6. 일정 계획 리스트 작성 (plan_itinerary)
+#      - N개 동선 생성 + 기본 예외처리
+#   7. 최적 일정 선택 (select_itinerary)
+#      - LLM이 최적 동선 선택 + 추천 이유 생성
+#   8. 응답 생성 (generate_response)
 # ─────────────────────────────────────────────────────────────────────
 
 from typing import Annotated, Optional
@@ -23,57 +25,62 @@ from typing_extensions import TypedDict
 import operator
 
 
-#  ─── 사용자 원본 입력 ───
+# ─── 사용자 원본 입력 ───
 class UserInput(TypedDict):
-    location: str
-    party_size: int
-    party_type: str
-    genders: str
-    age_group: str
-    duration: str
-    mood_preferences: list[str]
-    activity_preferences: list[str]
-    dislike_keywords: Optional[list[str]]
+    # Spring에서 넘겨주는 값
+    destination: str
+    lat: float
+    lng: float
+    travel_days: int            # 1=당일, 2=1박2일, 3=2박3일, 4=3박4일
+    companion: str              # solo/couple/friend/parents/children/pet
+    age_group: str              # 10s/20s/30s/40s/50plus
+    moods: list[str]            # ["active", "healing"] 등
+    activities: list[str]       # ["nature/walk", "shopping"] 등
+    transport: str              # walk/car
+    avoid_activities: Optional[list[str]]
+    start_time: str             # "09:00" (기본값)
+    end_time: str               # "22:00" (기본값)
 
-    # 2026-04-25
-    trip_date: str
-
-    # [validate_input] 장소 정규화
+    # [preprocess_input] 내부 변환 후 채워지는 값
     center_lat: Optional[float]
     center_lng: Optional[float]
     search_radius_km: Optional[float]
-
-    # [validate_input] 활동 키워드 보강
     final_keywords: Optional[list[str]]
 
-    # TODO: 우선, 도보로 작성
-    # [travel_matrix] 이동수단 + 여행 시간
-    transport_mode: str  # "도보" | "자전거" | "자동차"
-    start_time: str  # "09:00" - default로 작성
-    end_time: str  # "21:00" - default로 작성
+    # 내부 변환값 (한국어)
+    companion_kr: Optional[str]     # 혼자/연인/친구/부모님과/자녀와/반려동물과
+    age_group_kr: Optional[str]     # 10대/20대/30대/40대/50대
+    moods_kr: Optional[list[str]]   # ["활기찬", "힐링"] 등
+    activities_kr: Optional[list[str]]  # ["자연/산책", "쇼핑"] 등
+    transport_kr: Optional[str]     # 도보/자동차
+    duration_kr: Optional[str]      # 당일/1박2일/2박3일/3박4일
 
 
-#  ─── [타입 정의] 장소 ───
+# ─── [타입 정의] 장소 ───
 class Place(TypedDict):
     id: str
     name: str
     category: str
+    category_group_code: str
     lat: float
     lng: float
+    phone: str
+    address_name: str
+    road_address_name: str
+    place_url: str
     tags: list[str]
-    rating: float
     avg_stay_minutes: int
-    open_hours: dict
 
-    bucket: str
-    atmosphere: list[str]
-    best_for: list[str]
-    place_tags: list[str]
-    revisit_intent: str
-    summary: str
+    # [second_filter] LLM 보강 후 채워지는 값
+    bucket: str                 # cafe/food/activity/lodging/other
+    atmosphere: list[str]       # ["활기찬", "힐링"] 등
+    best_for: list[str]         # ["연인", "친구"] 등
+    place_tags: list[str]       # ["카페", "바다"] 등
+    revisit_intent: str         # high/medium/low
+    summary: str                # 한줄 요약
 
 
-#  ─── [타입 정의] 장소 + 점수 ───
+# ─── [타입 정의] 장소 + 점수 ───
 class ScoredPlace(TypedDict):
     place: Place
     mood_score: float
@@ -83,8 +90,7 @@ class ScoredPlace(TypedDict):
     total_score: float
 
 
-# TODO: 아직 안함
-#  ─── [타입 정의] 출력 ───
+# ─── [타입 정의] 일정 아이템 ───
 class ItineraryItem(TypedDict):
     order: int
     place: Place
@@ -94,56 +100,39 @@ class ItineraryItem(TypedDict):
     recommendation_reason: str
 
 
-#  ─── 전체 state 설계도 ───
+# ─── 전체 state 설계도 ───
 class TravelState(TypedDict):
     # 사용자 입력
     user_input: UserInput
 
-    # 전체 pool
+    # 후보 수집
     candidates: Annotated[list[Place], operator.add]
 
-    # 1차 필터 - 50개
+    # 1차 필터링 (travel_days 기반 동적 cap)
     filtered_candidates: list[Place]
 
-    # 2차 필터
-    # 점수화(50개), 필터화(30개)
+    # 2차 필터링 (점수화 + shortlist)
     scored_candidates: list[ScoredPlace]
     shortlist: list[ScoredPlace]
 
-    # [travel_matrix] 이동시간 행렬
-    distance_matrix: list[list[float]] # km 단위 거리
-    time_matrix: list[list[float]]  # 분 단위 이동시간
-    place_index: list[str]  # 인덱스 → place_id 매핑
-    route: list[str]
-    route_metrics: dict
+    # 이동시간 행렬
+    distance_matrix: list[list[float]]  # km 단위 거리
+    time_matrix: list[list[float]]      # 분 단위 이동시간
+    place_index: list[str]              # 인덱스 → place_id 매핑
 
-    # 체크
-    excluded_ids: list[str]  # 제거된 place_id 누적
-    constraint_retry_count: int # 몇번 실패했는지
-    violations: list[dict] # 어떤 규칙 위반
-
-    # TODO: 앞으로 할 것
-    # 출력
-    itinerary: list[ItineraryItem]
-    rationale: str
+    # 일정 계획
+    itineraries: list[list[ItineraryItem]]      # N개 동선 리스트
+    selected_itinerary: list[ItineraryItem]     # 최종 선택된 동선
 
     # 메타·제어
     errors: list[str]
     warnings: list[str]
-    fallback_count: int
     retry_count: int
     step: str
 
 
-#  ─── 초기화 함수 ───
+# ─── 초기화 함수 ───
 def make_initial_state(user_input: UserInput) -> TravelState:
-    # activity_preferences 기본값 보정
-    if not user_input.get("activity_preferences"):
-        user_input["activity_preferences"] = ["맛집"]
-    else:
-        if "맛집" not in user_input["activity_preferences"]:
-            user_input["activity_preferences"].append("맛집")
-
     return {
         "user_input": user_input,
         "candidates": [],
@@ -153,16 +142,10 @@ def make_initial_state(user_input: UserInput) -> TravelState:
         "distance_matrix": [],
         "time_matrix": [],
         "place_index": [],
-        "route": [],
-        "route_metrics": {},
-        "excluded_ids": [],
-        "constraint_retry_count": 0,
-        "violations": [],
-        "itinerary": [],
-        "rationale": "",
+        "itineraries": [],
+        "selected_itinerary": [],
         "errors": [],
         "warnings": [],
-        "fallback_count": 0,
         "retry_count": 0,
         "step": "initialized",
     }
