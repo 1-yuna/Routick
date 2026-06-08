@@ -19,7 +19,7 @@ mock_user_input: UserInput = {
     "moods": ["active", "healing", "clean"],
     "activities": ["thrill/experience", "performance/culture", "entertainment/sports", "nature/walk"],
     "transport": "walk",
-    "avoid_activities": [],
+    "avoid_activities": ["노래방"],
     "start_time": "09:00",
     "end_time": "22:00",
 

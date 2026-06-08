@@ -4,18 +4,23 @@
 # 1차 필터링 함수 모음
 #
 # 흐름:
-#   1. avoid_activities 키워드 제거
-#   2. 부적합 키워드 제거
-#   3. 동행 유형 기반 제거
-#   4. pet 우선순위 처리
-#   5. 음식점/카페 우선 + 유저 선택 activity 키워드 매칭 정렬
-#   6. 체인점 후순위 처리
-#   7. 세부 카테고리별 중복 제한
-#   8. 카테고리별 cap + 전체 cap 적용
+#   1. 키워드 제거
+#      - avoid_activities 제거
+#      - 여행과 무관한 키워드 제거
+#      - 연령대 기반 제거
+#      - 동행 유형 기반 제거
+#      - 세부 카테고리별 중복 제한
+#   2. 조건별 로직 수행 (pet 우선순위 처리)
+#   3. 정렬 (음식점/카페/숙소 우선 + 활동 매칭 → 체인점 후순위)
+#   4. 카테고리별 cap + 전체 cap 적용
 # ─────────────────────────────────────────────────────────────────────
 
-from constants.place_keywords import EXCLUDE_KEYWORDS, COMPANION_EXCLUDE_KEYWORDS
-from constants.place_keywords import KEYWORD_EXPANSIONS
+from constants.place_keywords import (
+    EXCLUDE_KEYWORDS,
+    COMPANION_EXCLUDE_KEYWORDS,
+    AGE_EXCLUDE_KEYWORDS,
+    KEYWORD_EXPANSIONS,
+)
 
 
 # ─── travel_days 기반 전체 cap ───
@@ -54,13 +59,34 @@ def filter_by_avoid(
     return filtered, len(places) - len(filtered)
 
 
-# ─── 부적합 키워드 제거 ───
+# ─── 여행과 무관한 키워드 제거 ───
 def filter_by_irrelevant(places: list[dict]) -> tuple[list[dict], int]:
     filtered = []
     for p in places:
         name = p.get("name", "")
         category = p.get("category", "")
         if any(kw in name or kw in category for kw in EXCLUDE_KEYWORDS):
+            continue
+        filtered.append(p)
+
+    return filtered, len(places) - len(filtered)
+
+
+# ─── 연령대 기반 제거 ───
+def filter_by_age(
+        places: list[dict],
+        age_group: str,
+) -> tuple[list[dict], int]:
+    exclude_keywords = AGE_EXCLUDE_KEYWORDS.get(age_group, [])
+
+    if not exclude_keywords:
+        return places, 0
+
+    filtered = []
+    for p in places:
+        name = p.get("name", "")
+        category = p.get("category", "")
+        if any(kw in name or kw in category for kw in exclude_keywords):
             continue
         filtered.append(p)
 
@@ -83,6 +109,38 @@ def filter_by_companion(
         category = p.get("category", "")
         if any(kw in name or kw in category for kw in exclude_keywords):
             continue
+        filtered.append(p)
+
+    return filtered, len(places) - len(filtered)
+
+
+# ─── 세부 카테고리별 중복 제한 ───
+def filter_by_subcategory_cap(
+        places: list[dict],
+        max_per_subcategory: int = 3,
+) -> tuple[list[dict], int]:
+    subcategory_count = {}
+    filtered = []
+
+    for p in places:
+        category = p.get("category", "")
+        parts = category.split(" > ")
+
+        # 3단계 이상이면 2~3번째 카테고리 조합으로 체크
+        # 예) "스포츠,레저 > 골프 > 골프연습장 > 스크린골프연습장 > 골프존파크"
+        #     → "골프 > 골프연습장" 으로 체크
+        if len(parts) >= 3:
+            subcategory = " > ".join(parts[1:3])
+        elif len(parts) == 2:
+            subcategory = parts[1]
+        else:
+            subcategory = category
+
+        count = subcategory_count.get(subcategory, 0)
+        if count >= max_per_subcategory:
+            continue
+
+        subcategory_count[subcategory] = count + 1
         filtered.append(p)
 
     return filtered, len(places) - len(filtered)
@@ -115,7 +173,7 @@ def boost_pet_places(places: list[dict]) -> list[dict]:
     return pet_places + others
 
 
-# ─── 체인점 후순위 정렬 (cap 없음) ───
+# ─── 체인점 후순위 정렬 ───
 def is_chain_brand(category: str) -> bool:
     return len(category.split(" > ")) >= 4
 
@@ -158,30 +216,6 @@ def sort_by_priority(places: list[dict], activity_keywords: list[str] = None) ->
         return 4            # 나머지
 
     return sorted(places, key=priority)
-
-
-# ─── 세부 카테고리별 중복 제한 ───
-def filter_by_subcategory_cap(
-        places: list[dict],
-        max_per_subcategory: int = 3,
-) -> tuple[list[dict], int]:
-    subcategory_count = {}
-    filtered = []
-
-    for p in places:
-        category = p.get("category", "")
-        # 마지막 세부 카테고리 추출
-        # 예) "가정,생활 > 여가시설 > 노래방" → "노래방"
-        subcategory = category.split(" > ")[-1] if category else ""
-
-        count = subcategory_count.get(subcategory, 0)
-        if count >= max_per_subcategory:
-            continue
-
-        subcategory_count[subcategory] = count + 1
-        filtered.append(p)
-
-    return filtered, len(places) - len(filtered)
 
 
 # ─── 카테고리별 cap + 전체 cap 적용 ───
