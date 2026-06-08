@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────
 # travel_matrix
 # ─────────────────────────────────────────────────────────────────────
-# shortlist 30개 장소 간 이동시간 행렬 계산
+# shortlist 장소 간 이동시간 행렬 계산
 #
 # 흐름:
 #   1. shortlist에서 place_id, lat, lng 추출
@@ -16,8 +16,7 @@ import math
 
 # ─── 이동수단별 평균속도 (km/h) ───
 SPEED_KMH = {
-    "도보": 4,
-    "자전거": 12,
+    "도보":   4,
     "자동차": 30,
 }
 
@@ -35,19 +34,18 @@ def haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 
 
 # ─── 거리 → 이동시간(분) 변환 ───
-def distance_to_minutes(distance_km: float, transport_mode: str) -> float:
-    speed = SPEED_KMH.get(transport_mode, 4)  # 기본값 도보
+def distance_to_minutes(distance_km: float, transport_kr: str) -> float:
+    speed = SPEED_KMH.get(transport_kr, 4)  # 기본값 도보
     return (distance_km / speed) * 60
 
 
 # ─── [노드] 이동시간 행렬 생성 ───
 def travel_matrix(state: TravelState) -> dict:
     shortlist = state["shortlist"]
-    transport_mode = state["user_input"].get("transport_mode", "도보")
+    transport_kr = state["user_input"].get("transport_kr", "도보")
 
     # place_id 순서 인덱스 생성
     place_index = [item["place"]["id"] for item in shortlist]
-    n = len(place_index)
 
     distance_matrix: list[list[float]] = []
     time_matrix: list[list[float]] = []
@@ -64,7 +62,7 @@ def travel_matrix(state: TravelState) -> dict:
             else:
                 b = item_b["place"]
                 dist = haversine(a["lat"], a["lng"], b["lat"], b["lng"])
-                mins = distance_to_minutes(dist, transport_mode)
+                mins = distance_to_minutes(dist, transport_kr)
                 dist_row.append(round(dist, 3))
                 time_row.append(round(mins, 1))
 
