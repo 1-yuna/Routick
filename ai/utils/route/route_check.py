@@ -5,7 +5,9 @@
 #
 # 흐름:
 #   1. 경로 교차 체크 (X자 동선 감지)
-#   2. 연속 같은 bucket 체크 (3회 이상 연속)
+#   2. 연속 같은 bucket 체크
+#      - food: 2회 이상 연속 시
+#      - 나머지: 3회 이상 연속 시
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -40,32 +42,5 @@ def check_route_intersections(itinerary: list[dict]) -> list[dict]:
                     "detail": f"{itinerary[i]['place']['name']} → {itinerary[i+1]['place']['name']} "
                               f"와 {itinerary[j]['place']['name']} → {itinerary[j+1]['place']['name']} 교차"
                 })
-
-    return violations
-
-
-# ─── 연속 같은 bucket 체크 (3회 이상) ───
-def check_consecutive_bucket(itinerary: list[dict]) -> list[dict]:
-    violations = []
-    count = 1
-
-    for i in range(1, len(itinerary)):
-        curr_bucket = itinerary[i]["place"].get("bucket", "other")
-        prev_bucket = itinerary[i-1]["place"].get("bucket", "other")
-
-        # food는 연속 체크 제외 (점심/저녁 연속 가능성 있음)
-        if curr_bucket == "food":
-            count = 1
-            continue
-
-        if curr_bucket == prev_bucket:
-            count += 1
-            if count >= 3:
-                violations.append({
-                    "reason": "연속 bucket",
-                    "detail": f"{curr_bucket} 3회 이상 연속: {itinerary[i]['place']['name']}"
-                })
-        else:
-            count = 1
 
     return violations
