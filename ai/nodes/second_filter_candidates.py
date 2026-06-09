@@ -14,7 +14,7 @@
 
 from utils.second_filter.search_naver_blogs import search_naver_blogs
 from utils.second_filter.enrich_with_llm import enrich_with_llm
-from utils.second_filter.scoring import calc_mood_score, calc_activity_score, calc_party_fit_score, calc_revisit_score, calc_total_score
+from utils.second_filter.scoring import calc_mood_score, calc_party_fit_score, calc_revisit_score, calc_total_score
 from utils.second_filter.shortlist import select_shortlist, classify_fallback
 import time
 
@@ -117,15 +117,13 @@ async def second_filter_candidates(state: dict) -> dict:
     scored = []
     for place in enriched:
         mood_score      = calc_mood_score(place, moods_kr)
-        activity_score  = calc_activity_score(place, activities_kr)
         party_fit_score = calc_party_fit_score(place, companion_kr)
         revisit_score   = calc_revisit_score(place)
-        total_score     = calc_total_score(mood_score, activity_score, party_fit_score, revisit_score)
+        total_score     = calc_total_score(mood_score, party_fit_score, revisit_score)
 
         scored.append({
             "place":           place,
             "mood_score":      mood_score,
-            "activity_score":  activity_score,
             "party_fit_score": party_fit_score,
             "revisit_score":   revisit_score,
             "total_score":     total_score,

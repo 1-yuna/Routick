@@ -33,6 +33,7 @@ def summarize_itineraries(itineraries: list[list[dict]]) -> list[dict]:
                 "bucket":     p.get("bucket", "other"),
                 "atmosphere": p.get("atmosphere", []),
                 "best_for":   p.get("best_for", []),
+                "place_tags": p.get("place_tags", []),
                 "summary":    p.get("summary", ""),
                 "arrive_at":  item["arrive_at"],
                 "leave_at":   item["leave_at"],

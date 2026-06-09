@@ -10,16 +10,16 @@ from core.state import UserInput
 # ─── 사용자 mock 데이터 ───
 mock_user_input: UserInput = {
     # Spring에서 넘겨주는 값
-    "destination": "해운대역",
-    "lat": 35.1631,
-    "lng": 129.1635,
+    "destination": "홍대역",
+    "lat": 37.5572,
+    "lng": 126.9245,
     "travel_days": 2,
     "companion": "couple",
     "age_group": "20s",
     "moods": ["active", "healing", "clean"],
     "activities": ["thrill/experience", "performance/culture", "entertainment/sports", "nature/walk"],
     "transport": "walk",
-    "avoid_activities": ["노래방"],
+    "avoid_activities": ["노래"],
     "start_time": "09:00",
     "end_time": "22:00",
 
