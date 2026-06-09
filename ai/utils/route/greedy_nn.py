@@ -35,14 +35,16 @@ def greedy_nn(
 ) -> tuple[list[dict], float]:
     id_to_matrix_idx = {pid: i for i, pid in enumerate(place_index)}
 
-    lunch_after = 180   # 3시간 후 → 점심 (09:00 시작 기준 12:00)
-    dinner_gap = 360    # 점심 식사 완료 후 6시간 뒤 → 저녁
+    # 09:00 시작 기준 (분)
+    lunch_start = 120   # 11:00 (2시간 후)
+    lunch_end   = 240   # 13:00 (4시간 후)
+    dinner_start = 540  # 18:00 (9시간 후)
+    dinner_end   = 600  # 19:00 (10시간 후)
 
     visited = []
     visited_ids = set()
     total_travel = 0.0
     used_minutes = 0.0
-    lunch_done_at = None  # 점심 식사 완료 시간 (분)
 
     # 시작 장소는 food 제외
     first = candidates[start_idx]
@@ -58,14 +60,16 @@ def greedy_nn(
     while True:
         food_count = sum(1 for item in visited if item["place"].get("bucket") == "food")
 
-        # food 슬롯 판단
-        if food_count == 0 and used_minutes >= lunch_after:
+        # food 슬롯 판단 (시간 고정)
+        if food_count == 0 and lunch_start <= used_minutes <= lunch_end:
+            # 점심 슬롯
             selectable = [
                 item for item in candidates
                 if item["place"]["id"] not in visited_ids
                 and item["place"].get("bucket") == "food"
             ]
-        elif food_count == 1 and lunch_done_at is not None and used_minutes >= lunch_done_at + dinner_gap:
+        elif food_count == 1 and dinner_start <= used_minutes <= dinner_end:
+            # 저녁 슬롯
             selectable = [
                 item for item in candidates
                 if item["place"]["id"] not in visited_ids
@@ -109,7 +113,9 @@ def greedy_nn(
         next_bucket = best_item["place"].get("bucket", "other")
         next_stay = STAY_MINUTES.get(next_bucket, 60)
         if used_minutes + travel_time + next_stay > total_minutes:
-            visited_ids.add(best_item["place"]["id"])
+            # food는 visited_ids에 추가하지 않음 (나중에 다시 시도 가능)
+            if next_bucket != "food":
+                visited_ids.add(best_item["place"]["id"])
             remaining = total_minutes - used_minutes
             if all(
                 STAY_MINUTES.get(item["place"].get("bucket", "other"), 60) > remaining
@@ -124,9 +130,5 @@ def greedy_nn(
         total_travel += travel_time
         used_minutes += travel_time + next_stay
         current_idx = id_to_matrix_idx[best_item["place"]["id"]]
-
-        # 점심 완료 시간 기록
-        if best_item["place"].get("bucket") == "food" and lunch_done_at is None:
-            lunch_done_at = used_minutes
 
     return visited, total_travel
