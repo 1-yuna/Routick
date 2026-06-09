@@ -48,6 +48,8 @@ def greedy_nn(
     used_minutes = 0.0
     lunch_missed = False
     dinner_missed = False
+    lunch_gave_up = False   # food 포기 여부
+    dinner_gave_up = False  # food 포기 여부
 
     # 시작 장소는 food 제외
     first = candidates[start_idx]
@@ -71,9 +73,9 @@ def greedy_nn(
 
         # food 슬롯 판단
         need_food = False
-        if food_count == 0 and (lunch_start <= used_minutes <= lunch_end or lunch_missed):
+        if food_count == 0 and not lunch_gave_up and (lunch_start <= used_minutes <= lunch_end or lunch_missed):
             need_food = True
-        elif food_count == 1 and (dinner_start <= used_minutes <= dinner_end or dinner_missed):
+        elif food_count == 1 and not dinner_gave_up and (dinner_start <= used_minutes <= dinner_end or dinner_missed):
             need_food = True
 
         if need_food:
@@ -98,9 +100,12 @@ def greedy_nn(
                 if item["place"]["id"] not in visited_ids
                 and item["place"].get("name", "") not in visited_names
             ]
-            # fallback으로 non-food 선택 시 missed 플래그 리셋
-            lunch_missed = False
-            dinner_missed = False
+            # food를 못 찾으면 포기 플래그 설정
+            if need_food:
+                if food_count == 0:
+                    lunch_gave_up = True
+                else:
+                    dinner_gave_up = True
 
         if not selectable:
             break

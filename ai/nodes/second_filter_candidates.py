@@ -118,6 +118,7 @@ async def second_filter_candidates(state: dict) -> dict:
             "bucket":         bucket,
             "atmosphere":     enrich.get("atmosphere", []),
             "best_for":       enrich.get("best_for", []),
+            "place_tags":     enrich.get("place_tags", []),
             "revisit_intent": enrich.get("revisit_intent", "low"),
             "summary":        enrich.get("summary", ""),
         })
