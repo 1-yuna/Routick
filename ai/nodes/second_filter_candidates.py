@@ -85,8 +85,8 @@ async def second_filter_candidates(state: dict) -> dict:
 
         # FD6이지만 베이커리/제과/디저트면 cafe로 분류
         if code == "FD6":
-            category = place.get("category", "")
-            if any(kw in category for kw in ["제과", "베이커리", "디저트"]):
+            category_text = place.get("category", "")
+            if any(kw in category_text for kw in ["제과", "베이커리", "디저트"]):
                 forced_bucket = "cafe"
 
         # category_group_code 없을 때 category 텍스트로 판단

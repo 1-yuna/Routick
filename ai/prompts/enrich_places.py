@@ -48,6 +48,10 @@ def build_prompt(
     - atmosphere은 활기찬, 힐링, 감성, 이색, 조용한, 따뜻한, 로맨틱, 깔끔한, 빈티지, 힙한에서 최대 3개 골라주세요.
     - best_for은 연인, 혼자, 친구, 부모님과, 자녀와, 반려동물과 중 최대 3개 골라주세요.
     - bucket은 반드시 cafe, food, activity, lodging, other 5개 중 하나만 선택하세요.
+    - place_tags는 아래 활동 목록 중에서 해당 장소와 맞는 것을 최대 3개 뽑아주세요.
+      관광/전시, 공연/문화, 스릴/체험, 오락/스포츠, 자연/산책, 쇼핑, 실내오락, 술/바
+      (예: 공원, 산책로, 해변, 바다 → 자연/산책 / 미술관, 박물관 → 관광/전시 / 영화관, 공연장 → 공연/문화)
+      단, bucket이 food 또는 cafe 또는 lodging인 경우 place_tags는 빈 배열로 두세요.
 
     [atmosphere 판단 기준]
     활기찬: 웨이팅이 있거나 회전율이 빠른 곳 / 시장, 번화가, 인기 맛집, 관광지
@@ -76,6 +80,7 @@ def build_prompt(
         "bucket": "cafe"|"food"|"activity"|"lodging"|"other",
         "atmosphere": [],
         "best_for": [],  // 연인, 혼자, 친구, 부모님과, 자녀와, 반려동물과 중 최대 3개
+        "place_tags": [],  // 관광/전시, 공연/문화, 스릴/체험, 오락/스포츠, 자연/산책, 쇼핑, 실내오락, 술/바 중 최대 3개
         "revisit_intent": "high"|"medium"|"low",
         "summary": "30자 이내 한 문장"
       }}

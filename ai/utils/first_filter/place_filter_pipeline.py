@@ -173,14 +173,24 @@ def boost_pet_places(places: list[dict]) -> list[dict]:
     return pet_places + others
 
 
+# ─── 체인 브랜드 목록 ───
+CHAIN_BRANDS = [
+    "스타벅스", "메가MGC커피", "투썸플레이스", "이디야", "빽다방",
+    "CGV", "롯데시네마", "메가박스", "설빙", "파리바게뜨",
+    "뚜레쥬르", "맥도날드", "버거킹", "롯데리아", "KFC",
+]
+
+
 # ─── 체인점 후순위 정렬 ───
-def is_chain_brand(category: str) -> bool:
-    return len(category.split(" > ")) >= 4
+def is_chain_brand(place: dict) -> bool:
+    category = place.get("category", "")
+    name = place.get("name", "")
+    return any(brand in category or brand in name for brand in CHAIN_BRANDS)
 
 
 def sort_by_brand_priority(places: list[dict]) -> list[dict]:
-    locals_ = [p for p in places if not is_chain_brand(p.get("category", ""))]
-    chains = [p for p in places if is_chain_brand(p.get("category", ""))]
+    locals_ = [p for p in places if not is_chain_brand(p)]
+    chains = [p for p in places if is_chain_brand(p)]
     return locals_ + chains
 
 
@@ -239,16 +249,23 @@ def filter_by_category_cap(
 
     for p in places:
         code = p.get("category_group_code", "")
+        category = p.get("category", "")
 
-        if code == "CE7":
+        if code == "CE7" or (not code and "카페" in category):
             if cafe_count >= cafe_cap:
                 continue
             cafe_count += 1
-        elif code == "FD6":
-            if food_count >= food_cap:
-                continue
-            food_count += 1
-        elif code == "AD5":
+        elif code == "FD6" or (not code and any(kw in category for kw in ["음식점", "한식", "양식", "일식", "중식", "분식"])):
+            # 베이커리/제과/디저트는 cafe로 처리
+            if code == "FD6" and any(kw in category for kw in ["제과", "베이커리", "디저트"]):
+                if cafe_count >= cafe_cap:
+                    continue
+                cafe_count += 1
+            else:
+                if food_count >= food_cap:
+                    continue
+                food_count += 1
+        elif code == "AD5" or (not code and any(kw in category for kw in ["숙박", "호텔", "펜션", "게스트하우스", "리조트"])):
             if lodging_count >= lodging_cap:
                 continue
             lodging_count += 1
