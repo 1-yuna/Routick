@@ -36,15 +36,18 @@ def greedy_nn(
     id_to_matrix_idx = {pid: i for i, pid in enumerate(place_index)}
 
     # 09:00 시작 기준 (분)
-    lunch_start = 120   # 11:00 (2시간 후)
-    lunch_end   = 240   # 13:00 (4시간 후)
+    lunch_start  = 150  # 11:30 (2.5시간 후)
+    lunch_end    = 240  # 13:00 (4시간 후)
     dinner_start = 540  # 18:00 (9시간 후)
     dinner_end   = 600  # 19:00 (10시간 후)
 
     visited = []
     visited_ids = set()
+    visited_names = set()
     total_travel = 0.0
     used_minutes = 0.0
+    lunch_missed = False
+    dinner_missed = False
 
     # 시작 장소는 food 제외
     first = candidates[start_idx]
@@ -60,34 +63,44 @@ def greedy_nn(
     while True:
         food_count = sum(1 for item in visited if item["place"].get("bucket") == "food")
 
-        # food 슬롯 판단 (시간 고정)
-        if food_count == 0 and lunch_start <= used_minutes <= lunch_end:
-            # 점심 슬롯
+        # 슬롯 지나쳤는지 체크
+        if food_count == 0 and used_minutes > lunch_end:
+            lunch_missed = True
+        if food_count == 1 and used_minutes > dinner_end:
+            dinner_missed = True
+
+        # food 슬롯 판단
+        need_food = False
+        if food_count == 0 and (lunch_start <= used_minutes <= lunch_end or lunch_missed):
+            need_food = True
+        elif food_count == 1 and (dinner_start <= used_minutes <= dinner_end or dinner_missed):
+            need_food = True
+
+        if need_food:
             selectable = [
                 item for item in candidates
                 if item["place"]["id"] not in visited_ids
-                and item["place"].get("bucket") == "food"
-            ]
-        elif food_count == 1 and dinner_start <= used_minutes <= dinner_end:
-            # 저녁 슬롯
-            selectable = [
-                item for item in candidates
-                if item["place"]["id"] not in visited_ids
+                and item["place"].get("name", "") not in visited_names
                 and item["place"].get("bucket") == "food"
             ]
         else:
             selectable = [
                 item for item in candidates
                 if item["place"]["id"] not in visited_ids
+                and item["place"].get("name", "") not in visited_names
                 and item["place"].get("bucket") != "food"
             ]
 
-        # food 없을 때 fallback
+        # food 없을 때 fallback (non-food로 진행)
         if not selectable:
             selectable = [
                 item for item in candidates
                 if item["place"]["id"] not in visited_ids
+                and item["place"].get("name", "") not in visited_names
             ]
+            # fallback으로 non-food 선택 시 missed 플래그 리셋
+            lunch_missed = False
+            dinner_missed = False
 
         if not selectable:
             break
@@ -127,6 +140,7 @@ def greedy_nn(
 
         visited.append(best_item)
         visited_ids.add(best_item["place"]["id"])
+        visited_names.add(best_item["place"].get("name", ""))
         total_travel += travel_time
         used_minutes += travel_time + next_stay
         current_idx = id_to_matrix_idx[best_item["place"]["id"]]
