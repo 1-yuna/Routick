@@ -79,13 +79,23 @@ async def second_filter_candidates(state: dict) -> dict:
         place_id = place.get("id")
         enrich = llm_map.get(place_id, {})
         code = place.get("category_group_code", "")
+        name = place.get("name", "") or ""
+        category_text = place.get("category", "") or ""
 
         # category_group_code로 bucket 강제 지정 (LLM 결과보다 우선)
         forced_bucket = CODE_TO_BUCKET.get(code)
 
+        # CE7이지만 체험형/테마형이면 activity로 분류
+        ACTIVITY_CAFE_KEYWORDS = [
+            "보드카페", "만화카페", "만화방", "방탈출", "방탈출카페",
+            "애견카페", "고양이카페", "동물카페", "VR카페",
+        ]
+        if code == "CE7":
+            if any(kw in category_text or kw in name for kw in ACTIVITY_CAFE_KEYWORDS):
+                forced_bucket = "activity"
+
         # FD6이지만 베이커리/제과/디저트면 cafe로 분류
-        if code == "FD6":
-            category_text = place.get("category", "")
+        elif code == "FD6":
             if any(kw in category_text for kw in ["제과", "베이커리", "디저트"]):
                 forced_bucket = "cafe"
 
@@ -108,7 +118,6 @@ async def second_filter_candidates(state: dict) -> dict:
             "bucket":         bucket,
             "atmosphere":     enrich.get("atmosphere", []),
             "best_for":       enrich.get("best_for", []),
-            "place_tags":     enrich.get("place_tags", []),
             "revisit_intent": enrich.get("revisit_intent", "low"),
             "summary":        enrich.get("summary", ""),
         })
