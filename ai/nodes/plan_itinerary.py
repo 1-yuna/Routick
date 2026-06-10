@@ -152,6 +152,7 @@ def plan_itinerary(state: dict) -> dict:
     # ─── 2. 조건에 따라 동선 제외 ───
     excluded_travel = 0
     excluded_bucket = 0
+    excluded_tags   = 0
     excluded_cross  = 0
     valid_routes = []
 
@@ -179,6 +180,36 @@ def plan_itinerary(state: dict) -> dict:
                     break
         if bucket_fail:
             excluded_bucket += 1
+            continue
+
+        # place_tags 중복 체크 (동선 내 같은 place_tags 2개 이상 제외)
+        place_tags_list = []
+        place_tags_fail = False
+        for item in itinerary:
+            tags = item["place"].get("place_tags", [])
+            for tag in tags:
+                if tag in ("카페", "숙소"):
+                    continue
+                if tag in place_tags_list:
+                    place_tags_fail = True
+                    break
+                place_tags_list.append(tag)
+            if place_tags_fail:
+                break
+        if place_tags_fail:
+            excluded_tags += 1
+            continue
+
+        # 점심 슬롯(13:00 이전)에 고기/바/술집 제외
+        lunch_tag_fail = False
+        for item in itinerary:
+            if item["arrive_at"] < "13:00":
+                tags = item["place"].get("place_tags", [])
+                if any(tag in ("고기", "바/술집") for tag in tags):
+                    lunch_tag_fail = True
+                    break
+        if lunch_tag_fail:
+            excluded_tags += 1
             continue
 
         # 경로 교차 체크
@@ -219,7 +250,8 @@ def plan_itinerary(state: dict) -> dict:
         "all_routes": all_routes,
         "excluded_travel": excluded_travel,
         "excluded_bucket": excluded_bucket,
-        "excluded_cross": excluded_cross,
+        "excluded_tags":   excluded_tags,
+        "excluded_cross":  excluded_cross,
         "warnings": warnings,
         "step": "itinerary_planned",
     }
