@@ -131,7 +131,8 @@ def greedy_nn(
         next_bucket = best_item["place"].get("bucket", "other")
         next_stay = STAY_MINUTES.get(next_bucket, 60)
         if used_minutes + travel_time + next_stay > total_minutes:
-            # food는 visited_ids에 추가하지 않음 (나중에 다시 시도 가능)
+            # food도 visited_names에 추가 (같은 이름 재선택 방지)
+            visited_names.add(best_item["place"].get("name", ""))
             if next_bucket != "food":
                 visited_ids.add(best_item["place"]["id"])
             remaining = total_minutes - used_minutes
@@ -139,6 +140,7 @@ def greedy_nn(
                 STAY_MINUTES.get(item["place"].get("bucket", "other"), 60) > remaining
                 for item in candidates
                 if item["place"]["id"] not in visited_ids
+                and item["place"].get("name", "") not in visited_names
             ):
                 break
             continue

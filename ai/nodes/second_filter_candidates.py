@@ -102,7 +102,9 @@ async def second_filter_candidates(state: dict) -> dict:
         # category_group_code 없을 때 category 텍스트로 판단
         if not forced_bucket:
             category = place.get("category", "") or ""
-            if any(kw in category for kw in ["숙박", "호텔", "게스트하우스", "펜션", "리조트"]):
+            if any(kw in category for kw in ["방탈출", "보드게임", "만화방", "만화카페", "애견카페", "고양이카페", "동물카페", "VR카페"]):
+                forced_bucket = "activity"
+            elif any(kw in category for kw in ["숙박", "호텔", "게스트하우스", "펜션", "리조트"]):
                 forced_bucket = "lodging"
             elif any(kw in category for kw in ["음식점", "한식", "양식", "일식", "중식", "분식"]):
                 forced_bucket = "food"
@@ -113,12 +115,31 @@ async def second_filter_candidates(state: dict) -> dict:
 
         bucket = forced_bucket if forced_bucket else (enrich.get("bucket") or classify_fallback(place))
 
+        # place_tags 유효성 검사
+        VALID_PLACE_TAGS = {
+            "이색카페", "오락", "스포츠",
+            "산책로", "해변/바다", "등산/산",
+            "전시관/미술관", "서점", "이색체험", "놀이공원", "아쿠아리움", "영화관", "쇼핑",
+            "한식", "일식", "양식", "중식", "분식", "고기", "바/술집",
+        }
+
+        place_tags_raw = enrich.get("place_tags", [])
+        if isinstance(place_tags_raw, str):
+            place_tags_raw = [place_tags_raw] if place_tags_raw else []
+        place_tags = [tag for tag in place_tags_raw if tag in VALID_PLACE_TAGS]
+
+        # cafe → 카페, lodging → 숙소로 고정
+        if bucket == "cafe":
+            place_tags = ["카페"]
+        elif bucket == "lodging":
+            place_tags = ["숙소"]
+
         enriched.append({
             **place,
             "bucket":         bucket,
             "atmosphere":     enrich.get("atmosphere", []),
             "best_for":       enrich.get("best_for", []),
-            "place_tags":     enrich.get("place_tags", []),
+            "place_tags":     place_tags,
             "revisit_intent": enrich.get("revisit_intent", "low"),
             "summary":        enrich.get("summary", ""),
         })

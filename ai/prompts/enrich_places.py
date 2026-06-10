@@ -40,18 +40,23 @@ def build_prompt(
 
     {user_context}
 
-    - 실제 블로그 리뷰 내용 기반으로 추론하세요.
-    - 리뷰 내용 요약은 필수입니다. 장소 이름과 블로그 내용을 참고하여 30자 이내로 작성해주세요.
-    - 정보가 부족하더라도 반드시 1~2개는 추론해서 채워주세요
-    - 빈 배열 절대 금지
-    - atmosphere, best_for, bucket은 반드시 제시된 값만 사용하세요.
-    - atmosphere은 활기찬, 힐링, 감성, 이색, 조용한, 따뜻한, 로맨틱, 깔끔한, 빈티지, 힙한에서 최대 3개 골라주세요.
-    - best_for은 연인, 혼자, 친구, 부모님과, 자녀와, 반려동물과 중 최대 3개 골라주세요.
-    - bucket은 반드시 cafe, food, activity, lodging, other 5개 중 하나만 선택하세요.
-    - place_tags는 아래 활동 목록 중에서 해당 장소와 맞는 것을 최대 3개 뽑아주세요.
-      관광/전시, 공연/문화, 스릴/체험, 오락/스포츠, 자연/산책, 쇼핑, 실내오락, 술/바
-      (예: 공원, 산책로, 해변, 바다 → 자연/산책 / 미술관, 박물관 → 관광/전시 / 영화관, 공연장 → 공연/문화)
-      단, bucket이 food 또는 cafe 또는 lodging인 경우 place_tags는 빈 배열로 두세요.
+    - 블로그 리뷰 기반으로 추론하세요. 정보 부족해도 반드시 추론해서 채우세요.
+    - 모든 필드 필수. 빈 배열/빈 문자열 금지.
+    - summary: 장소 이름과 블로그 내용 참고, 30자 이내 명사형. "~입니다" 금지.
+    - atmosphere: 활기찬/힐링/감성/이색/조용한/따뜻한/로맨틱/깔끔한/빈티지/힙한 중 최대 3개.
+    - best_for: 연인/혼자/친구/부모님과/자녀와/반려동물과 중 최대 3개.
+    - bucket: cafe/food/activity/lodging/other 중 1개.
+    - place_tags: 아래 [목록]에 있는 값만 사용. 목록 외 값("기타", "food", "cafe", "activity" 등) 절대 금지.
+      bucket이 cafe 또는 lodging → 빈 배열.
+      나머지(food/activity/other) → 반드시 목록에서 1개 선택.
+      목록에 정확히 없으면 가장 유사한 것을 반드시 선택.
+      (예: 만화카페/방탈출/보드게임 → 이색카페 / 하천/강/공원 → 산책로 / 볼링/당구/노래방 → 오락 / 클라이밍/배드민턴 → 스포츠 / 와인바/칵테일바/이자카야 → 바/술집 / 삼겹살/갈비/대창 → 고기 / 궁/사찰/유적지/역사 탐방 → 역사/문화)
+
+      [목록]
+      이색카페, 오락, 스포츠, 역사/문화,
+      산책로, 해변/바다, 등산/산,
+      전시관/미술관, 서점, 이색체험, 놀이공원, 아쿠아리움, 영화관, 쇼핑,
+      한식, 일식, 양식, 중식, 분식, 고기, 바/술집
 
     [atmosphere 판단 기준]
     활기찬: 웨이팅이 있거나 회전율이 빠른 곳 / 시장, 번화가, 인기 맛집, 관광지
@@ -79,11 +84,20 @@ def build_prompt(
         "place_id": "장소id",
         "bucket": "cafe"|"food"|"activity"|"lodging"|"other",
         "atmosphere": [],
-        "best_for": [],  // 연인, 혼자, 친구, 부모님과, 자녀와, 반려동물과 중 최대 3개
-        "place_tags": [],  // 관광/전시, 공연/문화, 스릴/체험, 오락/스포츠, 자연/산책, 쇼핑, 실내오락, 술/바 중 최대 3개
+        "best_for": [],
+        "place_tags": [],
         "revisit_intent": "high"|"medium"|"low",
         "summary": "30자 이내 한 문장"
       }}
+    ]
+
+    [응답 예시]
+    [
+      {{"place_id": "111", "bucket": "activity", "atmosphere": ["이색", "활기찬"], "best_for": ["연인", "친구"], "place_tags": ["이색카페"], "revisit_intent": "high", "summary": "홍대 대표 만화카페"}},
+      {{"place_id": "222", "bucket": "food", "atmosphere": ["활기찬"], "best_for": ["친구"], "place_tags": ["고기"], "revisit_intent": "medium", "summary": "인기 있는 삼겹살 맛집"}},
+      {{"place_id": "333", "bucket": "cafe", "atmosphere": ["감성", "로맨틱"], "best_for": ["연인"], "place_tags": [], "revisit_intent": "high", "summary": "오션뷰가 멋진 감성 카페"}},
+      {{"place_id": "444", "bucket": "activity", "atmosphere": ["힐링"], "best_for": ["연인"], "place_tags": ["산책로"], "revisit_intent": "medium", "summary": "홍제천 힐링 산책 코스"}},
+      {{"place_id": "555", "bucket": "food", "atmosphere": ["로맨틱"], "best_for": ["연인"], "place_tags": ["바/술집"], "revisit_intent": "high", "summary": "분위기 있는 칵테일바"}}
     ]
 
     {places_text}
