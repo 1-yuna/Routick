@@ -1,0 +1,76 @@
+# === 환경변수 (절대 커밋 X) ===
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# === Python 캐시 ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# === 가상환경 ===
+venv/
+.venv/
+env/
+ENV/
+
+# === pyenv ===
+.python-version
+
+# === 빌드/배포 ===
+build/
+dist/
+*.egg-info/
+*.egg
+
+# === 테스트/타입 캐시 ===
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+
+# === Jupyter ===
+.ipynb_checkpoints/
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# === Windows ===
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === 로그 ===
+*.log
+logs/
+
+# === DB 덤프/백업 ===
+*.sqlite
+*.sqlite3
+*.db
+dump.sql
+backup/
+
+# === LangGraph/캐시 ===
+.langgraph/
+.cache/
+
+# === 프로젝트 임시 파일 ===
+tmp/
+temp/
+output/
