@@ -59,6 +59,7 @@ def generate_response(state: dict) -> dict:
                 "description":          item.get("recommendation_reason", ""),
                 "stayMinutes":          stay_minutes,
                 "arriveTime":           item.get("arrive_at", ""),
+                "leaveTime":            item.get("leave_at", ""),
                 "transportToNext":      transport,
                 "travelMinutesToNext":  item.get("travel_to_next_minutes", 0),
             })
