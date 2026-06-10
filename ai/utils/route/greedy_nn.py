@@ -86,11 +86,14 @@ def greedy_nn(
                 and item["place"].get("bucket") == "food"
             ]
         else:
+            # 이전 장소와 같은 bucket 제외 (연속 방지)
+            prev_bucket = visited[-1]["place"].get("bucket") if visited else None
             selectable = [
                 item for item in candidates
                 if item["place"]["id"] not in visited_ids
                 and item["place"].get("name", "") not in visited_names
                 and item["place"].get("bucket") != "food"
+                and (prev_bucket not in ("cafe", "food") or item["place"].get("bucket") != prev_bucket)
             ]
 
         # food 없을 때 fallback (non-food로 진행)
@@ -106,7 +109,6 @@ def greedy_nn(
                     lunch_gave_up = True
                 else:
                     dinner_gave_up = True
-
         if not selectable:
             break
 
@@ -116,15 +118,17 @@ def greedy_nn(
             if time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]] <= travel_limit
         ]
 
-        # travel_limit 이내 장소 없으면 전체에서 선택
-        pool = within_limit if within_limit else selectable
+        # travel_limit 이내 장소 없으면 동선 종료
+        if not within_limit:
+            break
 
-        # 거리 기반 가중치 랜덤 선택 (가까울수록 선택 확률 높음)
-        weights = [
-            1 / (time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]] + 0.1)
-            for item in pool
-        ]
-        best_item = random.choices(pool, weights=weights, k=1)[0]
+        # 가까운 순 5개 중 균등 랜덤 선택
+        pool_sorted = sorted(
+            within_limit,
+            key=lambda item: time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]]
+        )
+        top5 = pool_sorted[:5]
+        best_item = random.choice(top5)
         travel_time = time_matrix[current_idx][id_to_matrix_idx[best_item["place"]["id"]]]
 
         # 총 여행시간 초과 시 스킵

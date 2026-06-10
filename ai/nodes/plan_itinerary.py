@@ -7,6 +7,7 @@
 #   1. 모든 시작점 기준으로 Greedy NN 실행 (시작점당 3회 반복) → N개 동선 생성
 #   2. 조건에 따라 동선 제외
 #      - food 2회 이상 연속 제외
+#      - cafe 2회 이상 연속 제외
 #      - 나머지 bucket 3회 이상 연속 제외
 #      - 경로 교차 (X자 동선) 제외
 #      - 이동시간 초과 제외
@@ -148,8 +149,6 @@ def plan_itinerary(state: dict) -> dict:
                 "total_score": sum(item["place"].get("total_score", 0) for item in final_route),
             })
 
-    print(f"전체 동선: {len(all_routes)}개")
-
     # ─── 2. 조건에 따라 동선 제외 ───
     excluded_travel = 0
     excluded_bucket = 0
@@ -171,7 +170,10 @@ def plan_itinerary(state: dict) -> dict:
             if buckets[i] == "food" and buckets[i + 1] == "food":
                 bucket_fail = True
                 break
-            if buckets[i] != "food" and i >= 2:
+            if buckets[i] == "cafe" and buckets[i + 1] == "cafe":
+                bucket_fail = True
+                break
+            if buckets[i] not in ("food", "cafe") and i >= 2:
                 if buckets[i] == buckets[i - 1] == buckets[i - 2]:
                     bucket_fail = True
                     break
@@ -185,11 +187,6 @@ def plan_itinerary(state: dict) -> dict:
             continue
 
         valid_routes.append(r)
-
-    print(f"이동시간 초과 제거: {excluded_travel}개")
-    print(f"bucket 연속 제거: {excluded_bucket}개")
-    print(f"경로 교차 제거: {excluded_cross}개")
-    print(f"조건 통과: {len(valid_routes)}개")
 
     if not valid_routes:
         warnings.append("조건 통과한 동선 없음 → 전체 동선 사용")
@@ -206,16 +203,23 @@ def plan_itinerary(state: dict) -> dict:
         if not is_duplicate:
             diverse_routes.append(route)
 
-    print(f"중복 제거 후: {len(diverse_routes)}개")
+    # ─── travel_days 기반 최대 동선 수 ───
+    MAX_ITINERARIES = {1: 5, 2: 10, 3: 15, 4: 20}
+    max_itineraries = MAX_ITINERARIES.get(travel_days, 10)
 
-    # ─── 4. 상위 20개 반환 ───
-    itineraries = [r["itinerary"] for r in diverse_routes[:20]]
+    # ─── 4. total_score 내림차순 정렬 후 상위 N개 반환 ───
+    diverse_routes.sort(key=lambda x: x["total_score"], reverse=True)
+    itineraries = [r["itinerary"] for r in diverse_routes[:max_itineraries]]
 
     if not itineraries:
         warnings.append("itineraries 비어있음")
 
     return {
         "itineraries": itineraries,
+        "all_routes": all_routes,
+        "excluded_travel": excluded_travel,
+        "excluded_bucket": excluded_bucket,
+        "excluded_cross": excluded_cross,
         "warnings": warnings,
         "step": "itinerary_planned",
     }
