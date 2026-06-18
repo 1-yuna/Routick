@@ -55,7 +55,7 @@ export default function RegionSelectSheet({
           </div>
 
           {/*우측 세부 지역*/}
-          <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="flex-1 px-6 overflow-y-auto no-scrollbar">
             {activeRegion?.areas.map((area) => {
               const isSelected =
                 selected.category === activeCategory && selected.area === area;
@@ -63,7 +63,7 @@ export default function RegionSelectSheet({
                 <button
                   key={area}
                   onClick={() => handleSelectArea(area)}
-                  className={`w-full px-5 h-14 flex items-center text-left border-b border-line1 text-14-sb ${
+                  className={`w-full h-14 flex items-center text-left border-b border-line1 text-14-sb ${
                     isSelected ? 'text-primary' : 'text-black1'
                   }`}
                 >
