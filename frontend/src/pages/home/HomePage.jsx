@@ -5,11 +5,13 @@ import TopBar from '../../common/bar/TopBar.jsx';
 import TopCardSection from '../../components/home/TopCardSection.jsx';
 import CourseBanner from '../../components/home/CourseBanner.jsx';
 import PlaySection from '../../components/home/PlaySection.jsx';
+import RegionSelectSheet from '../../components/home/RegionSelectSheet.jsx';
 import home from '../../assets/images/home.png';
 import sample from '../../assets/images/mock/sample.png';
-import logo from '../../assets/images/logo.png';
+import DownIcon from '../../assets/icons/down.svg?react';
 import useCourseStore from '../../store/selectionStore.jsx';
 import { useEffect, useState } from 'react';
+import { REGION_DATA, DEFAULT_REGION } from '../../data/regionData.jsx';
 
 // TODO: API 연동 시 제거
 const mockTopPlaces = [
@@ -80,6 +82,8 @@ export default function HomePage() {
   const reset = useCourseStore((state) => state.reset);
   const navigate = useNavigate();
   const [location, setLocation] = useState(null);
+  const [region, setRegion] = useState(DEFAULT_REGION);
+  const [showRegionSheet, setShowRegionSheet] = useState(false);
 
   // 현재 위치 수집
   useEffect(() => {
@@ -100,10 +104,27 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="pt-12 pb-32 flex flex-col h-screen bg-default">
+    <div className="flex flex-col pt-12 pb-32 gap-8 h-screen bg-default">
+      {/*지역 설정 바텀시트*/}
+      {showRegionSheet && (
+        <RegionSelectSheet
+          regions={REGION_DATA}
+          selected={region}
+          onSelect={setRegion}
+          onClose={() => setShowRegionSheet(false)}
+        />
+      )}
+
       {/*상단 바*/}
-      <TopBar className="px-6 border-b border-line1">
-        <img className="w-22 h-11 object-contain" src={logo} />
+      <TopBar className="px-6">
+        {/*지역 선택*/}
+        <button
+          onClick={() => setShowRegionSheet(true)}
+          className="flex items-center whitespace-nowrap text-20-sb text-black1"
+        >
+          {region.category.split(' ')[0]} {region.area}
+          <DownIcon className="w-6 h-6 text-black1" />
+        </button>
       </TopBar>
 
       <div className="flex flex-col gap-10 overflow-y-auto no-scrollbar">
@@ -111,7 +132,7 @@ export default function HomePage() {
         <CourseBanner
           name="윤아"
           image={home}
-          className="px-6 pt-8"
+          className="px-6"
           onClick={() => {
             reset();
             navigate('/select/address');
@@ -121,7 +142,7 @@ export default function HomePage() {
         {/*지역 추천*/}
         <TopCardSection
           name="윤아"
-          area="홍대"
+          area={region.area}
           className="pl-6"
           items={mockTopPlaces}
           onClick={(place) =>
