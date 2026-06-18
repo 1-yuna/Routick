@@ -20,7 +20,7 @@ export default function TopCardSection({
         {items.map((item, index) => (
           <TopCard
             key={index}
-            image={item.image}
+            image={item.src}
             title={item.name}
             tags={item.tags}
             onClick={onClick ? () => onClick(item) : undefined}
