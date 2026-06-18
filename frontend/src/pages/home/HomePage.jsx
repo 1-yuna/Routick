@@ -62,9 +62,6 @@ export default function HomePage() {
           area={region.area}
           className="pl-6"
           items={mockTopPlaces}
-          onClick={(place) =>
-            navigate(`/place/${place.id}`, { state: { ...place } })
-          }
         />
 
         {/*놀거리*/}
