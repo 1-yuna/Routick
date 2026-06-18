@@ -4,8 +4,9 @@ import SampleImage from '../../assets/images/mock/sample.png';
 export const mockPlaces = Array.from({ length: 10 }, (_, i) => ({
   id: i + 1,
   name: '타코잇 상수역점',
-  description:
+  longDescription:
     '우리의 추억을 그림으로 기록하기! 정해진 도안 없이 자유롭게 백드롭 페인팅을 체험하는 드로잉 카페',
+  description: '백드롭 페인팅을 체험하는 드로잉 카페',
   address: '경기 고양시 덕양구 동산동 370',
   src: SampleImage,
   lat: 37.5479 + i * 0.001,
