@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import useTimer from './useTimer.jsx';
+import useTimer from '../hooks/useTimer';
 import { useNavigate } from 'react-router-dom';
 
 // 회원가입 관련 상태 및 로직 관리 훅
 export default function useSignup() {
   const navigate = useNavigate();
+
+  // 이메일
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   // 확인, 인증 버튼
   const [showVerify, setShowVerify] = useState(false);
@@ -23,6 +27,26 @@ export default function useSignup() {
     return `${m}:${s}`;
   };
 
+  // 이메일 인증 버튼
+  // TODO: API 연동 시 실제 이메일 중복 확인 요청으로 교체
+  const handleVerifyEmail = () => {
+    if (!email) {
+      setEmailError('이메일을 입력해주세요.');
+      return;
+    }
+
+    // mock: 이메일에 'kakao'가 포함되면 이미 카카오로 가입된 계정으로 처리
+    if (email.includes('kakao')) {
+      setEmailError('이미 가입된 계정입니다');
+      setShowVerify(false);
+      return;
+    }
+
+    setEmailError('');
+    setShowVerify(true);
+    setTime(120);
+  };
+
   // 가입 버튼
   const handleSignup = () => {
     if (!password || !passwordCheck) {
@@ -38,6 +62,10 @@ export default function useSignup() {
   };
 
   return {
+    email,
+    setEmail,
+    emailError,
+    handleVerifyEmail,
     showVerify,
     setShowVerify,
     isVerified,
