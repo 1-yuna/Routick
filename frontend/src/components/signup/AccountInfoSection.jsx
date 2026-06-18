@@ -11,7 +11,10 @@ export default function AccountInfoSection({
   showVerify,
   time,
   formatTime,
-  setIsVerified,
+  code,
+  setCode,
+  codeError,
+  onConfirmCode,
   isVerified,
 }) {
   return (
@@ -41,16 +44,28 @@ export default function AccountInfoSection({
           <EmailButton
             placeholder="인증번호"
             type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
             buttonText="확인"
-            onButtonClick={() => setIsVerified(true)}
+            onButtonClick={onConfirmCode}
           />
 
-          <div className="flex justify-between pl-2">
-            {!isVerified && (
-              <div className="text-gray2 text-14-sb">{formatTime(time)}</div>
-            )}
+          <div className="flex justify-between">
+            {/*인증 성공*/}
             {isVerified && (
-              <div className="text-14-rg text-correct">인증되었습니다.</div>
+              <FieldMessage type="success">인증되었습니다</FieldMessage>
+            )}
+
+            {/*인증 실패 / 만료 / 시도 초과*/}
+            {!isVerified && codeError && (
+              <FieldMessage type="error">{codeError}</FieldMessage>
+            )}
+
+            {/*에러 없을 때만 타이머 표시*/}
+            {!isVerified && !codeError && (
+              <div className="text-gray2 text-12-rg pl-3">
+                {formatTime(time)}
+              </div>
             )}
           </div>
         </div>

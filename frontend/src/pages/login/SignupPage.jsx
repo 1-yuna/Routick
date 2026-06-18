@@ -18,7 +18,10 @@ export default function SignUpPage() {
     handleVerifyEmail,
     showVerify,
     isVerified,
-    setIsVerified,
+    code,
+    setCode,
+    codeError,
+    handleConfirmCode,
     password,
     setPassword,
     passwordCheck,
@@ -49,7 +52,10 @@ export default function SignUpPage() {
           showVerify={showVerify}
           time={time}
           formatTime={formatTime}
-          setIsVerified={setIsVerified}
+          code={code}
+          setCode={setCode}
+          codeError={codeError}
+          onConfirmCode={handleConfirmCode}
           isVerified={isVerified}
         />
 
