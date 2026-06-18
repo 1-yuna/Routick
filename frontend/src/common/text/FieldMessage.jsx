@@ -5,5 +5,5 @@ export default function FieldMessage({ type = 'error', children }) {
 
   const color = type === 'success' ? 'text-green' : 'text-red';
 
-  return <div className={`text-12-rg pl-3 ${color}`}>{children}</div>;
+  return <div className={`text-12-rg pl-2 ${color}`}>{children}</div>;
 }

@@ -63,7 +63,7 @@ export default function AccountInfoSection({
 
             {/*에러 없을 때만 타이머 표시*/}
             {!isVerified && !codeError && (
-              <div className="text-gray2 text-12-rg pl-3">
+              <div className="text-gray2 text-12-rg pl-2">
                 {formatTime(time)}
               </div>
             )}
