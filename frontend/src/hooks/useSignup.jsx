@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import useTimer from '../hooks/useTimer';
+import useTimer from './useTimer.jsx';
 import { useNavigate } from 'react-router-dom';
 
 // 회원가입 관련 상태 및 로직 관리 훅
