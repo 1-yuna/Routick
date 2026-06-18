@@ -91,14 +91,32 @@ export default function useSignup() {
     }
   };
 
+  // 비밀번호 형식 - 8자 이상, 영문/숫자 포함
+  const isValidPasswordFormat = (value) =>
+    value.length >= 8 && /[a-zA-Z]/.test(value) && /[0-9]/.test(value);
+
   // 가입 버튼
   const handleSignup = () => {
+    if (!isVerified) {
+      if (showVerify) {
+        // 인증 버튼은 눌렀지만 인증번호 확인을 안 마친 상태
+        setCodeError('이메일 인증을 완료해주세요');
+      } else {
+        // 인증 버튼 자체를 누르지 않은 상태
+        setEmailError('이메일 인증을 완료해주세요');
+      }
+      return;
+    }
     if (!password || !passwordCheck) {
       setError('비밀번호를 입력해주세요.');
       return;
     }
+    if (!isValidPasswordFormat(password)) {
+      setError('8자 이상, 영문/숫자를 포함해주세요');
+      return;
+    }
     if (password !== passwordCheck) {
-      setError('비밀번호가 일치하지 않습니다.');
+      setError('비밀번호가 일치하지 않습니다');
       return;
     }
     setError('');
