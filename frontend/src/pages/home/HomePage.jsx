@@ -118,9 +118,10 @@ export default function HomePage() {
           }}
         />
 
-        {/*Top5*/}
+        {/*지역 추천*/}
         <TopCardSection
           name="윤아"
+          area="홍대"
           className="pl-6"
           items={mockTopPlaces}
           onClick={(place) =>
