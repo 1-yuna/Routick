@@ -11,6 +11,8 @@ import useSelectionStore from '../../store/selectionStore.jsx';
 // 장소 검색
 export default function AddressSearchPage() {
   const setAddress = useSelectionStore((state) => state.setAddress);
+  const setAddresses = useSelectionStore((state) => state.setAddresses);
+  const addresses = useSelectionStore((state) => state.addresses);
   const location = useLocation();
   const navigate = useNavigate();
   const mode = location.state?.mode;
@@ -24,25 +26,43 @@ export default function AddressSearchPage() {
   };
 
   const handlePlaceSelect = ({ place_name, x, y, id }) => {
+    const selectedPlace = {
+      name: place_name,
+      lat: Number(y),
+      lng: Number(x),
+      placeId: id,
+    };
+
     if (mode === 'add') {
       navigate(`/place/${id}`, {
         state: {
-          name: place_name,
-          lat: Number(y),
-          lng: Number(x),
-          placeId: id,
+          ...selectedPlace,
           mode: 'add',
         },
       });
-    } else {
-      setAddress({
-        name: place_name,
-        lat: Number(y),
-        lng: Number(x),
-        placeId: id,
-      });
-      navigate('/select/address');
+      return;
     }
+
+    const { dayIdx, field, returnTo } = location.state || {};
+
+    // 목적지 선택
+    if (returnTo === 'destination') {
+      setAddress(selectedPlace);
+    }
+
+    // 출발지 / 도착지 선택
+    if (returnTo === 'route') {
+      const updated = [...addresses];
+
+      updated[dayIdx] = {
+        ...updated[dayIdx],
+        [field]: selectedPlace,
+      };
+
+      setAddresses(updated);
+    }
+
+    navigate('/select/address');
   };
 
   return (
