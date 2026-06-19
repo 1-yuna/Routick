@@ -52,7 +52,7 @@ export default function HomePage() {
           className="px-6"
           onClick={() => {
             reset();
-            navigate('/select/address');
+            navigate('/select/period');
           }}
         />
 

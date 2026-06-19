@@ -32,9 +32,9 @@ export default function Router() {
         <Route path="/playlist" element={<PlayListPage />} />
         <Route path="/place/:id" element={<PlaceDetailPage />} />
 
+        <Route path="/select/period" element={<TravelPeriodPage />} />
         <Route path="/select/address" element={<AddressPage />} />
         <Route path="/select/address/search" element={<AddressSearchPage />} />
-        <Route path="/select/period" element={<TravelPeriodPage />} />
         <Route path="/select/companion" element={<CompanionPage />} />
         <Route path="/select/age" element={<AgeGroupPage />} />
         <Route path="/select/mood" element={<MoodPage />} />
