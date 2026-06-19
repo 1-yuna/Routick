@@ -9,7 +9,9 @@ export default function LoadingPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate('/result');
+      // TODO: API 연동 시 실제 API 호출 결과로 교체
+      const isSuccess = Math.random() > 0.3;
+      navigate(isSuccess ? '/result' : '/fail');
     }, 3000);
     return () => clearTimeout(timer);
   }, [navigate]);

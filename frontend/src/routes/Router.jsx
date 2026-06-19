@@ -16,6 +16,7 @@ import MoodPage from '../pages/selection/MoodPage.jsx';
 import ActivityPage from '../pages/selection/ActivityPage.jsx';
 import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import LoadingPage from '../pages/selection/LoadingPage.jsx';
+import FailPage from '../pages/selection/FailPage.jsx';
 import ResultPage from '../pages/result/ResultPage.jsx';
 import MyTripPage from '../pages/myTrip/MyTripPage.jsx';
 import MyPage from '../pages/myProfile/MyPage.jsx';
@@ -44,6 +45,7 @@ export default function Router() {
         <Route path="/select/activity" element={<ActivityPage />} />
         <Route path="/select/dislike" element={<DislikeActivityPage />} />
         <Route path="/loading" element={<LoadingPage />} />
+        <Route path="/fail" element={<FailPage />} />
 
         <Route path="/result" element={<ResultPage />} />
 
