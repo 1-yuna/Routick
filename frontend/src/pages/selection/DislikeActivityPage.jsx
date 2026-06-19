@@ -21,16 +21,22 @@ function KeywordTag({ keyword, onRemove }) {
 // 선택 8단계 - 비선호 키워드 (다중 입력)
 export default function DislikeActivityPage() {
   const dislike = useSelectionStore((state) => state.dislike);
-  const setDislike = useSelectionStore((state) => state.setDislike);
+  const addDislike = useSelectionStore((state) => state.addDislike);
+  const removeDislike = useSelectionStore((state) => state.removeDislike);
   const navigate = useNavigate();
   const [input, setInput] = useState('');
 
   const handleKeyDown = (e) => {
     if (e.nativeEvent.isComposing) return;
-    if (e.key === 'Enter' && input.trim()) {
-      if (!dislike.includes(input.trim())) {
-        setDislike([...dislike, input.trim()]);
-      }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+
+      const keyword = input.trim();
+
+      if (!keyword) return;
+
+      addDislike(keyword);
       setInput('');
     }
   };
@@ -56,7 +62,7 @@ export default function DislikeActivityPage() {
             <KeywordTag
               key={keyword}
               keyword={keyword}
-              onRemove={() => setDislike(dislike.filter((v) => v !== keyword))}
+              onRemove={() => removeDislike(keyword)}
             />
           ))}
         </div>
