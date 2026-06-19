@@ -33,16 +33,18 @@ export default function HomePage() {
       )}
 
       {/*상단 바*/}
-      <TopBar className="px-6">
-        {/*지역 선택*/}
-        <button
-          onClick={() => setShowRegionSheet(true)}
-          className="flex items-center whitespace-nowrap text-20-sb text-black1"
-        >
-          {region.category.split(' ')[0]} {region.area}
-          <DownIcon className="w-6 h-6 text-black1" />
-        </button>
-      </TopBar>
+      <TopBar
+        className="px-6"
+        leftContent={
+          <button
+            onClick={() => setShowRegionSheet(true)}
+            className="flex items-center whitespace-nowrap text-20-sb text-black1"
+          >
+            {region.category.split(' ')[0]} {region.area}
+            <DownIcon className="w-6 h-6 text-black1" />
+          </button>
+        }
+      />
 
       <div className="flex flex-col gap-10 overflow-y-auto no-scrollbar">
         {/*배너*/}
