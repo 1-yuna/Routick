@@ -7,12 +7,13 @@ import PlayListPage from '../pages/home/PlayListPage.jsx';
 import PlaceDetailPage from '../pages/place/PlaceDetailPage.jsx';
 import TravelPeriodPage from '../pages/selection/TravelPeriodPage.jsx';
 import DatePage from '../pages/selection/DatePage.jsx';
+import TransportPage from '../pages/selection/TransportPage.jsx';
+import RoutePage from '../pages/selection/RoutePage.jsx';
 import AddressPage from '../pages/selection/AddressPage.jsx';
 import AddressSearchPage from '../pages/selection/AddressSearchPage.jsx';
 import CompanionPage from '../pages/selection/CompanionPage.jsx';
 import MoodPage from '../pages/selection/MoodPage.jsx';
 import ActivityPage from '../pages/selection/ActivityPage.jsx';
-import TransportPage from '../pages/selection/TransportPage.jsx';
 import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import LoadingPage from '../pages/selection/LoadingPage.jsx';
 import ResultPage from '../pages/result/ResultPage.jsx';
@@ -35,6 +36,7 @@ export default function Router() {
         <Route path="/select/period" element={<TravelPeriodPage />} />
         <Route path="/select/date" element={<DatePage />} />
         <Route path="/select/transport" element={<TransportPage />} />
+        <Route path="/select/route" element={<RoutePage />} />
         <Route path="/select/address" element={<AddressPage />} />
         <Route path="/select/address/search" element={<AddressSearchPage />} />
         <Route path="/select/companion" element={<CompanionPage />} />
