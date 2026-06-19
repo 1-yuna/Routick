@@ -44,6 +44,7 @@ export default function DislikeActivityPage() {
   return (
     <SelectionLayout
       step={9}
+      url="/select/activity"
       icon="🤔"
       text1="피하고 싶은"
       text2="활동이 있으신가요?"

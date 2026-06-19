@@ -18,6 +18,7 @@ export default function TransportPage() {
   return (
     <SelectionLayout
       step={3}
+      url="/select/date"
       icon="🚘"
       text1="이동 수단이"
       text2="어떻게 되세요?"

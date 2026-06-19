@@ -18,6 +18,7 @@ export default function RoutePage() {
   return (
     <SelectionLayout
       step={4}
+      url="/select/transport"
       icon="✈️"
       text1="여행 동선이"
       text2="정해져 있나요?"

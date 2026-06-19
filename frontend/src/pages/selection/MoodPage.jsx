@@ -25,6 +25,7 @@ export default function MoodPage() {
   return (
     <SelectionLayout
       step={7}
+      url="/select/companion"
       icon="🌅"
       text1="어떤 분위기를"
       text2="원하세요?"

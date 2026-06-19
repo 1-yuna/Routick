@@ -24,6 +24,7 @@ export default function ActivityPage() {
   return (
     <SelectionLayout
       step={8}
+      url="/select/mood"
       icon="🏄️"
       text1="어떤 활동을"
       text2="원하세요?"
