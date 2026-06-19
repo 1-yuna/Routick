@@ -21,7 +21,6 @@ export default function DatePage() {
   return (
     <SelectionLayout
       step={2}
-      url="/select/period"
       icon="🗓️"
       text1="여행 날짜를"
       text2="선택해주세요"

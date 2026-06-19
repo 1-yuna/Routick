@@ -54,13 +54,13 @@ export default function AddressSearchPage() {
         placeholder="주소, 장소 검색"
         leftIcon={
           <LeftIcon
-            className="w-5 h-5 text-gray2"
+            className="w-5 h-10 text-line2"
             onClick={() => navigate(-1)}
           />
         }
         rightIcon={
           <CloseIcon
-            className="w-5 h-5 text-gray2"
+            className="w-6 h-6 text-gray1"
             onClick={(e) => {
               e.stopPropagation();
               setQuery('');

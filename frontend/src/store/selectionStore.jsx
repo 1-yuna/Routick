@@ -12,6 +12,7 @@ const useSelectionStore = create((set) => ({
   route: '',
   // 5단계: 여행 장소 (CS-06)
   address: { name: '', lat: '', lng: '', placeId: '' },
+  addresses: [], // [{ start: {...}, end: {...} }, ...]
   // 6단계: 동행자 (CS-07)
   companion: '',
   // 7단계: 분위기 선호 (CS-08) - 다중 선택
@@ -26,6 +27,7 @@ const useSelectionStore = create((set) => ({
   setTransport: (data) => set({ transport: data }),
   setRoute: (data) => set({ route: data }),
   setAddress: (data) => set({ address: data }),
+  setAddresses: (data) => set({ addresses: data }),
   setCompanion: (data) => set({ companion: data }),
   // 다중 선택 - 이미 선택된 값이면 제거, 없으면 추가
   setMood: (value) =>
@@ -62,6 +64,7 @@ const useSelectionStore = create((set) => ({
       transport: '',
       route: '',
       address: { name: '', lat: '', lng: '', placeId: '' },
+      addresses: [],
       companion: '',
       mood: [],
       activity: [],
