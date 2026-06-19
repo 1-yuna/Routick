@@ -4,6 +4,7 @@ import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionInput from '../../common/input/SelectionInput.jsx';
 import FieldMessage from '../../common/text/FieldMessage.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
+import { getDistanceError } from '../../utils/distance.jsx';
 
 const PERIOD_DAYS = { day: 1, '1n2d': 2, '2n3d': 3, '3n4d': 4 };
 const EMPTY_PLACE = { name: '', lat: '', lng: '', placeId: '' };
@@ -13,6 +14,7 @@ export default function AddressPage() {
   const navigate = useNavigate();
   const route = useSelectionStore((state) => state.route);
   const period = useSelectionStore((state) => state.period);
+  const transport = useSelectionStore((state) => state.transport);
   const address = useSelectionStore((state) => state.address);
   const addresses = useSelectionStore((state) => state.addresses);
 
@@ -32,8 +34,23 @@ export default function AddressPage() {
   const isRouteReady = dayList.every(
     (day) => day.start.name !== '' && day.end.name !== ''
   );
-  const isReady = route === 'destination' ? isDestinationReady : isRouteReady;
-  const distanceError = null;
+
+  // day별 거리 에러 계산
+  const distanceErrors = dayList.map((day) =>
+    getDistanceError(
+      day.start.lat,
+      day.start.lng,
+      day.end.lat,
+      day.end.lng,
+      transport
+    )
+  );
+  const hasDistanceError = distanceErrors.some((e) => e !== null);
+
+  const isReady =
+    route === 'destination'
+      ? isDestinationReady
+      : isRouteReady && !hasDistanceError;
 
   if (route === 'destination') {
     return (
@@ -66,7 +83,7 @@ export default function AddressPage() {
       icon="🔍"
       text1="가고자 하는 여행"
       text2="장소를 입력해주세요"
-      subText="1박 이상인 경우, 도착지를 목소로 입력해주세요"
+      subText="1박 이상인 경우, 도착지를 숙소로 입력해주세요"
       onNext={() => navigate('/select/companion')}
       disabled={!isReady}
       contentGap="gap-8"
@@ -82,15 +99,15 @@ export default function AddressPage() {
                 onClick={() => navigateToSearch(i, 'start')}
                 rounded="rounded-t-10"
               />
-              {distanceError && i === 0 && (
-                <FieldMessage type="error">{distanceError}</FieldMessage>
-              )}
               <SelectionInput
                 placeholder="도착지"
                 value={day.end.name}
                 onClick={() => navigateToSearch(i, 'end')}
                 rounded="rounded-b-10"
               />
+              {distanceErrors[i] && (
+                <FieldMessage type="error">{distanceErrors[i]}</FieldMessage>
+              )}
             </div>
           </div>
         ))}
