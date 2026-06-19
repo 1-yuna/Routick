@@ -17,6 +17,7 @@ export default function SelectionLayout({
   disabled,
   subText,
   buttonText,
+  contentGap = 'gap-11',
 }) {
   const navigate = useNavigate();
 
@@ -32,7 +33,7 @@ export default function SelectionLayout({
       </TopBar>
 
       {/*질문 + 선택 컴포넌트*/}
-      <div className="flex flex-col w-full gap-11">
+      <div className={`flex flex-col w-full ${contentGap}`}>
         <PromptText icon={icon} text1={text1} text2={text2} subText={subText} />
         {children}
       </div>

@@ -5,9 +5,10 @@ import SignupPage from '../pages/login/SignupPage.jsx';
 import HomePage from '../pages/home/HomePage.jsx';
 import PlayListPage from '../pages/home/PlayListPage.jsx';
 import PlaceDetailPage from '../pages/place/PlaceDetailPage.jsx';
+import TravelPeriodPage from '../pages/selection/TravelPeriodPage.jsx';
+import DatePage from '../pages/selection/DatePage.jsx';
 import AddressPage from '../pages/selection/AddressPage.jsx';
 import AddressSearchPage from '../pages/selection/AddressSearchPage.jsx';
-import TravelPeriodPage from '../pages/selection/TravelPeriodPage.jsx';
 import CompanionPage from '../pages/selection/CompanionPage.jsx';
 import AgeGroupPage from '../pages/selection/AgeGroupPage.jsx';
 import MoodPage from '../pages/selection/MoodPage.jsx';
@@ -33,6 +34,7 @@ export default function Router() {
         <Route path="/place/:id" element={<PlaceDetailPage />} />
 
         <Route path="/select/period" element={<TravelPeriodPage />} />
+        <Route path="/select/date" element={<DatePage />} />
         <Route path="/select/address" element={<AddressPage />} />
         <Route path="/select/address/search" element={<AddressSearchPage />} />
         <Route path="/select/companion" element={<CompanionPage />} />
