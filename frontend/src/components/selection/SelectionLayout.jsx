@@ -22,11 +22,11 @@ export default function SelectionLayout({
   const navigate = useNavigate();
 
   return (
-    <div className="pt-12 px-6 h-screen pb-28 flex flex-col bg-default">
+    <div className="pt-12 px-6 h-screen pb-[88px] flex flex-col bg-default">
       {/*상단 바 - url 있으면 해당 경로로, 없으면 이전 페이지로*/}
       <TopBar
         className="text-primary text-16-sb"
-        text={`${step}/8`}
+        text={`${step}/9`}
         onClick={() => (url ? navigate(url) : navigate(-1))}
       >
         <LeftIcon className="w-5 h-10 text-primary" />
