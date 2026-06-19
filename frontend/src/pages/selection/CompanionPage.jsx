@@ -21,11 +21,11 @@ export default function CompanionPage() {
 
   return (
     <SelectionLayout
-      step={3}
+      step={6}
       icon="👫"
       text1="누구와 함께"
       text2="가시나요?"
-      onNext={() => navigate('/select/age')}
+      onNext={() => navigate('/select/mood')}
       disabled={!companion}
     >
       <SelectionGrid
