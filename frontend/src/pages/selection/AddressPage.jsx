@@ -39,6 +39,7 @@ export default function AddressPage() {
     return (
       <SelectionLayout
         step={5}
+        url="/select/route"
         icon="🔍"
         text1="가고자 하는 여행"
         text2="장소를 입력해주세요"
@@ -61,13 +62,14 @@ export default function AddressPage() {
   return (
     <SelectionLayout
       step={5}
+      url="/select/route"
       icon="🔍"
       text1="가고자 하는 여행"
       text2="장소를 입력해주세요"
       subText="1박 이상인 경우, 도착지를 목소로 입력해주세요"
       onNext={() => navigate('/select/companion')}
       disabled={!isReady}
-      contentGap="gap-[28px]"
+      contentGap="gap-8"
     >
       <div className="flex flex-col gap-4 overflow-y-auto no-scrollbar">
         {dayList.map((day, i) => (
@@ -78,6 +80,7 @@ export default function AddressPage() {
                 placeholder="출발지"
                 value={day.start.name}
                 onClick={() => navigateToSearch(i, 'start')}
+                rounded="rounded-t-10"
               />
               {distanceError && i === 0 && (
                 <FieldMessage type="error">{distanceError}</FieldMessage>
@@ -86,6 +89,7 @@ export default function AddressPage() {
                 placeholder="도착지"
                 value={day.end.name}
                 onClick={() => navigateToSearch(i, 'end')}
+                rounded="rounded-b-10"
               />
             </div>
           </div>

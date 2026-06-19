@@ -7,11 +7,12 @@ export default function SelectionInput({
   leftIcon,
   rightIcon,
   onKeyDown,
+  rounded = 'rounded-10',
 }) {
   return (
     <div
       onClick={onClick}
-      className="flex items-center flex-shrink-0 px-3 h-[46px] w-full bg-white border border-line2 rounded-10"
+      className={`flex items-center flex-shrink-0 px-3 h-[46px] w-full bg-white border border-line2 ${rounded}`}
     >
       {leftIcon && <div className="mr-3 flex-shrink-0">{leftIcon}</div>}
       <input
