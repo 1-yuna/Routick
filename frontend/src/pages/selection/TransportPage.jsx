@@ -17,11 +17,11 @@ export default function TransportPage() {
 
   return (
     <SelectionLayout
-      step={7}
+      step={3}
       icon="🚘"
       text1="이동 수단이"
       text2="어떻게 되세요?"
-      onNext={() => navigate('/select/dislike')}
+      onNext={() => navigate('/select/route')}
       disabled={!transport}
     >
       <SelectionGrid
