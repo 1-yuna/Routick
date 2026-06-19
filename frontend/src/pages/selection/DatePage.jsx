@@ -10,8 +10,11 @@ export default function DatePage() {
   const period = useSelectionStore((state) => state.period);
   const setDate = useSelectionStore((state) => state.setDate);
   const navigate = useNavigate();
-
   const [dateRange, setDateRange] = useState({ start: null, end: null });
+
+  // 당일치기는 start만 있으면 다음 가능, 나머지는 start+end 둘 다 있어야 함
+  const isReady =
+    period === 'day' ? !!dateRange.start : !!(dateRange.start && dateRange.end);
 
   const handleNext = () => {
     setDate(dateRange);
@@ -21,12 +24,11 @@ export default function DatePage() {
   return (
     <SelectionLayout
       step={2}
-      url="/select/period"
       icon="🗓️"
       text1="여행 날짜를"
       text2="선택해주세요"
       onNext={handleNext}
-      disabled={!dateRange.start}
+      disabled={!isReady}
       contentGap="gap-8"
     >
       <DateCalendar value={dateRange} onChange={setDateRange} period={period} />
