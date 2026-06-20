@@ -1,134 +1,149 @@
 import { create } from 'zustand';
 import SampleImage from '../assets/images/mock/sample.png';
 
-// TODO: API 연동 시 제거
-const mockCourse = [
-  {
-    day: 1,
-    transport: '도보',
-    places: [
-      {
-        id: 1,
-        category: 'food',
-        stayTime: 120,
-        name: '타코잇 상수역점',
-        rating: 4.6,
-        reviewCount: 1243,
-        description: '일본을 대표하는 라멘 전문점으로 연인과 방문하기에 좋음',
-        src: SampleImage,
-        transportTime: 10,
-        lat: 37.5479,
-        lng: 126.9228,
-      },
-      {
-        id: 2,
-        category: 'lodging',
-        stayTime: 120,
-        name: '스타벅스 합정점',
-        rating: 4.2,
-        reviewCount: 832,
-        description: '한강뷰가 보이는 분위기 좋은 카페',
-        src: SampleImage,
-        transportTime: 15,
-        lat: 37.5497,
-        lng: 126.9143,
-      },
-      {
-        id: 3,
-        category: 'food',
-        stayTime: 120,
-        name: '홍대 놀이터',
-        rating: 4.0,
-        reviewCount: 512,
-        description: '홍대 특유의 젊고 활기찬 분위기',
-        src: SampleImage,
-        lat: 37.5564,
-        lng: 126.9238,
-      },
-    ],
-  },
-  {
-    day: 2,
-    transport: '도보',
-    places: [
-      {
-        id: 1,
-        category: 'food',
-        stayTime: 60,
-        name: '연남동 카페거리',
-        rating: 4.5,
-        reviewCount: 1023,
-        description: '감성적인 카페들이 모여있는 거리',
-        src: SampleImage,
-        transportTime: 10,
-        lat: 37.5617,
-        lng: 126.9237,
-      },
-      {
-        id: 2,
-        category: 'lodging',
-        stayTime: 120,
-        name: '망원한강공원',
-        rating: 4.7,
-        reviewCount: 2341,
-        description: '한강을 바라보며 쉬어가기 좋은 공원',
-        src: SampleImage,
-        transportTime: 15,
-        lat: 37.5537,
-        lng: 126.9008,
-      },
-      {
-        id: 3,
-        category: 'food',
-        stayTime: 120,
-        name: '합정역 맛집거리',
-        rating: 4.3,
-        reviewCount: 743,
-        description: '다양한 맛집들이 모여있는 거리',
-        src: SampleImage,
-        lat: 37.5496,
-        lng: 126.9143,
-      },
-    ],
-  },
-];
+const mockCourse = {
+  days: [
+    {
+      dayNumber: 1,
+      startRegion: '홍대',
+      endRegion: '홍대',
+      blocks: [
+        {
+          blockOrder: 1,
+          type: 'place',
+          placeOrder: 1,
+          placeId: '11111111',
+          name: '타코잇 상수역점',
+          bucket: 'food',
+          src: SampleImage,
+          status: '영업 중',
+          description:
+            '정해진 도안 없이 자유롭게 백드롭 페인팅을 체험하는 드로잉 카페',
+          lat: 37.5479,
+          lng: 126.9228,
+          stayMinutes: 60,
+          arriveTime: '09:00',
+          leaveTime: '10:00',
+        },
+        {
+          blockOrder: 2,
+          type: 'walk',
+          minutes: 5,
+        },
+        {
+          blockOrder: 3,
+          type: 'place',
+          placeOrder: 2,
+          placeId: '22222222',
+          name: '을지로 노포',
+          bucket: 'food',
+          src: SampleImage,
+          status: '브레이크 타임',
+          description: '오래된 감성의 을지로 노포 맛집',
+          lat: 37.5665,
+          lng: 126.9912,
+          stayMinutes: 90,
+          arriveTime: '10:05',
+          leaveTime: '11:35',
+        },
+        {
+          blockOrder: 4,
+          type: 'parking',
+          name: '상수역 공영주차장',
+          lat: 37.548,
+          lng: 126.9237,
+          fee: null,
+          enterTransport: { mode: 'walk', minutes: 5 },
+          exitTransport: { mode: 'car', minutes: 10 },
+        },
+        {
+          blockOrder: 5,
+          type: 'parking',
+          name: '을지로 노상주차장',
+          lat: 37.5663,
+          lng: 126.9913,
+          fee: '1시간에 500원',
+          exitTransport: { mode: 'walk', minutes: 15 },
+        },
+        {
+          blockOrder: 6,
+          type: 'place',
+          placeOrder: 3,
+          placeId: '33333333',
+          name: '연남동 카페거리',
+          bucket: 'cafe',
+          src: SampleImage,
+          status: '영업 중',
+          description: '감성적인 카페들이 모여있는 거리',
+          lat: 37.5617,
+          lng: 126.9237,
+          stayMinutes: 60,
+          arriveTime: '11:50',
+          leaveTime: '12:50',
+        },
+        {
+          // place(3) 이후 단일 주차장
+          blockOrder: 7,
+          type: 'parking',
+          name: '상수역 공영주차장',
+          lat: 37.548,
+          lng: 126.9237,
+          fee: null,
+          enterTransport: { mode: 'car', minutes: 10 },
+          exitTransport: { mode: 'walk', minutes: 5 },
+        },
+      ],
+    },
+    {
+      dayNumber: 2,
+      startRegion: '홍대',
+      endRegion: '홍대',
+      blocks: [
+        {
+          blockOrder: 1,
+          type: 'place',
+          placeOrder: 1,
+          placeId: '44444444',
+          name: '연남동 카페거리',
+          bucket: 'cafe',
+          src: SampleImage,
+          status: '영업 중',
+          description: '감성적인 카페들이 모여있는 거리',
+          lat: 37.5617,
+          lng: 126.9237,
+          stayMinutes: 60,
+          arriveTime: '10:00',
+          leaveTime: '11:00',
+        },
+        {
+          blockOrder: 2,
+          type: 'walk',
+          minutes: 10,
+        },
+        {
+          blockOrder: 3,
+          type: 'place',
+          placeOrder: 2,
+          placeId: '55555555',
+          name: '망원한강공원',
+          bucket: 'activity',
+          src: SampleImage,
+          status: '영업 중',
+          description: '한강을 바라보며 쉬어가기 좋은 공원',
+          lat: 37.5537,
+          lng: 126.9008,
+          stayMinutes: 120,
+          arriveTime: '11:10',
+          leaveTime: '13:10',
+        },
+      ],
+    },
+  ],
+};
 
-// 코스 결과 데이터 전역 상태 관리
 const useCourseStore = create((set) => ({
   course: mockCourse,
-
-  // day1 마지막에 장소 추가
-  addPlace: (place) =>
-    set((state) => ({
-      course: state.course.map((day, index) =>
-        index === 0 ? { ...day, places: [...day.places, place] } : day
-      ),
-    })),
-
-  // 장소 삭제
-  deletePlace: (dayIndex, placeIndex) =>
-    set((state) => ({
-      course: state.course.map((day, dIdx) =>
-        dIdx === dayIndex
-          ? {
-              ...day,
-              places: day.places.filter((_, pIdx) => pIdx !== placeIndex),
-            }
-          : day
-      ),
-    })),
-
-  // 장소 순서 변경
-  reorderPlaces: (dayIndex, newPlaces) =>
-    set((state) => ({
-      course: state.course.map((day, dIdx) =>
-        dIdx === dayIndex ? { ...day, places: newPlaces } : day
-      ),
-    })),
-
   setCourse: (course) => set({ course }),
-
-  // 홈으로 돌아갈 때 초기화
   reset: () => set({ course: mockCourse }),
 }));
 

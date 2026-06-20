@@ -1,38 +1,87 @@
-import CourseItem from './CourseItem.jsx';
 import DayHeader from '../DayHeader.jsx';
-import { calcPlaceTimes } from '../../../utils/timeUtils.jsx';
+import CourseItem from './CourseItem.jsx';
+import MoveItem from './MoveItem.jsx';
+import ParkingItem from './ParkingItem.jsx';
+import ParkingGroupItem from './ParkingGroupItem.jsx';
 
-// 일반 모드 - day별 코스 리스트 (시간 계산 포함)
+function groupBlocks(blocks) {
+  const result = [];
+  let i = 0;
+
+  while (i < blocks.length) {
+    const block = blocks[i];
+
+    if (block.type === 'parking') {
+      const group = [block];
+      while (i + 1 < blocks.length && blocks[i + 1].type === 'parking') {
+        i++;
+        group.push(blocks[i]);
+      }
+      result.push({
+        type: 'parkingGroup',
+        parkings: group,
+        key: block.blockOrder,
+      });
+    } else {
+      result.push(block);
+    }
+    i++;
+  }
+
+  return result;
+}
+
+function renderBlocks(blocks, onCardClick) {
+  const grouped = groupBlocks(blocks);
+
+  return grouped.map((item) => {
+    // 단일 parking
+    if (item.type === 'parking') {
+      return <ParkingItem key={item.blockOrder} block={item} />;
+    }
+
+    // 그룹 parking
+    if (item.type === 'parkingGroup') {
+      return <ParkingGroupItem key={item.key} parkings={item.parkings} />;
+    }
+
+    switch (item.type) {
+      case 'place':
+        return (
+          <CourseItem
+            key={item.blockOrder}
+            block={item}
+            onCardClick={() => onCardClick(item)}
+          />
+        );
+      case 'walk':
+        return (
+          <MoveItem key={item.blockOrder} mode="walk" minutes={item.minutes} />
+        );
+      default:
+        return null;
+    }
+  });
+}
+
 export default function CourseList({
   course,
-  selectedDay, // 선택된 day (지도 연동)
+  selectedDay,
   onDaySelect,
   onCardClick,
 }) {
   return (
-    <div className="flex flex-col gap-12">
-      {course.map((dayData, dayIndex) => (
-        <div key={dayData.day}>
-          {/*day 헤더 - 첫 번째 day만 재추천 버튼 표시*/}
+    <div className="flex flex-col gap-8">
+      {course.days.map((dayData, dayIndex) => (
+        <div key={dayData.dayNumber}>
           <DayHeader
-            day={dayData.day}
+            day={dayData.dayNumber}
             showRefresh={dayIndex === 0}
-            isSelected={selectedDay === dayData.day}
-            onClick={() => onDaySelect(dayData.day)}
+            isSelected={selectedDay === dayData.dayNumber}
+            onClick={() => onDaySelect(dayData.dayNumber)}
           />
-
-          {/*장소 리스트 - stayTime/transportTime 기반으로 시간 계산*/}
-          <div>
-            {calcPlaceTimes(dayData.places).map((place, index) => (
-              <CourseItem
-                key={index}
-                index={index}
-                place={place}
-                transport={dayData.transport}
-                isLast={index === dayData.places.length - 1}
-                onCardClick={() => onCardClick(place)}
-              />
-            ))}
+          <div className="pt-4">
+            {renderBlocks(dayData.blocks, onCardClick)}
           </div>
         </div>
       ))}
