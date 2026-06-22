@@ -31,6 +31,8 @@ export default function ResultPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [checkedBlocks, setCheckedBlocks] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // 순서변경 임시 저장 - 완료 누를 때만 store 반영
+  const [pendingLocalDays, setPendingLocalDays] = useState(null);
 
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
   const selectedBlocks = selectedDayData?.blocks ?? [];
@@ -49,32 +51,44 @@ export default function ResultPage() {
     );
   };
 
+  // 완료 버튼 - pendingLocalDays 있으면 store 반영
   const handleEditDone = () => {
+    if (pendingLocalDays) {
+      pendingLocalDays.forEach((localDay) => {
+        const dayData = course.days.find(
+          (d) => d.dayNumber === localDay.dayNumber
+        );
+        if (!dayData) return;
+
+        const visibleBlocks = localDay.blocks.map(({ _uid, ...rest }) => rest);
+        const walkBlocks = dayData.blocks.filter((b) => b.type === 'walk');
+        const newBlocks = [];
+        visibleBlocks.forEach((block, idx) => {
+          newBlocks.push(block);
+          if (idx < visibleBlocks.length - 1 && walkBlocks[idx]) {
+            newBlocks.push(walkBlocks[idx]);
+          }
+        });
+
+        reorderBlocks(localDay.dayNumber, newBlocks);
+      });
+    }
     setIsEditing(false);
     setCheckedBlocks([]);
+    setPendingLocalDays(null);
   };
 
-  // newLocalDays: EditBlockList에서 day 간 이동까지 반영된 전체 day 배열
+  // 뒤로가기 버튼 - 순서변경 취소 (store 반영 안 함)
+  const handleEditCancel = () => {
+    setIsEditing(false);
+    setCheckedBlocks([]);
+    setPendingLocalDays(null);
+  };
+
+  // 드래그 종료 - store 반영 안 하고 pendingLocalDays에만 저장
+  // 완료 버튼 눌러야 store 반영
   const handleDragEnd = (newLocalDays) => {
-    newLocalDays.forEach((localDay) => {
-      const dayData = course.days.find(
-        (d) => d.dayNumber === localDay.dayNumber
-      );
-      if (!dayData) return;
-
-      // _uid 제거 후 walk 블록 끼워넣기
-      const visibleBlocks = localDay.blocks.map(({ _uid, ...rest }) => rest);
-      const walkBlocks = dayData.blocks.filter((b) => b.type === 'walk');
-      const newBlocks = [];
-      visibleBlocks.forEach((block, idx) => {
-        newBlocks.push(block);
-        if (idx < visibleBlocks.length - 1 && walkBlocks[idx]) {
-          newBlocks.push(walkBlocks[idx]);
-        }
-      });
-
-      reorderBlocks(localDay.dayNumber, newBlocks);
-    });
+    setPendingLocalDays(newLocalDays);
   };
 
   return (
@@ -106,7 +120,7 @@ export default function ResultPage() {
       {isEditing ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
           <TopBar
-            onClick={handleEditDone}
+            onClick={handleEditCancel}
             text="완료"
             className3="text-primary text-16-sb"
             onTextClick={handleEditDone}
