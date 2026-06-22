@@ -6,8 +6,17 @@ const STATUS_COLOR = {
   휴무: 'text-red',
 };
 
+// bucket별 dot 색상
+// food: #FF8A5C(bg-food), cafe/activity/other: #4B5FDC(bg-primary)
+const DOT_COLOR = {
+  food: 'bg-food',
+  cafe: 'bg-primary',
+  activity: 'bg-primary',
+  other: 'bg-primary',
+};
+
 export default function CourseItem({ block, onCardClick }) {
-  const dotColor = block.bucket === 'food' ? 'bg-parking' : 'bg-primary';
+  const dotColor = DOT_COLOR[block.bucket] ?? 'bg-primary';
 
   return (
     <div className="flex gap-3">

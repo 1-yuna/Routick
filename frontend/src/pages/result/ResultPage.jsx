@@ -12,10 +12,7 @@ import useCourseStore from '../../store/courseStore.jsx';
 import CourseList from '../../components/result/view/CourseList.jsx';
 import SaveCompleteModal from '../../components/result/save/SaveCompleteModal.jsx';
 import TitleInputModal from '../../components/result/save/TitleInputModal.jsx';
-
-function extractPlaceMarkers(blocks) {
-  return blocks.filter((b) => b.type === 'place');
-}
+import { extractMarkers } from '../../utils/markerUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
@@ -30,7 +27,7 @@ export default function ResultPage() {
 
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
   const selectedBlocks = selectedDayData?.blocks ?? [];
-  const mapPlaces = extractPlaceMarkers(selectedBlocks);
+  const mapMarkers = extractMarkers(selectedBlocks);
 
   const handleSave = () => {
     setShowTitleModal(false);
@@ -67,7 +64,7 @@ export default function ResultPage() {
         />
       )}
 
-      <KakaoMap places={mapPlaces} padding={[50, 50, sheetY + 50, 50]} />
+      <KakaoMap places={mapMarkers} padding={[50, 50, sheetY + 50, 50]} />
 
       <BottomSheet
         sheetY={sheetY}

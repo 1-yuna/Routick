@@ -40,7 +40,7 @@ export default function ParkingGroupItem({ parkings }) {
     <div className="flex gap-3">
       {/* 왼쪽: 작은 원 + 세로선 */}
       <div className="flex flex-col items-center flex-shrink-0 w-5">
-        <div className="w-2 h-2 rounded-full border border-gray2 bg-white flex-shrink-0" />
+        <div className="w-2 h-2 rounded-full bg-parking flex-shrink-0" />
         <div className="w-[1px] flex-1 border-l-2 border-dashed border-gray1" />
       </div>
 

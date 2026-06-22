@@ -4,9 +4,6 @@ import MoveItem from './MoveItem.jsx';
 import ParkingGroupItem from './ParkingGroupItem.jsx';
 
 // 연속된 parking 블록을 그룹핑하여 렌더링 단위로 변환
-// [place, walk, place, parking, parking, place]
-// → [place, walk, place, parkingGroup([p,p]), place]
-// 단일 parking도 parkingGroup으로 묶임 (ParkingGroupItem이 1개/다수 모두 처리)
 function groupBlocks(blocks) {
   const result = [];
   let i = 0;
@@ -34,39 +31,48 @@ function groupBlocks(blocks) {
   return result;
 }
 
-// 그룹핑된 블록 배열을 순서대로 렌더링
 function renderBlocks(blocks, onCardClick) {
   const grouped = groupBlocks(blocks);
 
-  return grouped.map((item) => {
-    // 주차장 그룹 (단일/다수 모두 ParkingGroupItem으로 처리)
-    if (item.type === 'parkingGroup') {
-      return <ParkingGroupItem key={item.key} parkings={item.parkings} />;
-    }
+  return (
+    <>
+      {grouped.map((item) => {
+        if (item.type === 'parkingGroup') {
+          return <ParkingGroupItem key={item.key} parkings={item.parkings} />;
+        }
 
-    switch (item.type) {
-      // 장소 블록
-      case 'place':
-        return (
-          <CourseItem
-            key={item.blockOrder}
-            block={item}
-            onCardClick={() => onCardClick(item)}
-          />
-        );
-      // 도보 이동 블록
-      case 'walk':
-        return (
-          <MoveItem key={item.blockOrder} mode="walk" minutes={item.minutes} />
-        );
-      default:
-        return null;
-    }
-  });
+        switch (item.type) {
+          case 'place':
+            return (
+              <CourseItem
+                key={item.blockOrder}
+                block={item}
+                onCardClick={() => onCardClick(item)}
+              />
+            );
+          case 'walk':
+            return (
+              <MoveItem
+                key={item.blockOrder}
+                mode="walk"
+                minutes={item.minutes}
+              />
+            );
+          default:
+            return null;
+        }
+      })}
+
+      {/* 마지막 종료 표시 원 */}
+      <div className="flex items-center gap-3">
+        <div className="w-5 flex justify-center flex-shrink-0">
+          <div className="w-2 h-2 rounded-full border border-gray2 bg-white" />
+        </div>
+      </div>
+    </>
+  );
 }
 
-// 결과 페이지 - 코스 타임라인 리스트
-// DayTabs로 day 선택 → 선택된 day의 blocks만 렌더링
 export default function CourseList({
   course,
   selectedDay,
