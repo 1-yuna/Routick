@@ -119,7 +119,7 @@ export default function BottomSheet({
       </div>
 
       {/*푸터*/}
-      {footer && <div className="px-6 pb-20 flex-shrink-0">{footer}</div>}
+      {footer && <div className="px-6 pb-[88px] flex-shrink-0">{footer}</div>}
     </div>
   );
 }

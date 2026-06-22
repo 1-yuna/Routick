@@ -7,7 +7,6 @@ const useCourseStore = create((set) => ({
   reset: () => set({ course: mockCourse }),
 
   // 장소 추가
-  // transport: 'car' | 'walk' → 이동 블록 mode 결정
   addPlace: (place, dayNumber = 1, moveMinutes = 10, transport = 'walk') =>
     set((state) => {
       const days = state.course.days.map((day) => {
@@ -21,14 +20,12 @@ const useCourseStore = create((set) => ({
 
         const newBlocks = [
           ...blocks,
-          // 이동 블록 - transport에 따라 mode 결정
           {
             blockOrder: lastBlockOrder + 1,
-            type: 'walk', // walk 타입 유지, mode로 도보/자동차 구분
+            type: 'walk',
             mode: transport === 'car' ? 'car' : 'walk',
             minutes: moveMinutes,
           },
-          // 장소 블록
           {
             blockOrder: lastBlockOrder + 2,
             type: 'place',
@@ -48,6 +45,40 @@ const useCourseStore = create((set) => ({
         ];
 
         return { ...day, blocks: newBlocks };
+      });
+
+      return { course: { ...state.course, days } };
+    }),
+
+  // 블록 삭제
+  // uniqueIds: `${dayNumber}-${blockOrder}` 형식 배열
+  // 삭제 후 첫 블록이 walk(도보/자동차)면 자동 제거, parking이면 유지
+  deleteBlocks: (uniqueIds) =>
+    set((state) => {
+      const days = state.course.days.map((day) => {
+        const toDelete = uniqueIds
+          .filter((id) => id.startsWith(`${day.dayNumber}-`))
+          .map((id) => Number(id.split('-')[1]));
+
+        if (toDelete.length === 0) return day;
+
+        // 삭제할 블록 제거
+        let filtered = day.blocks.filter(
+          (b) => !toDelete.includes(b.blockOrder)
+        );
+
+        // 삭제 후 첫 블록이 walk 타입이면 자동 제거
+        while (filtered.length > 0 && filtered[0].type === 'walk') {
+          filtered = filtered.slice(1);
+        }
+
+        // blockOrder 재정렬
+        const reordered = filtered.map((block, idx) => ({
+          ...block,
+          blockOrder: idx + 1,
+        }));
+
+        return { ...day, blocks: reordered };
       });
 
       return { course: { ...state.course, days } };

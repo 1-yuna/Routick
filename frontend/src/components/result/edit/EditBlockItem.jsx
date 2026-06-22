@@ -5,9 +5,15 @@ import CheckIcon from '../../../assets/icons/check.svg?react';
 
 // 편집 모드 - 블록 리스트 아이템 (place/parking 모두 표시)
 // 체크박스 + 카드(번호/이름/설명) + 드래그 핸들
-export default function EditBlockItem({ block, index, isChecked, onCheck }) {
+export default function EditBlockItem({
+  uniqueId,
+  block,
+  index,
+  isChecked,
+  onCheck,
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: block.blockOrder });
+    useSortable({ id: uniqueId });
 
   const style = {
     transform: CSS.Transform.toString(transform),

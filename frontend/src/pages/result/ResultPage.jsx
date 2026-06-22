@@ -19,6 +19,7 @@ import { extractMarkers } from '../../utils/markerUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
+  const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
   const navigate = useNavigate();
   const location = useLocation();
   const fromMyTrip = location.state?.from === 'mytrip';
@@ -68,14 +69,14 @@ export default function ResultPage() {
       )}
       {showDeleteModal && (
         <BaseModal
-          text="이 장소를 삭제하시겠습니까?"
           onConfirm={() => {
-            // TODO: 삭제 로직
+            deleteBlocks(checkedBlocks);
             setCheckedBlocks([]);
             setShowDeleteModal(false);
           }}
           onCancel={() => setShowDeleteModal(false)}
         >
+          <p className="text-16-sb text-black1">이 장소를 삭제하시겠습니까?</p>
           <p className="text-12-rg text-gray2">일정에서 바로 삭제돼요</p>
         </BaseModal>
       )}
