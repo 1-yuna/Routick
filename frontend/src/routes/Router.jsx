@@ -18,6 +18,7 @@ import DislikeActivityPage from '../pages/selection/DislikeActivityPage.jsx';
 import LoadingPage from '../pages/selection/LoadingPage.jsx';
 import FailPage from '../pages/selection/FailPage.jsx';
 import ResultPage from '../pages/result/ResultPage.jsx';
+import PlaceEditPage from '../pages/result/PlaceEditPage.jsx';
 import MyTripPage from '../pages/myTrip/MyTripPage.jsx';
 import MyPage from '../pages/myProfile/MyPage.jsx';
 import EditProfilePage from '../pages/myProfile/EditProfilePage.jsx';
@@ -33,6 +34,7 @@ export default function Router() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/playlist" element={<PlayListPage />} />
         <Route path="/place/:id" element={<PlaceDetailPage />} />
+        <Route path="/place/edit/:id" element={<PlaceEditPage />} />
 
         <Route path="/select/period" element={<TravelPeriodPage />} />
         <Route path="/select/date" element={<DatePage />} />

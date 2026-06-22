@@ -1,5 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useNavigate } from 'react-router-dom';
 import MenuIcon from '../../../assets/icons/menu.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 
@@ -10,18 +11,26 @@ export default function EditBlockItem({
   isChecked,
   onCheck,
   isDragging,
+  dayNumber,
 }) {
+  const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: uniqueId });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    // 드래그 중인 원래 자리는 투명하게 (DragOverlay가 대신 보여줌)
     opacity: isDragging ? 0 : 1,
   };
 
   const isParking = block.type === 'parking';
+
+  const handleCardClick = () => {
+    const id = isParking ? encodeURIComponent(block.name) : block.placeId;
+    navigate(`/place/edit/${id}`, {
+      state: { ...block, dayNumber },
+    });
+  };
 
   return (
     <div
@@ -40,7 +49,10 @@ export default function EditBlockItem({
       </button>
 
       {/* 카드 */}
-      <div className="flex items-center gap-3 px-2 py-3 flex-1 bg-white rounded-5 shadow-md">
+      <div
+        onClick={handleCardClick}
+        className="flex items-center gap-3 px-2 py-3 flex-1 bg-white rounded-5 shadow-md cursor-pointer active:opacity-70"
+      >
         <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 bg-line2">
           <span className="text-12-sb text-white">
             {isParking ? 'P' : index}

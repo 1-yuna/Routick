@@ -154,6 +154,38 @@ const useCourseStore = create((set) => ({
       return { course: { ...state.course, days } };
     }),
 
+  // 주차장 정보 수정 (name + dayNumber 기준)
+  updateParking: (originalName, dayNumber, updates) =>
+    set((state) => {
+      const days = state.course.days.map((day) => {
+        if (day.dayNumber !== dayNumber) return day;
+        const blocks = day.blocks.map((b) => {
+          if (b.type === 'parking' && b.name === originalName) {
+            return { ...b, ...updates };
+          }
+          return b;
+        });
+        return { ...day, blocks };
+      });
+      return { course: { ...state.course, days } };
+    }),
+
+  // 특정 장소 정보 수정 (placeId + dayNumber 기준)
+  updatePlace: (placeId, dayNumber, updates) =>
+    set((state) => {
+      const days = state.course.days.map((day) => {
+        if (day.dayNumber !== dayNumber) return day;
+        const blocks = day.blocks.map((b) => {
+          if (b.type === 'place' && b.placeId === placeId) {
+            return { ...b, ...updates };
+          }
+          return b;
+        });
+        return { ...day, blocks };
+      });
+      return { course: { ...state.course, days } };
+    }),
+
   // 특정 day의 blocks 직접 교체 (재계산 결과 반영용)
   updateBlocks: (dayNumber, newBlocks) =>
     set((state) => {

@@ -188,6 +188,7 @@ export default function EditBlockList({
                       isChecked={checkedBlocks.includes(block._uid)}
                       onCheck={() => onCheck(block._uid)}
                       isDragging={block._uid === activeId}
+                      dayNumber={localDay.dayNumber}
                     />
                   );
                 })}

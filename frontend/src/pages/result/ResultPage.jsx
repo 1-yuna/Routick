@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
@@ -29,7 +29,15 @@ export default function ResultPage() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(
+    location.state?.isEditing ?? false
+  );
+
+  useEffect(() => {
+    if (location.state?.isEditing) {
+      setIsEditing(true);
+    }
+  }, [location.state]);
   const [checkedBlocks, setCheckedBlocks] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   // 순서변경 임시 저장 - 완료 누를 때만 store 반영
