@@ -117,11 +117,10 @@ export default function EditBlockList({
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!active || !over || active.id === over.id) return;
-    setLocalDays((prev) => {
-      const moved = moveBlock(prev, active.id, over.id);
-      onDragMove?.(moved);
-      return moved;
-    });
+    const moved = moveBlock(localDays, active.id, over.id);
+    setLocalDays(moved);
+    // setTimeout으로 렌더링 사이클 분리
+    setTimeout(() => onDragMove?.(moved), 0);
   };
 
   const handleDragEnd = (event) => {
