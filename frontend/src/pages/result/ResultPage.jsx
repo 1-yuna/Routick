@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
 import TopBar from '../../common/bar/TopBar.jsx';
@@ -20,6 +19,7 @@ import { extractMarkers } from '../../utils/markerUtils.jsx';
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
+  const reorderBlocks = useCourseStore((state) => state.reorderBlocks);
   const navigate = useNavigate();
   const location = useLocation();
   const fromMyTrip = location.state?.from === 'mytrip';
@@ -29,8 +29,6 @@ export default function ResultPage() {
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-
-  // 편집 모드 상태
   const [checkedBlocks, setCheckedBlocks] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -43,17 +41,35 @@ export default function ResultPage() {
     setShowSaveModal(true);
   };
 
-  const handleCheck = (blockOrder) => {
+  const handleCheck = (uniqueId) => {
     setCheckedBlocks((prev) =>
-      prev.includes(blockOrder)
-        ? prev.filter((b) => b !== blockOrder)
-        : [...prev, blockOrder]
+      prev.includes(uniqueId)
+        ? prev.filter((b) => b !== uniqueId)
+        : [...prev, uniqueId]
     );
   };
 
   const handleEditDone = () => {
     setIsEditing(false);
     setCheckedBlocks([]);
+  };
+
+  // reordered: EditBlockList에서 이미 arrayMove 적용된 visible 블록 배열
+  const handleDragEnd = (event, dayNumber, reordered) => {
+    const dayData = course.days.find((d) => d.dayNumber === dayNumber);
+    if (!dayData) return;
+
+    // walk 블록은 visible 블록 사이에 다시 끼워넣기
+    const walkBlocks = dayData.blocks.filter((b) => b.type === 'walk');
+    const newBlocks = [];
+    reordered.forEach((block, idx) => {
+      newBlocks.push(block);
+      if (idx < reordered.length - 1 && walkBlocks[idx]) {
+        newBlocks.push(walkBlocks[idx]);
+      }
+    });
+
+    reorderBlocks(dayNumber, newBlocks);
   };
 
   return (
@@ -76,7 +92,7 @@ export default function ResultPage() {
           }}
           onCancel={() => setShowDeleteModal(false)}
         >
-          <p className="text-16-sb text-black1">이 장소를 삭제하시겠습니까?</p>
+          <p className="text-14-sb text-black1">이 장소를 삭제하시겠습니까?</p>
           <p className="text-12-rg text-gray2">일정에서 바로 삭제돼요</p>
         </BaseModal>
       )}
@@ -112,24 +128,22 @@ export default function ResultPage() {
           isEditing && checkedBlocks.length > 0 ? (
             <FullWidthButton
               text="삭제하기"
-              className="bg-primary rounded-[5px]"
+              className="bg-primary"
               onClick={() => setShowDeleteModal(true)}
             />
           ) : null
         }
       >
         {isEditing ? (
-          /* 편집 모드 */
           <EditBlockList
             course={course}
             selectedDay={selectedDay}
             onDaySelect={setSelectedDay}
             checkedBlocks={checkedBlocks}
             onCheck={handleCheck}
-            onDragEnd={() => {}} // TODO: 순서 변경 로직
+            onDragEnd={handleDragEnd}
           />
         ) : (
-          /* 일반 모드 */
           <div className="flex flex-col gap-8">
             <CourseList
               course={course}
