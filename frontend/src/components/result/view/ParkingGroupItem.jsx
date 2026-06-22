@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import WalkIcon from '../../../assets/icons/walk.svg?react';
 import CarIcon from '../../../assets/icons/car.svg?react';
 import ParkingIcon from '../../../assets/icons/parking.svg?react';
@@ -20,9 +21,12 @@ function TransportRow({ transport }) {
 }
 
 // 주차장 카드 렌더링 헬퍼
-function ParkingCard({ name, fee }) {
+function ParkingCard({ name, fee, onClick }) {
   return (
-    <div className="flex gap-3 bg-neutral rounded-5 p-2">
+    <div
+      className="flex gap-3 bg-neutral rounded-5 p-2 cursor-pointer"
+      onClick={onClick}
+    >
       <ParkingIcon className="w-5 h-5 text-gray2" />
       <div className="flex flex-col">
         <p className="text-12-sb text-black1">{name}</p>
@@ -33,12 +37,23 @@ function ParkingCard({ name, fee }) {
 }
 
 // 연속된 주차장 블록 그룹
-// parkings 배열의 첫 번째 parking의 enterTransport부터
-// 마지막 parking의 exitTransport까지 하나의 타임라인으로 표현
 export default function ParkingGroupItem({ parkings }) {
+  const navigate = useNavigate();
+
+  const handleParkingClick = (parking) => {
+    navigate(`/place/${parking.name}`, {
+      state: {
+        name: parking.name,
+        lat: parking.lat,
+        lng: parking.lng,
+        description: parking.fee ?? '',
+      },
+    });
+  };
+
   return (
     <div className="flex gap-3">
-      {/* 왼쪽: 작은 원 + 세로선 */}
+      {/* 왼쪽: parking 색상 원 + 세로선 */}
       <div className="flex flex-col items-center flex-shrink-0 w-5">
         <div className="w-2 h-2 rounded-full bg-parking flex-shrink-0" />
         <div className="w-[1px] flex-1 border-l-2 border-dashed border-gray1" />
@@ -51,9 +66,13 @@ export default function ParkingGroupItem({ parkings }) {
             {/* 첫 번째 parking만 enterTransport 표시 */}
             {idx === 0 && <TransportRow transport={parking.enterTransport} />}
 
-            <ParkingCard name={parking.name} fee={parking.fee} />
+            <ParkingCard
+              name={parking.name}
+              fee={parking.fee}
+              onClick={() => handleParkingClick(parking)}
+            />
 
-            {/* parking 사이 이동 (마지막 parking 제외) */}
+            {/* parking 사이 이동 */}
             {idx < parkings.length - 1 && (
               <TransportRow transport={parking.exitTransport} />
             )}
