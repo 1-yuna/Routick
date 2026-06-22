@@ -54,22 +54,27 @@ export default function ResultPage() {
     setCheckedBlocks([]);
   };
 
-  // reordered: EditBlockList에서 이미 arrayMove 적용된 visible 블록 배열
-  const handleDragEnd = (event, dayNumber, reordered) => {
-    const dayData = course.days.find((d) => d.dayNumber === dayNumber);
-    if (!dayData) return;
+  // newLocalDays: EditBlockList에서 day 간 이동까지 반영된 전체 day 배열
+  const handleDragEnd = (newLocalDays) => {
+    newLocalDays.forEach((localDay) => {
+      const dayData = course.days.find(
+        (d) => d.dayNumber === localDay.dayNumber
+      );
+      if (!dayData) return;
 
-    // walk 블록은 visible 블록 사이에 다시 끼워넣기
-    const walkBlocks = dayData.blocks.filter((b) => b.type === 'walk');
-    const newBlocks = [];
-    reordered.forEach((block, idx) => {
-      newBlocks.push(block);
-      if (idx < reordered.length - 1 && walkBlocks[idx]) {
-        newBlocks.push(walkBlocks[idx]);
-      }
+      // _uid 제거 후 walk 블록 끼워넣기
+      const visibleBlocks = localDay.blocks.map(({ _uid, ...rest }) => rest);
+      const walkBlocks = dayData.blocks.filter((b) => b.type === 'walk');
+      const newBlocks = [];
+      visibleBlocks.forEach((block, idx) => {
+        newBlocks.push(block);
+        if (idx < visibleBlocks.length - 1 && walkBlocks[idx]) {
+          newBlocks.push(walkBlocks[idx]);
+        }
+      });
+
+      reorderBlocks(localDay.dayNumber, newBlocks);
     });
-
-    reorderBlocks(dayNumber, newBlocks);
   };
 
   return (

@@ -1,108 +1,86 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   DndContext,
-  closestCenter,
+  rectIntersection,
   PointerSensor,
   useSensor,
   useSensors,
+  DragOverlay,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   verticalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import EditBlockItem from './EditBlockItem.jsx';
 import DayHeader from '../DayHeader.jsx';
 
-// day별 로컬 블록 상태 관리 컴포넌트
-function DayBlockList({
-  dayData,
-  selectedDay,
-  onDaySelect,
-  checkedBlocks,
-  onCheck,
-  onDragEnd,
-  sensors,
-}) {
-  // visible 블록(place/parking)을 로컬 상태로 관리
-  const [localBlocks, setLocalBlocks] = useState(
-    dayData.blocks.filter((b) => b.type === 'place' || b.type === 'parking')
-  );
-
-  // course store가 바뀌면 동기화
-  useEffect(() => {
-    setLocalBlocks(
-      dayData.blocks.filter((b) => b.type === 'place' || b.type === 'parking')
-    );
-  }, [dayData.blocks]);
-
-  const uniqueIds = localBlocks.map(
-    (b) => `${dayData.dayNumber}-${b.blockOrder}`
-  );
-
-  let placeCount = 0;
-
-  const handleDragEnd = (event) => {
-    const { active, over } = event;
-    if (!active || !over || active.id === over.id) return;
-
-    const activeIdx = localBlocks.findIndex(
-      (b) => `${dayData.dayNumber}-${b.blockOrder}` === active.id
-    );
-    const overIdx = localBlocks.findIndex(
-      (b) => `${dayData.dayNumber}-${b.blockOrder}` === over.id
-    );
-
-    if (activeIdx === -1 || overIdx === -1) return;
-
-    // 로컬 상태 먼저 업데이트 (애니메이션 자연스럽게)
-    const reordered = arrayMove(localBlocks, activeIdx, overIdx);
-    setLocalBlocks(reordered);
-
-    // store 업데이트
-    onDragEnd(event, dayData.dayNumber, reordered);
-  };
-
-  return (
-    <div>
-      <DayHeader
-        day={dayData.dayNumber}
-        showRefresh={false}
-        isSelected={selectedDay === dayData.dayNumber}
-        onClick={() => onDaySelect(dayData.dayNumber)}
-      />
-
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={uniqueIds}
-          strategy={verticalListSortingStrategy}
-        >
-          {localBlocks.map((block) => {
-            if (block.type === 'place') placeCount++;
-            const uniqueId = `${dayData.dayNumber}-${block.blockOrder}`;
-
-            return (
-              <EditBlockItem
-                key={uniqueId}
-                uniqueId={uniqueId}
-                block={block}
-                index={block.type === 'place' ? placeCount : null}
-                isChecked={checkedBlocks.includes(uniqueId)}
-                onCheck={() => onCheck(uniqueId)}
-              />
-            );
-          })}
-        </SortableContext>
-      </DndContext>
-    </div>
-  );
+function assignUniqueIds(days) {
+  return days.map((day) => ({
+    dayNumber: day.dayNumber,
+    blocks: day.blocks
+      .filter((b) => b.type === 'place' || b.type === 'parking')
+      .map((b) => ({
+        ...b,
+        _uid:
+          b.type === 'place'
+            ? `place-${b.placeId}-${day.dayNumber}`
+            : `parking-${b.name}-${day.dayNumber}-${b.blockOrder}`,
+      })),
+  }));
 }
 
-// 편집 모드 - 전체 블록 리스트
+function findBlock(localDays, uid) {
+  for (const day of localDays) {
+    const idx = day.blocks.findIndex((b) => b._uid === uid);
+    if (idx !== -1) return { dayNumber: day.dayNumber, idx };
+  }
+  return null;
+}
+
+function moveBlock(localDays, activeId, overId) {
+  const activeInfo = findBlock(localDays, activeId);
+  const overInfo = findBlock(localDays, overId);
+  if (!activeInfo || !overInfo || activeId === overId) return localDays;
+
+  const newLocalDays = localDays.map((day) => ({
+    ...day,
+    blocks: [...day.blocks],
+  }));
+
+  const activeDayIdx = newLocalDays.findIndex(
+    (d) => d.dayNumber === activeInfo.dayNumber
+  );
+  const overDayIdx = newLocalDays.findIndex(
+    (d) => d.dayNumber === overInfo.dayNumber
+  );
+
+  const isSameDay = activeInfo.dayNumber === overInfo.dayNumber;
+  const movingDown = isSameDay && activeInfo.idx < overInfo.idx;
+
+  // 드래그 블록 꺼내기
+  const [movedBlock] = newLocalDays[activeDayIdx].blocks.splice(
+    activeInfo.idx,
+    1
+  );
+
+  // 꺼낸 후 over 위치 재계산
+  const overBlockIdx = newLocalDays[overDayIdx].blocks.findIndex(
+    (b) => b._uid === overId
+  );
+
+  // 아래로 이동 시 over 다음에 삽입, 위로 이동 시 over 위치에 삽입
+  const insertIdx =
+    overBlockIdx === -1
+      ? newLocalDays[overDayIdx].blocks.length
+      : movingDown
+        ? overBlockIdx + 1
+        : overBlockIdx;
+
+  newLocalDays[overDayIdx].blocks.splice(insertIdx, 0, movedBlock);
+
+  return newLocalDays;
+}
+
 export default function EditBlockList({
   course,
   selectedDay,
@@ -117,20 +95,105 @@ export default function EditBlockList({
     })
   );
 
+  const [localDays, setLocalDays] = useState(() =>
+    assignUniqueIds(course.days)
+  );
+  const [activeId, setActiveId] = useState(null);
+
+  const activeBlock = activeId ? findBlock(localDays, activeId) : null;
+  const activeBlockData = activeBlock
+    ? localDays.find((d) => d.dayNumber === activeBlock.dayNumber)?.blocks[
+        activeBlock.idx
+      ]
+    : null;
+
+  const allUniqueIds = localDays.flatMap((day) =>
+    day.blocks.map((b) => b._uid)
+  );
+
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragOver = (event) => {
+    const { active, over } = event;
+    if (!active || !over || active.id === over.id) return;
+    setLocalDays((prev) => moveBlock(prev, active.id, over.id));
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+    if (!active || !over) return;
+    onDragEnd(localDays);
+  };
+
+  const handleDragCancel = () => {
+    setLocalDays(assignUniqueIds(course.days));
+    setActiveId(null);
+  };
+
   return (
-    <div className="flex flex-col gap-8">
-      {course.days.map((dayData) => (
-        <DayBlockList
-          key={dayData.dayNumber}
-          dayData={dayData}
-          selectedDay={selectedDay}
-          onDaySelect={onDaySelect}
-          checkedBlocks={checkedBlocks}
-          onCheck={onCheck}
-          onDragEnd={onDragEnd}
-          sensors={sensors}
-        />
-      ))}
-    </div>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={rectIntersection}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <SortableContext
+        items={allUniqueIds}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="flex flex-col gap-8">
+          {localDays.map((localDay) => {
+            let placeCount = 0;
+
+            return (
+              <div key={localDay.dayNumber}>
+                <DayHeader
+                  day={localDay.dayNumber}
+                  showRefresh={false}
+                  isSelected={selectedDay === localDay.dayNumber}
+                  onClick={() => onDaySelect(localDay.dayNumber)}
+                />
+                {localDay.blocks.map((block) => {
+                  if (block.type === 'place') placeCount++;
+
+                  return (
+                    <EditBlockItem
+                      key={block._uid}
+                      uniqueId={block._uid}
+                      block={block}
+                      index={block.type === 'place' ? placeCount : null}
+                      isChecked={checkedBlocks.includes(block._uid)}
+                      onCheck={() => onCheck(block._uid)}
+                      isDragging={block._uid === activeId}
+                    />
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </SortableContext>
+
+      <DragOverlay>
+        {activeBlockData ? (
+          <EditBlockItem
+            uniqueId={activeBlockData._uid}
+            block={activeBlockData}
+            index={
+              activeBlockData.type === 'place'
+                ? activeBlockData.placeOrder
+                : null
+            }
+            isChecked={false}
+            onCheck={() => {}}
+          />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }

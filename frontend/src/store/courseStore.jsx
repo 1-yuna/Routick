@@ -51,23 +51,39 @@ const useCourseStore = create((set) => ({
     }),
 
   // 블록 삭제
-  // uniqueIds: `${dayNumber}-${blockOrder}` 형식 배열
-  // 삭제 후 첫 블록이 walk(도보/자동차)면 자동 제거, parking이면 유지
-  deleteBlocks: (uniqueIds) =>
+  // uids: _uid 형식 배열 (place-{placeId}-{dayNumber} 또는 parking-{name}-{dayNumber}-{blockOrder})
+  // 삭제 후 첫 블록이 walk면 자동 제거, parking이면 유지
+  deleteBlocks: (uids) =>
     set((state) => {
       const days = state.course.days.map((day) => {
-        const toDelete = uniqueIds
-          .filter((id) => id.startsWith(`${day.dayNumber}-`))
-          .map((id) => Number(id.split('-')[1]));
+        // _uid에서 dayNumber 추출해서 이 day 관련 uid만 필터
+        const toDeleteUids = uids.filter((uid) => {
+          const parts = uid.split('-');
+          // place-{placeId}-{dayNumber} or parking-{name}-{dayNumber}-{blockOrder}
+          const dayNum = uid.startsWith('place-')
+            ? Number(parts[parts.length - 1])
+            : Number(parts[parts.length - 2]);
+          return dayNum === day.dayNumber;
+        });
 
-        if (toDelete.length === 0) return day;
+        if (toDeleteUids.length === 0) return day;
 
-        // 삭제할 블록 제거
-        let filtered = day.blocks.filter(
-          (b) => !toDelete.includes(b.blockOrder)
-        );
+        // placeId나 name 기반으로 삭제할 블록 찾기
+        let filtered = day.blocks.filter((b) => {
+          if (b.type === 'place') {
+            return !toDeleteUids.includes(
+              `place-${b.placeId}-${day.dayNumber}`
+            );
+          }
+          if (b.type === 'parking') {
+            return !toDeleteUids.includes(
+              `parking-${b.name}-${day.dayNumber}-${b.blockOrder}`
+            );
+          }
+          return true;
+        });
 
-        // 삭제 후 첫 블록이 walk 타입이면 자동 제거
+        // 삭제 후 첫 블록이 walk면 자동 제거
         while (filtered.length > 0 && filtered[0].type === 'walk') {
           filtered = filtered.slice(1);
         }

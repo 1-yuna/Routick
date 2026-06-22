@@ -3,14 +3,13 @@ import { CSS } from '@dnd-kit/utilities';
 import MenuIcon from '../../../assets/icons/menu.svg?react';
 import CheckIcon from '../../../assets/icons/check.svg?react';
 
-// 편집 모드 - 블록 리스트 아이템 (place/parking 모두 표시)
-// 체크박스 + 카드(번호/이름/설명) + 드래그 핸들
 export default function EditBlockItem({
   uniqueId,
   block,
   index,
   isChecked,
   onCheck,
+  isDragging,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: uniqueId });
@@ -18,6 +17,8 @@ export default function EditBlockItem({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    // 드래그 중인 원래 자리는 투명하게 (DragOverlay가 대신 보여줌)
+    opacity: isDragging ? 0 : 1,
   };
 
   const isParking = block.type === 'parking';
@@ -40,14 +41,11 @@ export default function EditBlockItem({
 
       {/* 카드 */}
       <div className="flex items-center gap-3 px-2 py-3 flex-1 bg-white rounded-5 shadow-md">
-        {/* 번호/P dot */}
         <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 bg-line2">
           <span className="text-12-sb text-white">
             {isParking ? 'P' : index}
           </span>
         </div>
-
-        {/* 이름/설명 */}
         <div className="flex flex-col gap-1 flex-1">
           <p className="text-14-sb text-black1">{block.name}</p>
           {isParking ? (
