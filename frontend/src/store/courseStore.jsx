@@ -56,10 +56,8 @@ const useCourseStore = create((set) => ({
   deleteBlocks: (uids) =>
     set((state) => {
       const days = state.course.days.map((day) => {
-        // _uid에서 dayNumber 추출해서 이 day 관련 uid만 필터
         const toDeleteUids = uids.filter((uid) => {
           const parts = uid.split('-');
-          // place-{placeId}-{dayNumber} or parking-{name}-{dayNumber}-{blockOrder}
           const dayNum = uid.startsWith('place-')
             ? Number(parts[parts.length - 1])
             : Number(parts[parts.length - 2]);
@@ -68,7 +66,7 @@ const useCourseStore = create((set) => ({
 
         if (toDeleteUids.length === 0) return day;
 
-        // placeId나 name 기반으로 삭제할 블록 찾기
+        // 대상 블록 제거
         let filtered = day.blocks.filter((b) => {
           if (b.type === 'place') {
             return !toDeleteUids.includes(
@@ -83,13 +81,48 @@ const useCourseStore = create((set) => ({
           return true;
         });
 
-        // 삭제 후 첫 블록이 walk면 자동 제거
+        // 맨 앞 walk 제거
         while (filtered.length > 0 && filtered[0].type === 'walk') {
           filtered = filtered.slice(1);
         }
 
+        // 맨 뒤 walk 제거
+        while (
+          filtered.length > 0 &&
+          filtered[filtered.length - 1].type === 'walk'
+        ) {
+          filtered = filtered.slice(0, -1);
+        }
+
+        // 연속 walk → 하나만
+        const deduped = [];
+        for (const block of filtered) {
+          if (
+            block.type === 'walk' &&
+            deduped[deduped.length - 1]?.type === 'walk'
+          ) {
+            continue;
+          }
+          deduped.push(block);
+        }
+
+        // parking 연속 시 exitTransport 병합
+        const merged = [];
+        for (const block of deduped) {
+          const prev = merged[merged.length - 1];
+          if (block.type === 'parking' && prev?.type === 'parking') {
+            merged[merged.length - 1] = { ...prev, exitTransport: undefined };
+            merged.push({
+              ...block,
+              enterTransport: prev.exitTransport ?? block.enterTransport,
+            });
+          } else {
+            merged.push(block);
+          }
+        }
+
         // blockOrder 재정렬
-        const reordered = filtered.map((block, idx) => ({
+        const reordered = merged.map((block, idx) => ({
           ...block,
           blockOrder: idx + 1,
         }));

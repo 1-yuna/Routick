@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DndContext,
   rectIntersection,
@@ -19,11 +19,22 @@ function assignUniqueIds(days) {
     dayNumber: day.dayNumber,
     blocks: day.blocks
       .filter((b) => b.type === 'place' || b.type === 'parking')
-      .map((b, idx) => ({
-        ...b,
-        // 단순 형식: {dayNumber}_{type}_{index}
-        _uid: `${day.dayNumber}_${b.type}_${idx}`,
-      })),
+      .map((b) => {
+        // blockOrder: 블록 자체에 있으면 사용, 없으면 전체 blocks에서 위치 기반 계산
+        const blockOrder =
+          b.blockOrder ?? day.blocks.findIndex((orig) => orig === b) + 1;
+        return {
+          ...b,
+          blockOrder,
+          // courseStore.deleteBlocks가 기대하는 형식
+          // place: place-{placeId}-{dayNumber}
+          // parking: parking-{name}-{dayNumber}-{blockOrder}
+          _uid:
+            b.type === 'place'
+              ? `place-${b.placeId}-${day.dayNumber}`
+              : `parking-${b.name}-${day.dayNumber}-${blockOrder}`,
+        };
+      }),
   }));
 }
 
@@ -98,6 +109,11 @@ export default function EditBlockList({
     assignUniqueIds(course.days)
   );
   const [activeId, setActiveId] = useState(null);
+
+  // store의 course가 바뀌면 (삭제 등) localDays 동기화
+  useEffect(() => {
+    setLocalDays(assignUniqueIds(course.days));
+  }, [course]);
 
   const activeBlock = activeId ? findBlock(localDays, activeId) : null;
   const activeBlockData = activeBlock

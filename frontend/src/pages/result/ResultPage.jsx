@@ -15,6 +15,7 @@ import CancelIcon from '../../assets/icons/cancel.svg?react';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import { extractMarkers } from '../../utils/markerUtils.jsx';
+import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
