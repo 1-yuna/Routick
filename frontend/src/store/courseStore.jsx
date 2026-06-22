@@ -103,6 +103,13 @@ const useCourseStore = create((set) => ({
           ) {
             continue;
           }
+          // parking 다음 walk → parking의 exitTransport가 이미 이동시간 표시하므로 walk 제거
+          if (
+            block.type === 'walk' &&
+            deduped[deduped.length - 1]?.type === 'parking'
+          ) {
+            continue;
+          }
           deduped.push(block);
         }
 
