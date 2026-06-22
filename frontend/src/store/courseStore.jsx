@@ -100,7 +100,7 @@ const useCourseStore = create((set) => ({
       return { course: { ...state.course, days } };
     }),
 
-  // 블록 순서 변경
+  // 블록 순서 변경 (blockOrder 재정렬)
   reorderBlocks: (dayNumber, newBlocks) =>
     set((state) => {
       const days = state.course.days.map((day) => {
@@ -110,6 +110,16 @@ const useCourseStore = create((set) => ({
           blockOrder: idx + 1,
         }));
         return { ...day, blocks: reordered };
+      });
+      return { course: { ...state.course, days } };
+    }),
+
+  // 특정 day의 blocks 직접 교체 (재계산 결과 반영용)
+  updateBlocks: (dayNumber, newBlocks) =>
+    set((state) => {
+      const days = state.course.days.map((day) => {
+        if (day.dayNumber !== dayNumber) return day;
+        return { ...day, blocks: newBlocks };
       });
       return { course: { ...state.course, days } };
     }),

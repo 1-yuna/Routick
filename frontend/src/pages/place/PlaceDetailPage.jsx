@@ -7,6 +7,7 @@ import PlaceCard from '../../components/place/PlaceCard.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import { getTransportTime } from '../../utils/directionUtils.jsx';
+import { recalcTransport } from '../../utils/recalcTransport.jsx';
 import { minutesToTime } from '../../utils/timeUtils.jsx';
 
 // HH:MM → 분 변환
@@ -30,6 +31,7 @@ export default function PlaceDetailPage() {
   const mode = location.state?.mode;
   const dayNumber = location.state?.dayNumber ?? 1;
   const addPlace = useCourseStore((state) => state.addPlace);
+  const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const course = useCourseStore((state) => state.course);
 
   const place = location.state;
@@ -71,8 +73,24 @@ export default function PlaceDetailPage() {
       },
       dayNumber,
       moveMinutes,
-      transport // 'car' | 'walk' - walk 블록 타입 결정용
+      transport
     );
+
+    // 추가 후 전체 이동시간 재계산
+    const updatedDay = useCourseStore
+      .getState()
+      .course.days.find((d) => d.dayNumber === dayNumber);
+    if (updatedDay) {
+      const recalculated = await recalcTransport(
+        updatedDay.blocks,
+        course.transport ?? 'walk'
+      );
+      const reordered = recalculated.map((block, idx) => ({
+        ...block,
+        blockOrder: idx + 1,
+      }));
+      updateBlocks(dayNumber, reordered);
+    }
 
     navigate('/result');
   };

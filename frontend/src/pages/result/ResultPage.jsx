@@ -15,11 +15,13 @@ import CancelIcon from '../../assets/icons/cancel.svg?react';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import { extractMarkers } from '../../utils/markerUtils.jsx';
+import { recalcTransport } from '../../utils/recalcTransport.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
   const reorderBlocks = useCourseStore((state) => state.reorderBlocks);
+  const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const navigate = useNavigate();
   const location = useLocation();
   const fromMyTrip = location.state?.from === 'mytrip';
@@ -51,27 +53,39 @@ export default function ResultPage() {
     );
   };
 
-  // 완료 버튼 - pendingLocalDays 있으면 store 반영
-  const handleEditDone = () => {
+  // 완료 버튼 - pendingLocalDays 있으면 이동시간 재계산 후 store 반영
+  const handleEditDone = async () => {
     if (pendingLocalDays) {
-      pendingLocalDays.forEach((localDay) => {
+      for (const localDay of pendingLocalDays) {
         const dayData = course.days.find(
           (d) => d.dayNumber === localDay.dayNumber
         );
-        if (!dayData) return;
+        if (!dayData) continue;
 
+        // _uid 제거 후 walk 블록 끼워넣기
         const visibleBlocks = localDay.blocks.map(({ _uid, ...rest }) => rest);
         const walkBlocks = dayData.blocks.filter((b) => b.type === 'walk');
-        const newBlocks = [];
+        const merged = [];
         visibleBlocks.forEach((block, idx) => {
-          newBlocks.push(block);
+          merged.push(block);
           if (idx < visibleBlocks.length - 1 && walkBlocks[idx]) {
-            newBlocks.push(walkBlocks[idx]);
+            merged.push(walkBlocks[idx]);
           }
         });
 
-        reorderBlocks(localDay.dayNumber, newBlocks);
-      });
+        // 이동시간 재계산
+        const recalculated = await recalcTransport(
+          merged,
+          course.transport ?? 'walk'
+        );
+
+        // blockOrder 재정렬 후 store 반영
+        const reordered = recalculated.map((block, idx) => ({
+          ...block,
+          blockOrder: idx + 1,
+        }));
+        updateBlocks(localDay.dayNumber, reordered);
+      }
     }
     setIsEditing(false);
     setCheckedBlocks([]);
