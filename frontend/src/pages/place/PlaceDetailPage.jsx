@@ -34,7 +34,12 @@ export default function PlaceDetailPage() {
   const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const course = useCourseStore((state) => state.course);
 
+  const from = location.state?.from;
   const place = location.state;
+  const handleBack = () => {
+    if (from === 'result') navigate('/result');
+    else navigate(-1);
+  };
   if (!place) return null;
 
   // course.transport 기준 ('car' | 'walk')
@@ -100,7 +105,7 @@ export default function PlaceDetailPage() {
       {mode === 'add' ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
           <TopBar
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             title="장소 추가"
             text="추가"
             className3="text-primary text-16-sb"
@@ -110,7 +115,7 @@ export default function PlaceDetailPage() {
           </TopBar>
         </div>
       ) : (
-        <MapTopBar onClick={() => navigate(-1)} />
+        <MapTopBar onClick={handleBack} />
       )}
 
       <KakaoMap lat={place.lat} lng={place.lng} />

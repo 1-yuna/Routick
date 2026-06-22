@@ -46,6 +46,16 @@ export default function PlaceEditPage() {
   const [description, setDescription] = useState(block?.description ?? '');
   const [fee, setFee] = useState(block?.fee ?? '');
 
+  const [src, setSrc] = useState(block?.src ?? null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setSrc(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
   if (!block) return null;
 
   const goBack = () => navigate('/result', { state: { isEditing: true } });
@@ -60,6 +70,7 @@ export default function PlaceEditPage() {
         status,
         stayMinutes,
         description,
+        src,
       });
     }
     goBack();
@@ -82,17 +93,26 @@ export default function PlaceEditPage() {
       <div className="flex flex-col gap-6 px-6 pt-6 pb-10">
         {/* 이미지 + 이름 */}
         <div className="flex items-center gap-4">
-          <div className="relative w-24 h-24 flex-shrink-0">
-            {block.src ? (
+          <label className="relative w-24 h-24 flex-shrink-0 cursor-pointer">
+            {src ? (
               <img
-                src={block.src}
+                src={src}
                 alt="장소 이미지"
                 className="w-24 h-24 object-cover rounded-5"
               />
             ) : (
               <PlaceImageDefault className="w-24 h-24 rounded-5" />
             )}
-          </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-5">
+              <span className="text-white text-20">📷</span>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+          </label>
           <div className="flex flex-col gap-1 flex-1">
             <p className="text-12-rg text-gray2">이름</p>
             <input

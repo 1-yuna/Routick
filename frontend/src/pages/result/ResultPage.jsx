@@ -29,13 +29,13 @@ export default function ResultPage() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(
-    location.state?.isEditing ?? false
-  );
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (location.state?.isEditing) {
       setIsEditing(true);
+      // state 소비 후 초기화 (새로고침 시 편집모드 진입 방지)
+      window.history.replaceState({}, '');
     }
   }, [location.state]);
   const [checkedBlocks, setCheckedBlocks] = useState([]);
@@ -202,7 +202,9 @@ export default function ResultPage() {
               selectedDay={selectedDay}
               onDaySelect={setSelectedDay}
               onCardClick={(block) =>
-                navigate(`/place/${block.placeId}`, { state: { ...block } })
+                navigate(`/place/${block.placeId}`, {
+                  state: { ...block, from: 'result' },
+                })
               }
             />
             <CourseActions
