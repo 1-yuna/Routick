@@ -1,4 +1,4 @@
-import DayHeader from '../DayHeader.jsx';
+import DayTabs from './DayTabs.jsx';
 import CourseItem from './CourseItem.jsx';
 import MoveItem from './MoveItem.jsx';
 import ParkingGroupItem from './ParkingGroupItem.jsx';
@@ -15,7 +15,6 @@ function groupBlocks(blocks) {
     const block = blocks[i];
 
     if (block.type === 'parking') {
-      // 연속된 parking 블록 모으기
       const group = [block];
       while (i + 1 < blocks.length && blocks[i + 1].type === 'parking') {
         i++;
@@ -67,30 +66,29 @@ function renderBlocks(blocks, onCardClick) {
 }
 
 // 결과 페이지 - 코스 타임라인 리스트
-// day 탭 선택 시 해당 day의 blocks를 렌더링
+// DayTabs로 day 선택 → 선택된 day의 blocks만 렌더링
 export default function CourseList({
   course,
   selectedDay,
   onDaySelect,
   onCardClick,
 }) {
+  const dayNumbers = course.days.map((d) => d.dayNumber);
+  const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
+
   return (
-    <div className="flex flex-col gap-8">
-      {course.days.map((dayData, dayIndex) => (
-        <div key={dayData.dayNumber}>
-          {/* day 헤더 (Day 1, Day 2 ...) */}
-          <DayHeader
-            day={dayData.dayNumber}
-            showRefresh={dayIndex === 0}
-            isSelected={selectedDay === dayData.dayNumber}
-            onClick={() => onDaySelect(dayData.dayNumber)}
-          />
-          {/* 타임라인 블록 렌더링 */}
-          <div className="pt-4">
-            {renderBlocks(dayData.blocks, onCardClick)}
-          </div>
-        </div>
-      ))}
+    <div className="flex flex-col gap-6">
+      {/* Day 탭 */}
+      <DayTabs
+        days={dayNumbers}
+        selectedDay={selectedDay}
+        onDaySelect={onDaySelect}
+      />
+
+      {/* 선택된 day의 타임라인 블록 렌더링 */}
+      {selectedDayData && (
+        <div>{renderBlocks(selectedDayData.blocks, onCardClick)}</div>
+      )}
     </div>
   );
 }

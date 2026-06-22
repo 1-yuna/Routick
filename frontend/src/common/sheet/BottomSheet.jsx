@@ -98,22 +98,22 @@ export default function BottomSheet({
 
   return (
     <div
-      className="z-10 fixed left-0 right-0 bottom-0 bg-default rounded-t-2xl shadow-xl transition-all duration-200 flex flex-col"
+      className="z-10 fixed left-0 right-0 bottom-0 bg-default rounded-t-20 shadow-lg transition-all duration-200 flex flex-col"
       style={{ height: `${sheetY}px` }}
     >
       {/*핸들 - 드래그 영역*/}
       <div
         onMouseDown={handleDragStart}
         onTouchStart={handleDragStart}
-        className="flex justify-center pt-3 pb-5 cursor-grab"
+        className="flex justify-center h-12 w-full pt-3 cursor-grab"
       >
-        <div className="w-16 h-1 bg-line2 rounded-full mb-4" />
+        <div className="w-16 h-[3px] bg-line2 rounded-full" />
       </div>
 
       {/*바디 - 스크롤 가능한 컨텐츠 영역*/}
       <div
         ref={contentRef}
-        className={`px-6 overflow-y-auto flex-1 ${footer ? 'pb-8' : 'pb-28'}`}
+        className={`px-6 overflow-y-auto flex-1 ${footer ? 'pb-8' : 'pb-[88px]'}`}
       >
         {children}
       </div>
