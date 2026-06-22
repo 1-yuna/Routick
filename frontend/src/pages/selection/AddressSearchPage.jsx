@@ -16,6 +16,7 @@ export default function AddressSearchPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const mode = location.state?.mode;
+  const dayNumber = location.state?.dayNumber ?? 1; // ResultPage에서 넘겨준 selectedDay
   const [query, setQuery] = useState(location.state?.address?.name || '');
   const [results, setResults] = useState([]);
 
@@ -34,10 +35,12 @@ export default function AddressSearchPage() {
     };
 
     if (mode === 'add') {
+      // dayNumber를 PlaceDetailPage로 전달
       navigate(`/place/${id}`, {
         state: {
           ...selectedPlace,
           mode: 'add',
+          dayNumber,
         },
       });
       return;
@@ -45,20 +48,16 @@ export default function AddressSearchPage() {
 
     const { dayIdx, field, returnTo } = location.state || {};
 
-    // 목적지 선택
     if (returnTo === 'destination') {
       setAddress(selectedPlace);
     }
 
-    // 출발지 / 도착지 선택
     if (returnTo === 'route') {
       const updated = [...addresses];
-
       updated[dayIdx] = {
         ...updated[dayIdx],
         [field]: selectedPlace,
       };
-
       setAddresses(updated);
     }
 
@@ -67,7 +66,6 @@ export default function AddressSearchPage() {
 
   return (
     <div className="pt-12 px-6 gap-5 h-screen pb-28 flex flex-col bg-default">
-      {/*장소 검색*/}
       <SelectionInput
         value={query}
         onChange={handleChange}
@@ -88,7 +86,6 @@ export default function AddressSearchPage() {
           />
         }
       />
-      {/*장소 반환*/}
       <div>
         {results.map((place) => (
           <PlaceItem key={place.id} place={place} onClick={handlePlaceSelect} />
@@ -98,7 +95,6 @@ export default function AddressSearchPage() {
   );
 }
 
-// 장소 리스트
 function PlaceItem({ place, onClick }) {
   return (
     <div

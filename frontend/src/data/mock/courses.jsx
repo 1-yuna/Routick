@@ -6,6 +6,7 @@ import SampleImage from '../../assets/images/mock/sample.png';
 // Day2: 주차장(Day1마지막) → 장소 → 주차장+주차장 → 장소
 // ========================================
 export const mockCourse = {
+  transport: 'car', // 'car' | 'walk'
   days: [
     {
       dayNumber: 1,
@@ -169,9 +170,10 @@ export const mockCourse = {
 // ========================================
 // 도보 모드 mock
 // Day1: 장소 → 도보 → 장소 → 도보 → 장소
-// Day2: 장소 → 도보 → 도보 → 장소 → 도보 → 장소
+// Day2: 장소 → 도보 → 장소 → 도보 → 장소
 // ========================================
 // export const mockCourse = {
+//   transport: 'walk',
 //   days: [
 //     {
 //       dayNumber: 1,
@@ -187,19 +189,14 @@ export const mockCourse = {
 //           bucket: 'food',
 //           src: SampleImage,
 //           status: '영업 중',
-//           description:
-//             '정해진 도안 없이 자유롭게 백드롭 페인팅을 체험하는 드로잉 카페',
+//           description: '정해진 도안 없이 자유롭게 백드롭 페인팅을 체험하는 드로잉 카페',
 //           lat: 37.5479,
 //           lng: 126.9228,
 //           stayMinutes: 60,
 //           arriveTime: '09:00',
 //           leaveTime: '10:00',
 //         },
-//         {
-//           blockOrder: 2,
-//           type: 'walk',
-//           minutes: 10,
-//         },
+//         { blockOrder: 2, type: 'walk', minutes: 10 },
 //         {
 //           blockOrder: 3,
 //           type: 'place',
@@ -216,11 +213,7 @@ export const mockCourse = {
 //           arriveTime: '10:10',
 //           leaveTime: '11:10',
 //         },
-//         {
-//           blockOrder: 4,
-//           type: 'walk',
-//           minutes: 15,
-//         },
+//         { blockOrder: 4, type: 'walk', minutes: 15 },
 //         {
 //           blockOrder: 5,
 //           type: 'place',
@@ -260,11 +253,7 @@ export const mockCourse = {
 //           arriveTime: '10:00',
 //           leaveTime: '11:30',
 //         },
-//         {
-//           blockOrder: 2,
-//           type: 'walk',
-//           minutes: 8,
-//         },
+//         { blockOrder: 2, type: 'walk', minutes: 8 },
 //         {
 //           blockOrder: 3,
 //           type: 'place',
@@ -281,11 +270,7 @@ export const mockCourse = {
 //           arriveTime: '11:43',
 //           leaveTime: '12:43',
 //         },
-//         {
-//           blockOrder: 4,
-//           type: 'walk',
-//           minutes: 10,
-//         },
+//         { blockOrder: 4, type: 'walk', minutes: 10 },
 //         {
 //           blockOrder: 5,
 //           type: 'place',

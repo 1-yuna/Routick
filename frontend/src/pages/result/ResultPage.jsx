@@ -85,7 +85,10 @@ export default function ResultPage() {
           />
           <CourseActions
             onAdd={() =>
-              navigate('/select/address/search', { state: { mode: 'add' } })
+              navigate('/select/address/search', {
+                // selectedDay를 넘겨서 해당 day에 추가
+                state: { mode: 'add', dayNumber: selectedDay },
+              })
             }
             onEdit={() => setIsEditing(true)}
             onSave={() => setShowTitleModal(true)}

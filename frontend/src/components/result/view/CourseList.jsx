@@ -51,10 +51,11 @@ function renderBlocks(blocks, onCardClick) {
               />
             );
           case 'walk':
+            // mode가 있으면 mode 사용, 없으면 기본 'walk'
             return (
               <MoveItem
                 key={item.blockOrder}
-                mode="walk"
+                mode={item.mode ?? 'walk'}
                 minutes={item.minutes}
               />
             );
@@ -84,14 +85,11 @@ export default function CourseList({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Day 탭 */}
       <DayTabs
         days={dayNumbers}
         selectedDay={selectedDay}
         onDaySelect={onDaySelect}
       />
-
-      {/* 선택된 day의 타임라인 블록 렌더링 */}
       {selectedDayData && (
         <div>{renderBlocks(selectedDayData.blocks, onCardClick)}</div>
       )}
