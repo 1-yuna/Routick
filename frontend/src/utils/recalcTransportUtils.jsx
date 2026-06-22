@@ -5,7 +5,7 @@ import { getTransportTime } from './directionUtils.jsx';
 // 2. walk/parking 이동시간 재계산
 // 3. placeOrder 재정렬
 // transport: 'car' | 'walk'
-export async function recalcTransport(blocks, transport) {
+export async function recalcTransportUtils(blocks, transport) {
   const mode = transport === 'car' ? '자동차' : '도보';
 
   // 1단계: place-place 사이 walk 블록 삽입

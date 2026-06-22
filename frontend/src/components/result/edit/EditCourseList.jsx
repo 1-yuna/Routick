@@ -10,7 +10,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import EditCourseItem from './EditCourseItem.jsx';
-import DayHeader from '../DayHeader.jsx';
+import DayHeader from './DayHeader.jsx';
 
 // 편집 모드 - 전체 코스 드래그 정렬 + 체크박스 삭제
 // DndContext를 최상위에 두어 day 간 장소 이동 가능

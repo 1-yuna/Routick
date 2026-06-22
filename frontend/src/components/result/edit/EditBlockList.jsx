@@ -12,7 +12,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import EditBlockItem from './EditBlockItem.jsx';
-import DayHeader from '../DayHeader.jsx';
+import DayHeader from './DayHeader.jsx';
 
 function assignUniqueIds(days) {
   return days.map((day) => ({

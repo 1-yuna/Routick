@@ -7,7 +7,7 @@ import PlaceCard from '../../components/place/PlaceCard.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import { getTransportTime } from '../../utils/directionUtils.jsx';
-import { recalcTransport } from '../../utils/recalcTransport.jsx';
+import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
 import { minutesToTime } from '../../utils/timeUtils.jsx';
 
 // HH:MM → 분 변환
@@ -81,7 +81,7 @@ export default function PlaceDetailPage() {
       .getState()
       .course.days.find((d) => d.dayNumber === dayNumber);
     if (updatedDay) {
-      const recalculated = await recalcTransport(
+      const recalculated = await recalcTransportUtils(
         updatedDay.blocks,
         course.transport ?? 'walk'
       );

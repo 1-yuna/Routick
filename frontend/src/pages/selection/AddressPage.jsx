@@ -4,7 +4,7 @@ import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionInput from '../../common/input/SelectionInput.jsx';
 import FieldMessage from '../../common/text/FieldMessage.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
-import { getDistanceError } from '../../utils/distance.jsx';
+import { getDistanceError } from '../../utils/distanceUtils.jsx';
 
 const PERIOD_DAYS = { day: 1, '1n2d': 2, '2n3d': 3, '3n4d': 4 };
 const EMPTY_PLACE = { name: '', lat: '', lng: '', placeId: '' };

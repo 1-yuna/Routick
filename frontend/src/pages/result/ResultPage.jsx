@@ -14,8 +14,8 @@ import BaseModal from '../../common/modal/BaseModal.jsx';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
-import { extractMarkers } from '../../utils/markerUtils.jsx';
-import { recalcTransport } from '../../utils/recalcTransport.jsx';
+import { extractMarkers } from '../../utils/MarkerUtils.jsx';
+import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
@@ -74,7 +74,7 @@ export default function ResultPage() {
         });
 
         // 이동시간 재계산
-        const recalculated = await recalcTransport(
+        const recalculated = await recalcTransportUtils(
           merged,
           course.transport ?? 'walk'
         );
