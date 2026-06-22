@@ -18,16 +18,16 @@ export default function CourseItem({ block, onCardClick }) {
         >
           <span className="text-10-sb text-white">{block.placeOrder}</span>
         </div>
-        <div className="w-[1px] flex-1 border-l border-dashed border-gray2 min-h-[8px]" />
+        <div className="w-[1px] flex-1 border-l-2 border-gray1 min-h-[8px]" />
       </div>
 
       {/* 오른쪽: 시간 + 카드 */}
       <div className="flex flex-col gap-2 flex-1 pb-3">
-        <span className="text-12-rg text-gray2 pt-[2px]">
+        <span className="text-12-rg text-gray2">
           {block.arriveTime} ~ {block.leaveTime}
         </span>
         <div
-          className="flex gap-3 bg-white rounded-10 shadow-sm p-3 cursor-pointer"
+          className="flex gap-3 bg-white rounded-5 shadow-md p-2 cursor-pointer"
           onClick={onCardClick}
         >
           {block.src ? (
@@ -39,15 +39,17 @@ export default function CourseItem({ block, onCardClick }) {
           ) : (
             <PlaceImageDefault className="w-20 h-20 rounded-5 flex-shrink-0" />
           )}
-          <div className="flex flex-col gap-1 justify-center">
-            <p className="text-14-sb text-black1">{block.name}</p>
-            {block.status && (
-              <p
-                className={`text-12-rg ${STATUS_COLOR[block.status] ?? 'text-gray2'}`}
-              >
-                ● {block.status}
-              </p>
-            )}
+          <div className="flex flex-col gap-2 justify-center">
+            <div className="flex flex-col">
+              <p className="text-14-sb text-black1">{block.name}</p>
+              {block.status && (
+                <p
+                  className={`text-10-rg ${STATUS_COLOR[block.status] ?? 'text-gray2'}`}
+                >
+                  ● {block.status}
+                </p>
+              )}
+            </div>
             <p className="text-10-rg text-gray2 line-clamp-2">
               {block.description}
             </p>

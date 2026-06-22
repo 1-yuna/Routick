@@ -8,8 +8,8 @@ export default function MoveItem({ mode, minutes }) {
     <div className="flex gap-3">
       {/* 왼쪽: 빈 원 + 세로선 */}
       <div className="flex flex-col items-center flex-shrink-0 w-5">
-        <div className="w-3 h-3 rounded-full border border-gray2 bg-white flex-shrink-0" />
-        <div className="w-[1px] flex-1 border-l border-dashed border-gray2 min-h-[8px]" />
+        <div className="w-2 h-2 rounded-full border border-gray2 bg-white flex-shrink-0" />
+        <div className="w-[1px] flex-1 border-l-2 border-dashed border-gray1 min-h-[40px]" />
       </div>
 
       {/* 오른쪽: 아이콘 + 텍스트 */}
@@ -19,7 +19,7 @@ export default function MoveItem({ mode, minutes }) {
         ) : (
           <CarIcon className="w-4 h-4" />
         )}
-        <span className="text-12-rg">
+        <span className="text-10-rg">
           {mode === 'walk' ? '도보' : '자동차'} {minutes}분
         </span>
       </div>

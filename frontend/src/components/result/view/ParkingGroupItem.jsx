@@ -1,17 +1,18 @@
 import WalkIcon from '../../../assets/icons/walk.svg?react';
 import CarIcon from '../../../assets/icons/car.svg?react';
+import ParkingIcon from '../../../assets/icons/parking.svg?react';
 
 // 이동 정보 렌더링 헬퍼
 function TransportRow({ transport }) {
   if (!transport) return null;
   return (
-    <div className="flex items-center gap-1 text-gray2 py-2">
+    <div className="flex items-center gap-1 text-gray2">
       {transport.mode === 'walk' ? (
         <WalkIcon className="w-4 h-4" />
       ) : (
         <CarIcon className="w-4 h-4" />
       )}
-      <span className="text-12-rg">
+      <span className="text-10-rg">
         {transport.mode === 'walk' ? '도보' : '자동차'} {transport.minutes}분
       </span>
     </div>
@@ -21,13 +22,11 @@ function TransportRow({ transport }) {
 // 주차장 카드 렌더링 헬퍼
 function ParkingCard({ name, fee }) {
   return (
-    <div className="flex items-center gap-3 bg-white rounded-10 shadow-sm px-4 py-3">
-      <div className="w-9 h-9 rounded-5 border border-gray2 flex items-center justify-center flex-shrink-0">
-        <span className="text-14-sb text-gray2">P</span>
-      </div>
+    <div className="flex gap-3 bg-neutral rounded-5 p-2">
+      <ParkingIcon className="w-5 h-5 text-gray2" />
       <div className="flex flex-col">
-        <p className="text-14-sb text-black1">{name}</p>
-        {fee && <p className="text-12-rg text-gray2">{fee}</p>}
+        <p className="text-12-sb text-black1">{name}</p>
+        {fee && <p className="text-10-rg text-gray2">{fee}</p>}
       </div>
     </div>
   );
@@ -41,14 +40,14 @@ export default function ParkingGroupItem({ parkings }) {
     <div className="flex gap-3">
       {/* 왼쪽: 작은 원 + 세로선 */}
       <div className="flex flex-col items-center flex-shrink-0 w-5">
-        <div className="w-3 h-3 rounded-full border border-gray2 bg-white flex-shrink-0" />
-        <div className="w-[1px] flex-1 border-l border-dashed border-gray2" />
+        <div className="w-2 h-2 rounded-full border border-gray2 bg-white flex-shrink-0" />
+        <div className="w-[1px] flex-1 border-l-2 border-dashed border-gray1" />
       </div>
 
       {/* 오른쪽: 주차장들 순서대로 */}
-      <div className="flex flex-col flex-1 py-1">
+      <div className="flex flex-col flex-1 gap-2 pb-3">
         {parkings.map((parking, idx) => (
-          <div key={idx}>
+          <div key={idx} className="flex flex-col gap-2">
             {/* 첫 번째 parking만 enterTransport 표시 */}
             {idx === 0 && <TransportRow transport={parking.enterTransport} />}
 
