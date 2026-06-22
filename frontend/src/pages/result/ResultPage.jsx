@@ -81,10 +81,15 @@ export default function ResultPage() {
           }
         });
 
-        const reordered = merged.map((block, idx) => ({
-          ...block,
-          blockOrder: idx + 1,
-        }));
+        let placeCount = 0;
+        const reordered = merged.map((block, idx) => {
+          if (block.type === 'place') placeCount++;
+          return {
+            ...block,
+            blockOrder: idx + 1,
+            ...(block.type === 'place' ? { placeOrder: placeCount } : {}),
+          };
+        });
         updateBlocks(localDay.dayNumber, reordered);
       });
     }
