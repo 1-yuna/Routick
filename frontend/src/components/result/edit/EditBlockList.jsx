@@ -19,12 +19,10 @@ function assignUniqueIds(days) {
     dayNumber: day.dayNumber,
     blocks: day.blocks
       .filter((b) => b.type === 'place' || b.type === 'parking')
-      .map((b) => ({
+      .map((b, idx) => ({
         ...b,
-        _uid:
-          b.type === 'place'
-            ? `place-${b.placeId}-${day.dayNumber}`
-            : `parking-${b.name}-${day.dayNumber}-${b.blockOrder}`,
+        // 단순 형식: {dayNumber}_{type}_{index}
+        _uid: `${day.dayNumber}_${b.type}_${idx}`,
       })),
   }));
 }
@@ -88,6 +86,7 @@ export default function EditBlockList({
   checkedBlocks,
   onCheck,
   onDragEnd,
+  onDragMove,
 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -118,7 +117,11 @@ export default function EditBlockList({
   const handleDragOver = (event) => {
     const { active, over } = event;
     if (!active || !over || active.id === over.id) return;
-    setLocalDays((prev) => moveBlock(prev, active.id, over.id));
+    setLocalDays((prev) => {
+      const moved = moveBlock(prev, active.id, over.id);
+      onDragMove?.(moved);
+      return moved;
+    });
   };
 
   const handleDragEnd = (event) => {

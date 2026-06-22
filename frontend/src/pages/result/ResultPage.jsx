@@ -14,13 +14,11 @@ import BaseModal from '../../common/modal/BaseModal.jsx';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
-import { extractMarkers } from '../../utils/MarkerUtils.jsx';
-import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
+import { extractMarkers } from '../../utils/markerUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
-  const reorderBlocks = useCourseStore((state) => state.reorderBlocks);
   const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,7 +36,15 @@ export default function ResultPage() {
 
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
   const selectedBlocks = selectedDayData?.blocks ?? [];
-  const mapMarkers = extractMarkers(selectedBlocks);
+
+  // 편집 모드에서 pendingLocalDays 있으면 그 기준으로 마커 계산
+  const pendingDayData = pendingLocalDays?.find(
+    (d) => d.dayNumber === selectedDay
+  );
+  const pendingBlocks = pendingDayData
+    ? pendingDayData.blocks.map(({ _uid, ...rest }) => rest)
+    : null;
+  const mapMarkers = extractMarkers(pendingBlocks ?? selectedBlocks);
 
   const handleSave = () => {
     setShowTitleModal(false);
@@ -53,14 +59,15 @@ export default function ResultPage() {
     );
   };
 
-  // 완료 버튼 - pendingLocalDays 있으면 이동시간 재계산 후 store 반영
-  const handleEditDone = async () => {
+  // 완료 버튼 - pendingLocalDays 있으면 store 반영
+  // TODO: recalcTransportUtils 추가 후 이동시간 재계산 연결
+  const handleEditDone = () => {
     if (pendingLocalDays) {
-      for (const localDay of pendingLocalDays) {
+      pendingLocalDays.forEach((localDay) => {
         const dayData = course.days.find(
           (d) => d.dayNumber === localDay.dayNumber
         );
-        if (!dayData) continue;
+        if (!dayData) return;
 
         // _uid 제거 후 walk 블록 끼워넣기
         const visibleBlocks = localDay.blocks.map(({ _uid, ...rest }) => rest);
@@ -73,19 +80,12 @@ export default function ResultPage() {
           }
         });
 
-        // 이동시간 재계산
-        const recalculated = await recalcTransportUtils(
-          merged,
-          course.transport ?? 'walk'
-        );
-
-        // blockOrder 재정렬 후 store 반영
-        const reordered = recalculated.map((block, idx) => ({
+        const reordered = merged.map((block, idx) => ({
           ...block,
           blockOrder: idx + 1,
         }));
         updateBlocks(localDay.dayNumber, reordered);
-      }
+      });
     }
     setIsEditing(false);
     setCheckedBlocks([]);
@@ -99,9 +99,13 @@ export default function ResultPage() {
     setPendingLocalDays(null);
   };
 
-  // 드래그 종료 - store 반영 안 하고 pendingLocalDays에만 저장
+  // 드래그 중/종료 - store 반영 안 하고 pendingLocalDays에만 저장
   // 완료 버튼 눌러야 store 반영
   const handleDragEnd = (newLocalDays) => {
+    setPendingLocalDays(newLocalDays);
+  };
+
+  const handleDragMove = (newLocalDays) => {
     setPendingLocalDays(newLocalDays);
   };
 
@@ -175,6 +179,7 @@ export default function ResultPage() {
             checkedBlocks={checkedBlocks}
             onCheck={handleCheck}
             onDragEnd={handleDragEnd}
+            onDragMove={handleDragMove}
           />
         ) : (
           <div className="flex flex-col gap-8">
