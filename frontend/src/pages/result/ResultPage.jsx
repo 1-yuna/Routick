@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
@@ -29,15 +29,8 @@ export default function ResultPage() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    if (location.state?.isEditing) {
-      setIsEditing(true);
-      // state 소비 후 초기화 (새로고침 시 편집모드 진입 방지)
-      window.history.replaceState({}, '');
-    }
-  }, [location.state]);
+  const isEditing = useCourseStore((state) => state.isEditing);
+  const setIsEditing = useCourseStore((state) => state.setIsEditing);
   const [checkedBlocks, setCheckedBlocks] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   // 순서변경 임시 저장 - 완료 누를 때만 store 반영
@@ -68,39 +61,29 @@ export default function ResultPage() {
     );
   };
 
-  // 완료 버튼 - pendingLocalDays 있으면 store 반영
-  // TODO: recalcTransportUtils 추가 후 이동시간 재계산 연결
-  const handleEditDone = () => {
-    if (pendingLocalDays) {
-      pendingLocalDays.forEach((localDay) => {
-        const dayData = course.days.find(
-          (d) => d.dayNumber === localDay.dayNumber
-        );
-        if (!dayData) return;
+  // 완료 버튼 - 전체 재계산 (장소간 거리, 번호, 시작시간 09:00 고정)
+  const handleEditDone = async () => {
+    const source = pendingLocalDays ?? course.days;
 
-        // _uid 제거 후 walk 블록 끼워넣기
-        const visibleBlocks = localDay.blocks.map(({ _uid, ...rest }) => rest);
-        const walkBlocks = dayData.blocks.filter((b) => b.type === 'walk');
-        const merged = [];
-        visibleBlocks.forEach((block, idx) => {
-          merged.push(block);
-          if (idx < visibleBlocks.length - 1 && walkBlocks[idx]) {
-            merged.push(walkBlocks[idx]);
-          }
-        });
+    for (const localDay of source) {
+      const dayData = course.days.find(
+        (d) => d.dayNumber === localDay.dayNumber
+      );
+      if (!dayData) continue;
 
-        let placeCount = 0;
-        const reordered = merged.map((block, idx) => {
-          if (block.type === 'place') placeCount++;
-          return {
-            ...block,
-            blockOrder: idx + 1,
-            ...(block.type === 'place' ? { placeOrder: placeCount } : {}),
-          };
-        });
-        updateBlocks(localDay.dayNumber, reordered);
-      });
+      // pendingLocalDays는 place/parking만 있음 (_uid 제거)
+      // walk는 recalc가 알아서 재삽입하므로 visible 블록만 추림
+      const visibleBlocks = localDay.blocks
+        .filter((b) => b.type === 'place' || b.type === 'parking')
+        .map(({ _uid, ...rest }) => rest);
+
+      const recalculated = await recalcTransportUtils(
+        visibleBlocks,
+        course.transport
+      );
+      updateBlocks(localDay.dayNumber, recalculated);
     }
+
     setIsEditing(false);
     setCheckedBlocks([]);
     setPendingLocalDays(null);

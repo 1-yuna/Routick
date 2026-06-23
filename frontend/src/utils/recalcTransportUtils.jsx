@@ -7,10 +7,33 @@ import { getTransportTime } from './directionUtils.jsx';
 // 3. placeOrder 재정렬
 // transport: 'car' | 'walk'
 export async function recalcTransportUtils(blocks, transport) {
-  const mode = transport === 'car' ? '자동차' : '도보';
+  // 0단계: 타입 전환된 블록의 transport 필드 정규화
+  // place→parking: enter/exitTransport 없으면 추가
+  // parking→place: enter/exitTransport 제거 (walk로 대체됨)
+  const normalized = blocks.map((b) => {
+    if (b.type === 'parking') {
+      return {
+        ...b,
+        enterTransport: b.enterTransport ?? {
+          mode: transport === 'car' ? 'car' : 'walk',
+          minutes: 0,
+        },
+        exitTransport: b.exitTransport ?? {
+          mode: transport === 'car' ? 'car' : 'walk',
+          minutes: 0,
+        },
+      };
+    }
+    if (b.type === 'place') {
+      // place엔 transport 필드 불필요 - 제거
+      const { enterTransport, exitTransport, ...rest } = b;
+      return rest;
+    }
+    return b;
+  });
 
-  // 0단계: 삭제 후 불필요한 블록 정리
-  let cleaned = cleanBlocks(blocks);
+  // 1단계: 불필요한 블록 정리
+  let cleaned = cleanBlocks(normalized);
 
   // 1단계: place-place 사이 walk 블록 삽입
   const withWalk = [];
@@ -31,11 +54,16 @@ export async function recalcTransportUtils(blocks, transport) {
     }
   }
 
-  // 2단계: 이동시간 재계산
+  // 2단계: 이동시간 재계산 (차의 위치 추적)
+  // hasCar: 현재 사용자가 차를 가지고 있는지
+  // - 자동차 코스: 시작 시 차 보유 (true)
+  // - 도보 코스: 차 없음 (false)
+  let hasCar = transport === 'car';
+
   for (let i = 0; i < withWalk.length; i++) {
     const cur = withWalk[i];
 
-    // walk 블록
+    // walk 블록 (장소-장소 사이, 항상 도보)
     if (cur.type === 'walk') {
       const prev = withWalk[i - 1];
       const next = withWalk[i + 1];
@@ -43,7 +71,8 @@ export async function recalcTransportUtils(blocks, transport) {
         const prevCoord = getCoord(prev);
         const nextCoord = getCoord(next);
         if (prevCoord && nextCoord) {
-          cur.minutes = await getTransportTime(prevCoord, nextCoord, mode);
+          cur.mode = 'walk';
+          cur.minutes = await getTransportTime(prevCoord, nextCoord, '도보');
         }
       }
     }
@@ -53,44 +82,74 @@ export async function recalcTransportUtils(blocks, transport) {
       const prev = withWalk[i - 1];
       const next = withWalk[i + 1];
 
-      // enterTransport
+      // enterTransport: 주차장으로 진입
+      // - 차를 가지고 있으면 자동차로 와서 주차 (hasCar → false)
+      // - 차가 없으면 도보로 주차장 가서 차를 뺌 (hasCar → true)
       if (cur.enterTransport && prev) {
         const prevCoord = getCoord(prev);
         const curCoord = { lat: cur.lat, lng: cur.lng };
         if (prevCoord) {
-          const enterMode =
-            cur.enterTransport.mode === 'car' ? '자동차' : '도보';
+          const enterMode = hasCar ? '자동차' : '도보';
           cur.enterTransport = {
-            ...cur.enterTransport,
+            mode: hasCar ? 'car' : 'walk',
             minutes: await getTransportTime(prevCoord, curCoord, enterMode),
           };
+          // 차 보유 → 주차함 / 차 없음 → 차 뺌
+          hasCar = !hasCar;
         }
       }
 
-      // exitTransport
+      // exitTransport: 주차장에서 출발
+      // - 다음이 주차장이면 차를 빼서 자동차로 이동 (hasCar 유지/획득)
+      // - 다음이 장소면 주차하고 도보 이동
       if (cur.exitTransport && next) {
         const curCoord = { lat: cur.lat, lng: cur.lng };
         const nextCoord = getCoord(next);
         if (nextCoord) {
-          const exitMode = cur.exitTransport.mode === 'car' ? '자동차' : '도보';
+          const goCar = next.type === 'parking';
+          const exitMode = goCar ? '자동차' : '도보';
           cur.exitTransport = {
-            ...cur.exitTransport,
+            mode: goCar ? 'car' : 'walk',
             minutes: await getTransportTime(curCoord, nextCoord, exitMode),
           };
+          // 다음이 주차장이면 차를 빼서 이동중 (도착하면 다시 주차)
+          // 다음이 장소면 차는 주차장에 둔 채 도보
+          hasCar = false;
         }
       }
     }
   }
 
-  // 3단계: blockOrder + placeOrder 재정렬
+  // 3단계: blockOrder + placeOrder 재정렬 + 시간 재계산 (시작 09:00 고정)
   let placeCount = 0;
+  let current = 9 * 60; // 09:00 (분)
+
+  const toTime = (m) =>
+    `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
   return withWalk.map((block, idx) => {
-    if (block.type === 'place') placeCount++;
-    return {
-      ...block,
-      blockOrder: idx + 1,
-      ...(block.type === 'place' ? { placeOrder: placeCount } : {}),
-    };
+    const base = { ...block, blockOrder: idx + 1 };
+
+    if (block.type === 'walk') {
+      current += Number(block.minutes) || 0;
+      return base;
+    }
+
+    if (block.type === 'parking') {
+      // 진입 이동시간 더하고, 출차 이동시간은 다음 블록 전에 더해짐
+      current += Number(block.enterTransport?.minutes) || 0;
+      current += Number(block.exitTransport?.minutes) || 0;
+      return base;
+    }
+
+    // place
+    placeCount++;
+    const stay = Number(block.stayMinutes) || 0;
+    const arriveTime = toTime(current);
+    current += stay;
+    const leaveTime = toTime(current);
+
+    return { ...base, placeOrder: placeCount, arriveTime, leaveTime };
   });
 }
 
@@ -123,31 +182,7 @@ function cleanBlocks(blocks) {
     deduped.push(result[i]);
   }
 
-  // 4) parking 다음 parking: 앞 parking의 exitTransport를 뒤 parking으로 이전
-  //    (장소가 삭제되어 주차장끼리 붙은 경우 이동시간 병합)
-  const merged = [];
-  for (let i = 0; i < deduped.length; i++) {
-    const cur = deduped[i];
-    const prev = merged[merged.length - 1];
-
-    if (cur.type === 'parking' && prev?.type === 'parking') {
-      // 앞 parking의 exitTransport → 뒤 parking의 exitTransport로 이전
-      // (앞 parking은 출차 역할을 잃음 → enterTransport/exitTransport 제거)
-      const updatedPrev = { ...prev };
-      delete updatedPrev.exitTransport;
-      merged[merged.length - 1] = updatedPrev;
-
-      // 뒤 parking은 앞 parking의 exitTransport를 이어받아 표시
-      merged.push({
-        ...cur,
-        enterTransport: prev.exitTransport ?? cur.enterTransport,
-      });
-    } else {
-      merged.push(cur);
-    }
-  }
-
-  return merged;
+  return deduped;
 }
 
 function getCoord(block) {

@@ -6,6 +6,10 @@ const useCourseStore = create((set) => ({
   setCourse: (course) => set({ course }),
   reset: () => set({ course: mockCourse }),
 
+  // 편집 모드 (페이지 이동 간 유지용)
+  isEditing: false,
+  setIsEditing: (isEditing) => set({ isEditing }),
+
   // 장소 추가
   addPlace: (place, dayNumber = 1, moveMinutes = 10, transport = 'walk') =>
     set((state) => {
@@ -155,31 +159,25 @@ const useCourseStore = create((set) => ({
     }),
 
   // 주차장 정보 수정 (name + dayNumber 기준)
-  updateParking: (originalName, dayNumber, updates) =>
+  // 블록 정보 수정 (_uid로 찾아서 업데이트, bucket에 따라 type도 변환)
+  updateBlock: (uid, dayNumber, updates) =>
     set((state) => {
       const days = state.course.days.map((day) => {
         if (day.dayNumber !== dayNumber) return day;
         const blocks = day.blocks.map((b) => {
-          if (b.type === 'parking' && b.name === originalName) {
-            return { ...b, ...updates };
-          }
-          return b;
-        });
-        return { ...day, blocks };
-      });
-      return { course: { ...state.course, days } };
-    }),
+          // 해당 블록 식별
+          const bUid =
+            b.type === 'place'
+              ? `place-${b.placeId}-${day.dayNumber}`
+              : b.type === 'parking'
+                ? `parking-${b.name}-${day.dayNumber}-${b.blockOrder}`
+                : null;
+          if (bUid !== uid) return b;
 
-  // 특정 장소 정보 수정 (placeId + dayNumber 기준)
-  updatePlace: (placeId, dayNumber, updates) =>
-    set((state) => {
-      const days = state.course.days.map((day) => {
-        if (day.dayNumber !== dayNumber) return day;
-        const blocks = day.blocks.map((b) => {
-          if (b.type === 'place' && b.placeId === placeId) {
-            return { ...b, ...updates };
-          }
-          return b;
+          const nextBucket = updates.bucket ?? b.bucket;
+          const nextType = nextBucket === 'parking' ? 'parking' : 'place';
+
+          return { ...b, ...updates, type: nextType };
         });
         return { ...day, blocks };
       });

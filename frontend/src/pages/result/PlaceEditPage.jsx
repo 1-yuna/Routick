@@ -35,8 +35,7 @@ const STAY_OPTIONS = [
 export default function PlaceEditPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const updatePlace = useCourseStore((state) => state.updatePlace);
-  const updateParking = useCourseStore((state) => state.updateParking);
+  const updateBlock = useCourseStore((state) => state.updateBlock);
 
   const block = location.state;
   const isParking = block?.type === 'parking';
@@ -67,24 +66,21 @@ export default function PlaceEditPage() {
 
   const isBlockingParking = bucket === 'parking';
 
-  const goBack = () => navigate('/result', { state: { isEditing: true } });
+  const goBack = () => navigate('/result');
 
   const handleDone = () => {
-    if (bucket === 'parking') {
-      updateParking(block.name ?? block.placeId, block.dayNumber, {
-        name,
-        description,
-      });
-    } else {
-      updatePlace(block.placeId ?? block.name, block.dayNumber, {
-        name,
-        bucket,
-        status,
-        stayMinutes,
-        description,
-        src,
-      });
-    }
+    const updates =
+      bucket === 'parking'
+        ? { name, bucket, description, src }
+        : {
+            name,
+            bucket,
+            status: status || '영업 중',
+            stayMinutes: stayMinutes || 90,
+            description,
+            src,
+          };
+    updateBlock(block._uid, block.dayNumber, updates);
     goBack();
   };
 
@@ -143,7 +139,13 @@ export default function PlaceEditPage() {
             {BUCKET_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => setBucket(opt.value)}
+                onClick={() => {
+                  setBucket(opt.value);
+                  if (opt.value !== 'parking') {
+                    if (!status) setStatus('영업 중');
+                    if (!stayMinutes) setStayMinutes(90);
+                  }
+                }}
                 className={`px-3 py-2 rounded-full text-12-rg ${
                   bucket === opt.value
                     ? 'bg-primary text-white'
