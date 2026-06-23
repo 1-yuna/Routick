@@ -22,7 +22,7 @@ import PlaceEditPage from '../pages/result/PlaceEditPage.jsx';
 import MyTripPage from '../pages/myTrip/MyTripPage.jsx';
 import MyTripEditPage from '../pages/myTrip/MyTripEditPage.jsx';
 import MyPage from '../pages/myProfile/MyPage.jsx';
-import EditProfilePage from '../pages/myProfile/EditProfilePage.jsx';
+import MyEditPage from '../pages/myProfile/MyEditPage.jsx';
 
 export default function Router() {
   return (
@@ -56,7 +56,7 @@ export default function Router() {
         <Route path="/mytrip/edit/:id" element={<MyTripEditPage />} />
 
         <Route path="/mypage" element={<MyPage />} />
-        <Route path="/my/profile" element={<EditProfilePage />} />
+        <Route path="/my/profile" element={<MyEditPage />} />
       </Routes>
     </BrowserRouter>
   );
