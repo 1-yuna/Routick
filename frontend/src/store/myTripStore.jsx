@@ -72,6 +72,19 @@ const mockTrips = [
 const useMyTripStore = create((set) => ({
   trips: mockTrips,
 
+  // 여행 저장 (현재 코스를 내 여행에 추가)
+  addTrip: (trip) =>
+    set((state) => ({
+      trips: [
+        {
+          id: Date.now(),
+          src: SampleImage,
+          ...trip,
+        },
+        ...state.trips,
+      ],
+    })),
+
   // 여행 삭제
   deleteTrips: (ids) =>
     set((state) => ({

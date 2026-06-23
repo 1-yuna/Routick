@@ -14,11 +14,13 @@ import BaseModal from '../../common/modal/BaseModal.jsx';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
+import useMyTripStore from '../../store/myTripStore.jsx';
 import { extractMarkers } from '../../utils/markerUtils.jsx';
 import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
+  const addTrip = useMyTripStore((state) => state.addTrip);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
   const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const navigate = useNavigate();
@@ -48,7 +50,15 @@ export default function ResultPage() {
     : null;
   const mapMarkers = extractMarkers(pendingBlocks ?? selectedBlocks);
 
-  const handleSave = () => {
+  const handleSave = (title) => {
+    addTrip({
+      title: title?.trim() || '나의 여행',
+      address: course.address ?? '',
+      transport: course.transport === 'car' ? '자동차' : '도보',
+      tags: course.tags ?? [],
+      hashtags: course.hashtags ?? [],
+      course,
+    });
     setShowTitleModal(false);
     setShowSaveModal(true);
   };
