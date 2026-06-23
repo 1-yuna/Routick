@@ -35,6 +35,7 @@ export default function ResultPage() {
   const setIsEditing = useCourseStore((state) => state.setIsEditing);
   const [checkedBlocks, setCheckedBlocks] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
   // 순서변경 임시 저장 - 완료 누를 때만 store 반영
   const [pendingLocalDays, setPendingLocalDays] = useState(null);
 
@@ -141,6 +142,18 @@ export default function ResultPage() {
         </BaseModal>
       )}
 
+      {showExitModal && (
+        <BaseModal
+          onConfirm={() => navigate('/home')}
+          onCancel={() => setShowExitModal(false)}
+        >
+          <p className="text-14-sb text-black1">이 화면을 나가시겠어요?</p>
+          <p className="text-12-rg text-gray2">
+            저장하지 않으면 이 일정은 사라져요
+          </p>
+        </BaseModal>
+      )}
+
       {/* 상단 바 */}
       {isEditing ? (
         <div className="absolute top-0 left-0 w-full z-10 pt-12 px-6 bg-white">
@@ -155,7 +168,7 @@ export default function ResultPage() {
         </div>
       ) : (
         <MapTopBar
-          onClick={() => (fromMyTrip ? navigate(-1) : navigate('/home'))}
+          onClick={() => (fromMyTrip ? navigate(-1) : setShowExitModal(true))}
           icon={fromMyTrip ? LeftIcon : CancelIcon}
         />
       )}
