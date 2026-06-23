@@ -38,6 +38,7 @@ export default function PlaceDetailPage() {
   const place = location.state;
   const handleBack = () => {
     if (from === 'result') navigate('/result');
+    else if (from === 'mytrip') navigate('/mytrip');
     else navigate(-1);
   };
   if (!place) return null;

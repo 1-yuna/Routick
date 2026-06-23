@@ -219,7 +219,7 @@ export default function ResultPage() {
               onDaySelect={setSelectedDay}
               onCardClick={(block) =>
                 navigate(`/place/${block.placeId}`, {
-                  state: { ...block, from: 'result' },
+                  state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
                 })
               }
             />

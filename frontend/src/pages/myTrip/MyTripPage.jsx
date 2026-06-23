@@ -20,6 +20,11 @@ export default function MyTripPage() {
   const [isEditing, setIsEditing] = useState(
     location.state?.isEditing ?? false
   );
+
+  // 새로고침 시 편집모드 진입 방지
+  if (location.state?.isEditing) {
+    window.history.replaceState({}, '');
+  }
   const [checkedTrips, setCheckedTrips] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDoneModal, setShowDoneModal] = useState(false);
@@ -41,7 +46,7 @@ export default function MyTripPage() {
       {/*상단 바*/}
       {isEditing ? (
         <TopBar
-          className="px-6 border-b border-line1"
+          className="px-6"
           text="완료"
           className3="text-primary text-16-sb"
           onTextClick={() => {
@@ -57,7 +62,7 @@ export default function MyTripPage() {
         </TopBar>
       ) : (
         <TopBar
-          className="px-6 border-b border-line1"
+          className="px-6"
           text="편집"
           className3="text-primary text-16-sb"
           onTextClick={() => setIsEditing(true)}
@@ -66,7 +71,6 @@ export default function MyTripPage() {
         </TopBar>
       )}
 
-      {/*여행 목록*/}
       {/*여행 목록*/}
       {trips.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">

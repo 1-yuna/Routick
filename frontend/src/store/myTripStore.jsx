@@ -1,76 +1,11 @@
 import { create } from 'zustand';
 import SampleImage from '../assets/images/mock/sample.png';
-
-// TODO: API 연동 시 제거
-const mockTrips = [
-  {
-    id: 1,
-    title: '자녀와 함께하는 봄여행',
-    region: '홍대',
-    transport: '도보',
-    tags: ['깔끔한', '자연/산책', '쇼핑', '즐겁다'],
-    hashtags: ['혼자', '당일치기'],
-    src: SampleImage,
-  },
-  {
-    id: 2,
-    title: '자녀와 함께하는 봄여행',
-    region: '홍대 → 부산',
-    transport: '도보',
-    tags: ['깔끔한', '자연/산책', '배고프다다'],
-    hashtags: ['혼자', '당일치기'],
-    src: SampleImage,
-  },
-  {
-    id: 3,
-    title: '자녀와 함께하는 봄여행',
-    region: '홍대 → 부산',
-    transport: '도보',
-    tags: ['깔끔한', '자연/산책', '쇼핑'],
-    hashtags: ['혼자', '당일치기'],
-    src: SampleImage,
-  },
-  {
-    id: 4,
-    title: '자녀와 함께하는 봄여행',
-    region: '홍대 → 부산',
-    transport: '도보',
-    tags: ['깔끔한', '자연/산책', '쇼핑'],
-    hashtags: ['혼자', '당일치기'],
-    src: SampleImage,
-  },
-  {
-    id: 5,
-    title: '자녀와 함께하는 봄여행',
-    region: '홍대 → 부산',
-    transport: '도보',
-    tags: ['깔끔한', '자연/산책', '쇼핑'],
-    hashtags: ['혼자', '당일치기'],
-    src: SampleImage,
-  },
-  {
-    id: 6,
-    title: '자녀와 함께하는 봄여행',
-    region: '홍대 → 부산',
-    transport: '도보',
-    tags: ['깔끔한', '자연/산책', '쇼핑'],
-    hashtags: ['혼자', '당일치기'],
-    src: SampleImage,
-  },
-  {
-    id: 7,
-    title: '자녀와 함께하는 봄여행',
-    region: '홍대 → 부산',
-    transport: '도보',
-    tags: ['깔끔한', '자연/산책', '쇼핑'],
-    hashtags: ['혼자', '당일치기'],
-    src: SampleImage,
-  },
-];
+import { mockTrips } from '../data/mock/trips.jsx';
 
 // 내 여행 전역 상태 관리
 const useMyTripStore = create((set) => ({
   trips: mockTrips,
+  // trips: [],
 
   // 여행 저장 (현재 코스를 내 여행에 추가)
   addTrip: (trip) =>

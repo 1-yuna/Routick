@@ -48,7 +48,7 @@ export default function MyTripEditPage() {
 
       <div className="pt-12 px-6">
         <TopBar
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/mytrip', { state: { isEditing: true } })}
           title="여행 편집"
           text="완료"
           className3="text-primary text-16-sb"
