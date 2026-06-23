@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import TopBar from '../../common/bar/TopBar.jsx';
 import BottomBar from '../../common/bar/BottomBar.jsx';
@@ -16,9 +16,13 @@ export default function MyTripPage() {
   const trips = useMyTripStore((state) => state.trips);
   const deleteTrips = useMyTripStore((state) => state.deleteTrips);
   const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
+  const location = useLocation();
+  const [isEditing, setIsEditing] = useState(
+    location.state?.isEditing ?? false
+  );
   const [checkedTrips, setCheckedTrips] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDoneModal, setShowDoneModal] = useState(false);
 
   const handleCheck = (id) => {
     setCheckedTrips((prev) =>
