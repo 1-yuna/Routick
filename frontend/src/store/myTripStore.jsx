@@ -6,7 +6,7 @@ const mockTrips = [
   {
     id: 1,
     title: '자녀와 함께하는 봄여행',
-    address: '홍대역 2번출구',
+    region: '홍대',
     transport: '도보',
     tags: ['깔끔한', '자연/산책', '쇼핑', '즐겁다'],
     hashtags: ['혼자', '당일치기'],
@@ -15,7 +15,7 @@ const mockTrips = [
   {
     id: 2,
     title: '자녀와 함께하는 봄여행',
-    address: '홍대역 2번출구',
+    region: '홍대 → 부산',
     transport: '도보',
     tags: ['깔끔한', '자연/산책', '배고프다다'],
     hashtags: ['혼자', '당일치기'],
@@ -24,7 +24,7 @@ const mockTrips = [
   {
     id: 3,
     title: '자녀와 함께하는 봄여행',
-    address: '홍대역 2번출구',
+    region: '홍대 → 부산',
     transport: '도보',
     tags: ['깔끔한', '자연/산책', '쇼핑'],
     hashtags: ['혼자', '당일치기'],
@@ -33,7 +33,7 @@ const mockTrips = [
   {
     id: 4,
     title: '자녀와 함께하는 봄여행',
-    address: '홍대역 2번출구',
+    region: '홍대 → 부산',
     transport: '도보',
     tags: ['깔끔한', '자연/산책', '쇼핑'],
     hashtags: ['혼자', '당일치기'],
@@ -42,7 +42,7 @@ const mockTrips = [
   {
     id: 5,
     title: '자녀와 함께하는 봄여행',
-    address: '홍대역 2번출구',
+    region: '홍대 → 부산',
     transport: '도보',
     tags: ['깔끔한', '자연/산책', '쇼핑'],
     hashtags: ['혼자', '당일치기'],
@@ -51,7 +51,7 @@ const mockTrips = [
   {
     id: 6,
     title: '자녀와 함께하는 봄여행',
-    address: '홍대역 2번출구',
+    region: '홍대 → 부산',
     transport: '도보',
     tags: ['깔끔한', '자연/산책', '쇼핑'],
     hashtags: ['혼자', '당일치기'],
@@ -60,7 +60,7 @@ const mockTrips = [
   {
     id: 7,
     title: '자녀와 함께하는 봄여행',
-    address: '홍대역 2번출구',
+    region: '홍대 → 부산',
     transport: '도보',
     tags: ['깔끔한', '자연/산책', '쇼핑'],
     hashtags: ['혼자', '당일치기'],

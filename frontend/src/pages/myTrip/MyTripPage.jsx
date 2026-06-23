@@ -30,11 +30,11 @@ export default function MyTripPage() {
   };
 
   return (
-    <div className="pt-12 pb-32 flex flex-col h-screen bg-login relative">
+    <div className="pt-12 pb-32 flex flex-col h-screen bg-default relative">
       {/*상단 바*/}
       {isEditing ? (
         <TopBar
-          className="px-6 border-b border-line1"
+          className="px-6"
           text="완료"
           className3="text-primary text-16-sb"
           onTextClick={() => {
@@ -50,7 +50,7 @@ export default function MyTripPage() {
         </TopBar>
       ) : (
         <TopBar
-          className="px-6 border-b border-line1"
+          className="px-6"
           text="편집"
           className3="text-primary text-16-sb"
           onTextClick={() => setIsEditing(true)}
@@ -60,14 +60,13 @@ export default function MyTripPage() {
       )}
 
       {/*여행 목록*/}
-      {/*여행 목록*/}
       {trips.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-14-rg text-gray2">아직 저장된 여행이 없어요 🥲</p>
         </div>
       ) : (
         <div
-          className={`overflow-y-auto no-scrollbar flex flex-col px-6 py-4 flex-1 ${isEditing ? '' : 'gap-4'}`}
+          className={`overflow-y-auto no-scrollbar flex flex-col px-6 py-4 flex-1 ${isEditing ? '' : 'gap-3'}`}
         >
           {trips.map((trip) =>
             isEditing ? (

@@ -52,13 +52,23 @@ export default function ResultPage() {
   const mapMarkers = extractMarkers(pendingBlocks ?? selectedBlocks);
 
   const handleSave = (title) => {
+    const days = course.days ?? [];
+    const startRegion = days[0]?.startRegion ?? '';
+    const endRegion = days[days.length - 1]?.endRegion ?? '';
+    const region =
+      startRegion === endRegion ? startRegion : `${startRegion} → ${endRegion}`;
+
+    const meta = course.meta ?? {};
+
     addTrip({
       title: title?.trim() || '나의 여행',
-      address: course.address ?? '',
+      region,
       transport: course.transport === 'car' ? '자동차' : '도보',
-      tags: course.tags ?? [],
-      hashtags: course.hashtags ?? [],
-      course,
+      // 카드 태그: 분위기 + 활동
+      tags: [...(meta.mood ?? []), ...(meta.activity ?? [])],
+      // 해시태그: 동행자, 기간
+      hashtags: [meta.companion, meta.period].filter(Boolean),
+      course, // 코스 전체 저장
     });
     setShowTitleModal(false);
     setShowSaveModal(true);
