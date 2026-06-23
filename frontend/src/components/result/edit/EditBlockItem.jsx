@@ -23,7 +23,7 @@ export default function EditBlockItem({
     opacity: isDragging ? 0 : 1,
   };
 
-  const isParking = block.type === 'parking';
+  const isParking = block.type === 'parking' || block.bucket === 'parking';
 
   const handleCardClick = () => {
     const id = isParking ? encodeURIComponent(block.name) : block.placeId;

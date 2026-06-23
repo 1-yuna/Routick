@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import TopBar from '../../common/bar/TopBar.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
+import CameraIcon from '../../assets/icons/camera.svg?react';
+import DownIcon from '../../assets/icons/down.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import PlaceImageDefault from '../../common/imageDefault/PlaceImageDefault.jsx';
 
@@ -40,12 +42,17 @@ export default function PlaceEditPage() {
   const isParking = block?.type === 'parking';
 
   const [name, setName] = useState(block?.name ?? '');
-  const [bucket, setBucket] = useState(block?.bucket ?? 'other');
-  const [status, setStatus] = useState(block?.status ?? '영업 중');
-  const [stayMinutes, setStayMinutes] = useState(block?.stayMinutes ?? 60);
+  const [bucket, setBucket] = useState(
+    block?.bucket ?? (isParking ? 'parking' : 'other')
+  );
+  const [status, setStatus] = useState(
+    block?.status ?? (isParking ? '' : '영업 중')
+  );
+  const [stayMinutes, setStayMinutes] = useState(
+    block?.stayMinutes ?? (isParking ? '' : 90)
+  );
   const [description, setDescription] = useState(block?.description ?? '');
   const [fee, setFee] = useState(block?.fee ?? '');
-
   const [src, setSrc] = useState(block?.src ?? null);
 
   const handleImageChange = (e) => {
@@ -58,13 +65,18 @@ export default function PlaceEditPage() {
 
   if (!block) return null;
 
+  const isBlockingParking = bucket === 'parking';
+
   const goBack = () => navigate('/result', { state: { isEditing: true } });
 
   const handleDone = () => {
-    if (isParking) {
-      updateParking(block.name, block.dayNumber, { name, fee });
+    if (bucket === 'parking') {
+      updateParking(block.name ?? block.placeId, block.dayNumber, {
+        name,
+        description,
+      });
     } else {
-      updatePlace(block.placeId, block.dayNumber, {
+      updatePlace(block.placeId ?? block.name, block.dayNumber, {
         name,
         bucket,
         status,
@@ -90,9 +102,9 @@ export default function PlaceEditPage() {
         </TopBar>
       </div>
 
-      <div className="flex flex-col gap-6 px-6 pt-6 pb-10">
+      <div className="flex flex-col gap-[28px] px-6 pt-6 pb-10">
         {/* 이미지 + 이름 */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <label className="relative w-24 h-24 flex-shrink-0 cursor-pointer">
             {src ? (
               <img
@@ -104,7 +116,7 @@ export default function PlaceEditPage() {
               <PlaceImageDefault className="w-24 h-24 rounded-5" />
             )}
             <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-5">
-              <span className="text-white text-20">📷</span>
+              <CameraIcon className="w-6 h-6 text-white" />
             </div>
             <input
               type="file"
@@ -113,98 +125,92 @@ export default function PlaceEditPage() {
               className="hidden"
             />
           </label>
-          <div className="flex flex-col gap-1 flex-1">
-            <p className="text-12-rg text-gray2">이름</p>
+          <div className="flex flex-col gap-2 flex-1">
+            <p className="text-14-sb text-black1">가게 이름</p>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={block.name}
-              className="w-full border border-line1 rounded-5 px-3 py-2 text-14-rg text-black1 outline-none"
+              className="w-full rounded-5 px-3 py-2 text-14-rg text-gray2 bg-neutral outline-none"
             />
           </div>
         </div>
 
-        {isParking ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-16-sb text-black1">요금</p>
-            <input
-              value={fee}
-              onChange={(e) => setFee(e.target.value)}
-              placeholder="예: 30분에 500원"
-              className="w-full border border-line1 rounded-5 px-3 py-3 text-14-rg text-black1 outline-none"
-            />
+        {/* 유형 */}
+        <div className="flex flex-col gap-2">
+          <p className="text-14-sb text-black1">유형</p>
+          <div className="flex gap-3 flex-wrap">
+            {BUCKET_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setBucket(opt.value)}
+                className={`px-3 py-2 rounded-full text-12-rg ${
+                  bucket === opt.value
+                    ? 'bg-primary text-white'
+                    : 'bg-neutral text-black1'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
-        ) : (
-          <>
-            <div className="flex flex-col gap-3">
-              <p className="text-16-sb text-black1">유형</p>
-              <div className="flex gap-2 flex-wrap">
-                {BUCKET_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setBucket(opt.value)}
-                    className={`px-4 py-2 rounded-full text-14-rg border ${
-                      bucket === opt.value
-                        ? 'bg-primary text-white border-primary'
-                        : 'bg-white text-gray2 border-line1'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        </div>
 
-            <div className="flex flex-col gap-3">
-              <p className="text-16-sb text-black1">영업 상태</p>
-              <div className="flex gap-2 flex-wrap">
-                {STATUS_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setStatus(opt.value)}
-                    className={`px-4 py-2 rounded-full text-14-rg border ${
-                      status === opt.value
-                        ? 'bg-primary text-white border-primary'
-                        : 'bg-white text-gray2 border-line1'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* 영업 상태 - parking이면 비활성화 */}
+        <div
+          className={`flex flex-col gap-2 ${isBlockingParking ? 'opacity-30' : ''}`}
+        >
+          <p className="text-14-sb text-black1">영업 상태</p>
+          <div className="flex gap-3 flex-wrap">
+            {STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => !isBlockingParking && setStatus(opt.value)}
+                className={`px-3 py-2 rounded-full text-12-rg ${
+                  status === opt.value
+                    ? 'bg-primary text-white'
+                    : 'bg-neutral text-black1'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-            <div className="flex flex-col gap-3">
-              <p className="text-16-sb text-black1">머무를 시간</p>
-              <div className="relative">
-                <select
-                  value={stayMinutes}
-                  onChange={(e) => setStayMinutes(Number(e.target.value))}
-                  className="w-full border border-line1 rounded-5 px-3 py-3 text-14-rg text-black1 outline-none appearance-none bg-white"
-                >
-                  {STAY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray2 pointer-events-none">
-                  ▼
-                </span>
-              </div>
-            </div>
+        {/* 머무를 시간 - parking이면 비활성화 */}
+        <div
+          className={`flex flex-col gap-2 ${isBlockingParking ? 'opacity-30' : ''}`}
+        >
+          <p className="text-14-sb text-black1">머무를 시간</p>
+          <div className="relative">
+            <select
+              value={stayMinutes}
+              onChange={(e) => setStayMinutes(Number(e.target.value))}
+              disabled={isBlockingParking}
+              className="w-full bg-neutral rounded-5 px-3 py-2 text-12-rg text-black1 outline-none appearance-none"
+            >
+              {isBlockingParking && <option value="">-</option>}
+              {STAY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <DownIcon className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-black1 pointer-events-none" />
+          </div>
+        </div>
 
-            <div className="flex flex-col gap-3">
-              <p className="text-16-sb text-black1">한줄 소개</p>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="w-full border border-line1 rounded-5 px-3 py-3 text-14-rg text-black1 outline-none resize-none"
-              />
-            </div>
-          </>
-        )}
+        {/* 한줄 소개 */}
+        <div className="flex flex-col gap-2">
+          <p className="text-14-sb text-black1">한줄 소개</p>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={3}
+            className="w-full bg-neutral rounded-5 px-3 py-2 text-12-rg text-black1 outline-none resize-none"
+          />
+        </div>
       </div>
     </div>
   );
