@@ -21,7 +21,7 @@ function TransportRow({ transport }) {
 }
 
 // 주차장 카드 렌더링 헬퍼
-function ParkingCard({ name, fee, onClick }) {
+function ParkingCard({ name, description, onClick }) {
   return (
     <div
       className="flex gap-3 bg-neutral rounded-5 p-2 cursor-pointer"
@@ -30,7 +30,7 @@ function ParkingCard({ name, fee, onClick }) {
       <ParkingIcon className="w-5 h-5 text-gray2" />
       <div className="flex flex-col">
         <p className="text-12-sb text-black1">{name}</p>
-        {fee && <p className="text-10-rg text-gray2">{fee}</p>}
+        {description && <p className="text-10-rg text-gray2">{description}</p>}
       </div>
     </div>
   );
@@ -46,7 +46,7 @@ export default function ParkingGroupItem({ parkings }) {
         name: parking.name,
         lat: parking.lat,
         lng: parking.lng,
-        description: parking.fee ?? '',
+        description: parking.description ?? '',
       },
     });
   };
@@ -68,7 +68,7 @@ export default function ParkingGroupItem({ parkings }) {
 
             <ParkingCard
               name={parking.name}
-              fee={parking.fee}
+              description={parking.description}
               onClick={() => handleParkingClick(parking)}
             />
 

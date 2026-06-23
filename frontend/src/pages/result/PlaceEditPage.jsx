@@ -51,7 +51,6 @@ export default function PlaceEditPage() {
     block?.stayMinutes ?? (isParking ? '' : 90)
   );
   const [description, setDescription] = useState(block?.description ?? '');
-  const [fee, setFee] = useState(block?.fee ?? '');
   const [src, setSrc] = useState(block?.src ?? null);
 
   const handleImageChange = (e) => {

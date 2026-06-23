@@ -60,9 +60,7 @@ export default function EditBlockItem({
         </div>
         <div className="flex flex-col gap-1 flex-1">
           <p className="text-14-sb text-black1">{block.name}</p>
-          {isParking ? (
-            block.fee && <p className="text-10-rg text-gray2">{block.fee}</p>
-          ) : (
+          {block.description && (
             <p className="text-10-rg text-gray2 line-clamp-2">
               {block.description}
             </p>
