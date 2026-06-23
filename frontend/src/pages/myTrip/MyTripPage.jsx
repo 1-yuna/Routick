@@ -47,12 +47,7 @@ export default function MyTripPage() {
       {isEditing ? (
         <TopBar
           className="px-6"
-          text="완료"
           className3="text-primary text-16-sb"
-          onTextClick={() => {
-            setIsEditing(false);
-            setCheckedTrips([]);
-          }}
           onClick={() => {
             setIsEditing(false);
             setCheckedTrips([]);
