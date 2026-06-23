@@ -20,6 +20,7 @@ import FailPage from '../pages/selection/FailPage.jsx';
 import ResultPage from '../pages/result/ResultPage.jsx';
 import PlaceEditPage from '../pages/result/PlaceEditPage.jsx';
 import MyTripPage from '../pages/myTrip/MyTripPage.jsx';
+import MyTripEditPage from '../pages/myTrip/MyTripEditPage.jsx';
 import MyPage from '../pages/myProfile/MyPage.jsx';
 import EditProfilePage from '../pages/myProfile/EditProfilePage.jsx';
 
@@ -52,6 +53,8 @@ export default function Router() {
         <Route path="/result" element={<ResultPage />} />
 
         <Route path="/mytrip" element={<MyTripPage />} />
+        <Route path="/mytrip/edit/:id" element={<MyTripEditPage />} />
+
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/my/profile" element={<EditProfilePage />} />
       </Routes>
