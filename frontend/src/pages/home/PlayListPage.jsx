@@ -7,8 +7,8 @@ import { mockPlaces } from '../../data/mock/places.jsx';
 
 const TITLE_MAP = {
   hotplace: '핫플',
-  exhibition: '전시/문화',
-  nature: '자연',
+  'culture-nature': '문화/자연',
+  'food-cafe': '맛집/카페',
 };
 
 // 놀거리 추천 페이지 - type(hotplace/exhibition/nature)에 따라 다른 장소 목록 표시

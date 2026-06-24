@@ -70,8 +70,8 @@ export default function HomePage() {
         <PlaySection
           className="px-6 pt-5 pb-12"
           onHotplace={() => navigate('/playlist?type=hotplace')}
-          onExhibition={() => navigate('/playlist?type=exhibition')}
-          onNature={() => navigate('/playlist?type=nature')}
+          onCultureNature={() => navigate('/playlist?type=culture-nature')}
+          onFoodCafe={() => navigate('/playlist?type=food-cafe')}
         />
       </div>
 
