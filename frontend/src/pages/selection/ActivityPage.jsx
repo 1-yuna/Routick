@@ -14,10 +14,10 @@ export default function ActivityPage() {
     { label: '관광/전시', value: 'sightseeing' },
     { label: '공연/문화', value: 'performance' },
     { label: '스릴/체험', value: 'thrill' },
-    { label: '오락/스포츠', value: 'sports' },
-    { label: '자연/선택', value: 'nature' },
+    { label: '스포츠', value: 'sports' },
+    { label: '자연/산책', value: 'nature' },
     { label: '쇼핑', value: 'shopping' },
-    { label: '실내오락', value: 'indoor' },
+    { label: '오락', value: 'entertainment' },
     { label: '술/바', value: 'bar' },
   ];
 
