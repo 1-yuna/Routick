@@ -38,14 +38,14 @@ MOODS_MAP = {
 }
 
 ACTIVITIES_MAP = {
-    "tour/exhibition":      "관광/전시",
-    "performance/culture":  "공연/문화",
-    "thrill/experience":    "스릴/체험",
-    "entertainment/sports": "오락/스포츠",
-    "nature/walk":          "자연/산책",
-    "shopping":             "쇼핑",
-    "indoor":               "실내오락",
-    "bar":                  "술/바",
+    "tour/exhibition":     "관광/전시",
+    "performance/culture": "공연/문화",
+    "thrill/experience":   "스릴/체험",
+    "sports":              "스포츠",
+    "nature/walk":         "자연/산책",
+    "shopping":            "쇼핑",
+    "entertainment":       "오락",
+    "bar":                 "술/바",
 }
 
 WEEKDAY_MAP = {

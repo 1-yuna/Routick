@@ -52,19 +52,15 @@ def calc_revisit_score(place: dict) -> int:
     return REVISIT_SCORE_MAP.get(intent, 0)
 
 
-# ─── 블로그 긍정 언급 빈도 점수 (최대 30점) ───
+# ─── 블로그 긍정 언급 빈도 점수 (최대 50점) ───
 # has_negative가 True면 패널티로 0점
 def calc_blog_score(positive_count: int, has_negative: bool) -> int:
     if has_negative:
         return 0
-    if positive_count >= 4:
-        return 30
-    if positive_count >= 2:
-        return 15
-    return 0
+    return min(positive_count * 10, 50)
 
 
-# ─── 종합 점수 (최대 200점) ───
+# ─── 종합 점수 (최대 220점) ───
 def calc_total_score(
         mood_score:      float,
         party_fit_score: int,

@@ -20,7 +20,7 @@ NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
 NAVER_BLOG_URL      = "https://openapi.naver.com/v1/search/blog.json"
 
 # ─── 부정 키워드 ───
-NEGATIVE_KEYWORDS = ["별로", "실망", "비추", "맛없", "최악", "불친절", "형편없", "후회"]
+NEGATIVE_KEYWORDS = ["비추", "맛없", "최악", "불친절", "형편없", "싸가지"]
 
 # ─── 긍정 키워드 ───
 POSITIVE_KEYWORDS = [
@@ -28,6 +28,7 @@ POSITIVE_KEYWORDS = [
     "맛집", "인기", "유명", "맛나", "맛좋", "고소", "시원", "감동",
     "만족", "기대이상", "대박", "굿", "좋아", "맛보", "또올", "재방",
     "완벽", "훌륭", "친절", "분위기 좋", "뷰 좋", "맛도 좋", "또 방문",
+    "재미", "재밌", "좋아", "즐기"
 ]
 
 
