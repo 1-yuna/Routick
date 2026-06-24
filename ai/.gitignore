@@ -37,6 +37,7 @@ htmlcov/
 
 # === Jupyter ===
 .ipynb_checkpoints/
+travel_recommender.ipynb
 
 # === IDE ===
 .idea/
