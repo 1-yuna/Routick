@@ -127,8 +127,6 @@ class Place(TypedDict):
     # ── fetch_details (구글 Places API) 후 채워지는 값 ─────────────
     src: Optional[str]              # 대표 이미지 URL
     status: Optional[str]           # 영업 상태 ("영업 중" / "영업 종료" 등)
-    rating: Optional[float]         # 별점
-    review_count: Optional[int]     # 리뷰수
     opening_hours: Optional[dict]   # 영업시간/휴무일 정보
 
 
