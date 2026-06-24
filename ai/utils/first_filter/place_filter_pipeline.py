@@ -22,8 +22,21 @@ from constants.place_keywords import (
     KEYWORD_EXPANSIONS,
 )
 
-# ─── day 1개 기준 카테고리별 cap ───
-DAY_FILTER_CAP   = 50
+# ─── day 1개 기준 카테고리별 cap (endpoint 케이스) ───
+DAY_FILTER_CAP = 50  # endpoint 케이스: day당 고정
+DAY_CATEGORY_CAP = {
+    "CE7": 8,   # 카페
+    "FD6": 12,  # 음식점
+}
+DAY_OTHERS_CAP = 30
+
+# ─── only 케이스: travel_days별 전체 cap + 카테고리별 cap ───
+ONLY_FILTER_CAP = {
+    1: {"total": 50,  "CE7": 8,  "FD6": 12, "others": 30},
+    2: {"total": 80,  "CE7": 13, "FD6": 19, "others": 48},
+    3: {"total": 100, "CE7": 16, "FD6": 24, "others": 60},
+    4: {"total": 120, "CE7": 19, "FD6": 29, "others": 72},
+}
 DAY_CATEGORY_CAP = {
     "CE7": 8,   # 카페
     "FD6": 12,  # 음식점
@@ -190,8 +203,25 @@ def sort_by_priority(
     return sorted(places, key=priority)
 
 
-# ─── cap 적용 (day 1개 기준) ───
-def filter_by_category_cap(places: list[dict]) -> tuple[list[dict], int]:
+# ─── cap 적용 ───
+# endpoint 케이스: day당 고정 (cafe 8 / food 12 / others 30)
+# only 케이스: travel_days별 단계적 확장
+def filter_by_category_cap(
+        places: list[dict],
+        travel_days: int = 1,
+        route_type: str = "endpoint",
+) -> tuple[list[dict], int]:
+
+    if route_type == "only":
+        cap = ONLY_FILTER_CAP.get(travel_days, ONLY_FILTER_CAP[1])
+        cafe_cap   = cap["CE7"]
+        food_cap   = cap["FD6"]
+        others_cap = cap["others"]
+    else:
+        cafe_cap   = DAY_CATEGORY_CAP["CE7"]
+        food_cap   = DAY_CATEGORY_CAP["FD6"]
+        others_cap = DAY_OTHERS_CAP
+
     cafe_count   = 0
     food_count   = 0
     others_count = 0
@@ -201,15 +231,15 @@ def filter_by_category_cap(places: list[dict]) -> tuple[list[dict], int]:
         code = p.get("category_group_code", "")
 
         if code == "CE7":
-            if cafe_count >= DAY_CATEGORY_CAP["CE7"]:
+            if cafe_count >= cafe_cap:
                 continue
             cafe_count += 1
         elif code == "FD6":
-            if food_count >= DAY_CATEGORY_CAP["FD6"]:
+            if food_count >= food_cap:
                 continue
             food_count += 1
         else:
-            if others_count >= DAY_OTHERS_CAP:
+            if others_count >= others_cap:
                 continue
             others_count += 1
 

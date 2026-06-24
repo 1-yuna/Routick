@@ -28,6 +28,7 @@ from utils.first_filter.place_filter_pipeline import (
     filter_by_category_cap,
     get_activity_keywords,
     DAY_FILTER_CAP,
+    ONLY_FILTER_CAP,
 )
 
 
@@ -64,6 +65,8 @@ def _filter_one_day(
     avoid_activities: list[str],
     companion_kr: str,
     activities_kr: list[str],
+    route_type: str = "endpoint",
+    travel_days: int = 1,
     debug: bool = False,
     day_label: str = "",
 ) -> list[dict]:
@@ -92,21 +95,20 @@ def _filter_one_day(
     if debug:
         _debug_print(f"4️⃣  [{day_label}] 세부 카테고리 중복 제한", filtered, removed)
 
-    # 5. pet 우선순위 처리
+    # 5. 정렬
+    #    - 유저 선택 activity 키워드 매칭 → 앞으로
+    #    - 반려동물과일 경우 펫 프렌들리 장소 우선 정렬
+    #    - 프랜차이즈 → 뒤로
     if companion_kr == "반려동물과":
         filtered = boost_pet_places(filtered)
-        if debug:
-            _debug_print(f"5️⃣  [{day_label}] pet 우선순위 처리", filtered, 0)
-
-    # 6. 정렬 (활동 매칭 → 프랜차이즈 뒤로)
     filtered = sort_by_priority(filtered, activity_keywords)
     if debug:
-        _debug_print(f"6️⃣  [{day_label}] 우선순위 정렬", filtered, 0)
+        _debug_print(f"5️⃣  [{day_label}] 정렬", filtered, 0)
 
-    # 7. 카테고리별 cap + 전체 cap (day 1개 기준)
-    filtered, removed = filter_by_category_cap(filtered)
+    # 3. cap 적용
+    filtered, removed = filter_by_category_cap(filtered, travel_days=travel_days, route_type=route_type)
     if debug:
-        _debug_print(f"7️⃣  [{day_label}] 카테고리 cap", filtered, removed)
+        _debug_print(f"3️⃣  [{day_label}] 카테고리 cap", filtered, removed)
         _debug_summary(f"최종 [{day_label}]", filtered)
 
     return filtered
@@ -127,32 +129,32 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     filtered_by_day:    dict[int, list] = {}
     all_filtered:       list[dict]      = []
 
-    # 케이스 1 (only): 전체 candidates를 한 번 필터링 후 day별로 동일하게 적용
-    # → 같은 좌표를 공유하므로 중복 필터링 불필요, 전체 cap = 50 × travelDays
+    # 케이스 1 (only): 전체 candidates를 한 번 필터링
+    # travel_days별 cap으로 하나의 풀 관리 (당일 50 / 1박2일 80 / 2박3일 100 / 3박4일 120)
+    # plan_itinerary에서 day별 동선 생성 시 이전 day 선택 장소 제외
     if route_type == "only":
         all_candidates = state.get("candidates", [])
+        total_cap = ONLY_FILTER_CAP.get(travel_days, ONLY_FILTER_CAP[1])["total"]
 
         filtered = _filter_one_day(
             places=all_candidates,
             avoid_activities=avoid_activities,
             companion_kr=companion_kr,
             activities_kr=activities_kr,
+            route_type=route_type,
+            travel_days=travel_days,
             debug=debug,
             day_label="only",
         )
 
-        # only 케이스: 전체 cap = day당 cap × travelDays
-        total_cap = DAY_FILTER_CAP * travel_days
-        filtered  = filtered[:total_cap]
+        filtered = filtered[:total_cap]
 
-        # 모든 day에 동일한 후보 풀 공유
         for day_number in range(1, travel_days + 1):
             filtered_by_day[day_number] = filtered
 
         all_filtered = filtered
-        warnings.append(f"[only] filtered_candidates: {len(filtered)}개 (전 day 공유)")
+        warnings.append(f"[only] filtered_candidates: {len(filtered)}개 (전 day 공유, cap={total_cap})")
 
-    # 케이스 2 (endpoint): day별 독립 필터링 (day당 50개)
     elif route_type == "endpoint":
         for day_number, day_candidates in candidates_by_day.items():
             filtered = _filter_one_day(
@@ -160,6 +162,8 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 avoid_activities=avoid_activities,
                 companion_kr=companion_kr,
                 activities_kr=activities_kr,
+                route_type=route_type,
+                travel_days=travel_days,
                 debug=debug,
                 day_label=f"day{day_number}",
             )
