@@ -2,94 +2,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import TopBar from '../../common/bar/TopBar.jsx';
 import HotPlaceItem from '../../components/home/PlaceItem.jsx';
-import SampleImage from '../../assets/images/mock/sample.png';
 import LeftIcon from '../../assets/icons/left.svg?react';
-
-// TODO: API 연동 시 제거
-const mockPlaces = [
-  {
-    id: 1,
-    name: '타코잇 상수역점',
-    rating: 4.6,
-    reviewCount: 1243,
-    address: '경기 고양시 덕양구 동산동 370',
-    src: SampleImage,
-    lat: 37.5479,
-    lng: 126.9228,
-    placeId: '1611642967',
-  },
-  {
-    id: 2,
-    name: '타코잇 상수역점',
-    rating: 4.6,
-    reviewCount: 1243,
-    address: '경기 고양시 덕양구 동산동 370',
-    src: SampleImage,
-    lat: 37.5497,
-    lng: 126.9143,
-    placeId: '1234567890',
-  },
-  {
-    id: 3,
-    name: '타코잇 상수역점',
-    rating: 4.6,
-    reviewCount: 1243,
-    address: '경기 고양시 덕양구 동산동 370',
-    src: SampleImage,
-    lat: 37.5564,
-    lng: 126.9238,
-    placeId: '0987654321',
-  },
-  {
-    id: 4,
-    name: '타코잇 상수역점',
-    rating: 4.6,
-    reviewCount: 1243,
-    address: '경기 고양시 덕양구 동산동 370',
-    src: SampleImage,
-    lat: 37.5617,
-    lng: 126.9237,
-    placeId: '1122334455',
-  },
-  {
-    id: 5,
-    name: '타코잇 상수역점',
-    rating: 4.6,
-    reviewCount: 1243,
-    address: '경기 고양시 덕양구 동산동 370',
-    src: SampleImage,
-    lat: 37.5537,
-    lng: 126.9008,
-    placeId: '5544332211',
-  },
-  {
-    id: 6,
-    name: '타코잇 상수역점',
-    rating: 4.6,
-    reviewCount: 1243,
-    address: '경기 고양시 덕양구 동산동 370',
-    src: SampleImage,
-    lat: 37.5496,
-    lng: 126.9143,
-    placeId: '6677889900',
-  },
-  {
-    id: 7,
-    name: '타코잇 상수역점',
-    rating: 4.6,
-    reviewCount: 1243,
-    address: '경기 고양시 덕양구 동산동 370',
-    src: SampleImage,
-    lat: 37.5574,
-    lng: 126.9248,
-    placeId: '9900887766',
-  },
-];
+import { mockPlaces } from '../../data/mock/places.jsx';
 
 const TITLE_MAP = {
   hotplace: '핫플',
-  exhibition: '전시/문화',
-  nature: '자연',
+  'culture-nature': '문화/자연',
+  'food-cafe': '맛집/카페',
 };
 
 // 놀거리 추천 페이지 - type(hotplace/exhibition/nature)에 따라 다른 장소 목록 표시
@@ -102,16 +21,12 @@ export default function PlayListPage() {
   return (
     <div className="px-6 pt-12 flex flex-col h-screen bg-white">
       {/*상단 바*/}
-      <TopBar
-        className="bg-white border-b border-line1"
-        title={title}
-        onClick={() => navigate(-1)}
-      >
+      <TopBar className="bg-white" title={title} onClick={() => navigate(-1)}>
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
 
       {/*장소 목록*/}
-      <div className="overflow-y-auto flex flex-col gap-6 py-6 no-scrollbar">
+      <div className="overflow-y-auto flex flex-col no-scrollbar">
         {mockPlaces.map((place, index) => (
           <HotPlaceItem
             key={place.id}

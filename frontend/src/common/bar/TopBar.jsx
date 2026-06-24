@@ -1,5 +1,6 @@
 // 상단 바
 export default function TopBar({
+  leftContent,
   onClick,
   title,
   text,
@@ -10,9 +11,13 @@ export default function TopBar({
 }) {
   return (
     <div className={`z-10 top-0 w-full h-14 flex items-center ${className}`}>
-      {/*왼쪽 - 아이콘 버튼*/}
+      {/* 왼쪽 */}
       <div className="w-1/3 flex items-center justify-start">
-        <button onClick={onClick}>{children}</button>
+        {leftContent ? (
+          leftContent
+        ) : (
+          <button onClick={onClick}>{children}</button>
+        )}
       </div>
 
       {/*가운데 - 타이틀*/}

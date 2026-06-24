@@ -3,7 +3,7 @@
 // - 선택된 항목은 primaryOpacity 배경, 미선택은 button 배경
 export default function SelectionGrid({ items, selected, onSelect }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-2">
       {items.map((item) => {
         const isSelected = Array.isArray(selected)
           ? selected.includes(item.value)
@@ -19,7 +19,7 @@ export default function SelectionGrid({ items, selected, onSelect }) {
                 onSelect(selected === item.value ? '' : item.value);
               }
             }}
-            className={`h-16 rounded-[10px] text-14-sb transition-colors
+            className={`h-[54px] rounded-5 text-14-sb transition-colors
               ${
                 isSelected
                   ? 'bg-primaryOpacity text-primary'

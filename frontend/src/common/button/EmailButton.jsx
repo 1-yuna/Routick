@@ -4,6 +4,8 @@ import FullWidthInput from '../input/FullWidthInput.jsx';
 export default function InputWithButton({
   placeholder,
   type,
+  value,
+  onChange,
   buttonText,
   onButtonClick,
   className = '',
@@ -13,7 +15,12 @@ export default function InputWithButton({
     <div className="flex items-stretch">
       {/*이메일 입력 폼*/}
       <div className="flex-1">
-        <FullWidthInput placeholder={placeholder} type={type} />
+        <FullWidthInput
+          placeholder={placeholder}
+          type={type}
+          value={value}
+          onChange={onChange}
+        />
       </div>
 
       {/*버튼*/}

@@ -4,7 +4,7 @@ import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
 import SelectionGrid from '../../components/selection/SelectionGrid.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
 
-// 선택 6단계 - 이동 수단 (단일 선택)
+// 선택 3단계 - 이동 수단 (CS-04)
 export default function TransportPage() {
   const transport = useSelectionStore((state) => state.transport);
   const setTransport = useSelectionStore((state) => state.setTransport);
@@ -17,11 +17,12 @@ export default function TransportPage() {
 
   return (
     <SelectionLayout
-      step={7}
+      step={3}
+      url="/select/date"
       icon="🚘"
       text1="이동 수단이"
       text2="어떻게 되세요?"
-      onNext={() => navigate('/select/dislike')}
+      onNext={() => navigate('/select/route')}
       disabled={!transport}
     >
       <SelectionGrid

@@ -1,31 +1,117 @@
 import { useNavigate } from 'react-router-dom';
 
-import SelectionInput from '../../common/input/SelectionInput.jsx';
 import SelectionLayout from '../../components/selection/SelectionLayout.jsx';
+import SelectionInput from '../../common/input/SelectionInput.jsx';
+import FieldMessage from '../../common/text/FieldMessage.jsx';
 import useSelectionStore from '../../store/selectionStore.jsx';
+import { getDistanceError } from '../../utils/distanceUtils.jsx';
 
-// 선택 1단계 - 주소 페이지
+const PERIOD_DAYS = { day: 1, '1n2d': 2, '2n3d': 3, '3n4d': 4 };
+const EMPTY_PLACE = { name: '', lat: '', lng: '', placeId: '' };
+
+// 선택 5단계 - 여행 장소 입력 (CS-06)
 export default function AddressPage() {
-  const address = useSelectionStore((state) => state.address);
   const navigate = useNavigate();
+  const route = useSelectionStore((state) => state.route);
+  const period = useSelectionStore((state) => state.period);
+  const transport = useSelectionStore((state) => state.transport);
+  const address = useSelectionStore((state) => state.address);
+  const addresses = useSelectionStore((state) => state.addresses);
+
+  const totalDays = PERIOD_DAYS[period] ?? 1;
+  const dayList = Array.from({ length: totalDays }, (_, i) => ({
+    start: addresses[i]?.start ?? EMPTY_PLACE,
+    end: addresses[i]?.end ?? EMPTY_PLACE,
+  }));
+
+  const navigateToSearch = (dayIdx, field) => {
+    navigate('/select/address/search', {
+      state: { dayIdx, field, returnTo: 'route' },
+    });
+  };
+
+  const isDestinationReady = address.name !== '';
+  const isRouteReady = dayList.every(
+    (day) => day.start.name !== '' && day.end.name !== ''
+  );
+
+  // day별 거리 에러 계산
+  const distanceErrors = dayList.map((day) =>
+    getDistanceError(
+      day.start.lat,
+      day.start.lng,
+      day.end.lat,
+      day.end.lng,
+      transport
+    )
+  );
+  const hasDistanceError = distanceErrors.some((e) => e !== null);
+
+  const isReady =
+    route === 'destination'
+      ? isDestinationReady
+      : isRouteReady && !hasDistanceError;
+
+  if (route === 'destination') {
+    return (
+      <SelectionLayout
+        step={5}
+        url="/select/route"
+        icon="🔍"
+        text1="가고자 하는 여행"
+        text2="장소를 입력해주세요"
+        onNext={() => navigate('/select/companion')}
+        disabled={!isReady}
+      >
+        <SelectionInput
+          placeholder="장소, 주소 검색"
+          value={address.name}
+          onClick={() =>
+            navigate('/select/address/search', {
+              state: { returnTo: 'destination' },
+            })
+          }
+        />
+      </SelectionLayout>
+    );
+  }
 
   return (
     <SelectionLayout
-      step={1}
-      url="/home"
-      icon="✈️"
+      step={5}
+      url="/select/route"
+      icon="🔍"
       text1="가고자 하는 여행"
-      text2="주소를 검색해주세요"
-      onNext={() => navigate('/select/period')}
-      disabled={!address.name}
+      text2="장소를 입력해주세요"
+      subText="1박 이상인 경우, 도착지를 숙소로 입력해주세요"
+      onNext={() => navigate('/select/companion')}
+      disabled={!isReady}
+      contentGap="gap-8"
     >
-      <SelectionInput
-        placeholder="장소, 주소 검색"
-        value={address.name}
-        onClick={() =>
-          navigate('/select/address/search', { state: { address } })
-        }
-      />
+      <div className="flex flex-col gap-4 overflow-y-auto no-scrollbar">
+        {dayList.map((day, i) => (
+          <div key={i} className="flex flex-col gap-2">
+            <p className="text-16-sb text-gray2">Day {i + 1}</p>
+            <div className="flex flex-col gap-1">
+              <SelectionInput
+                placeholder="출발지"
+                value={day.start.name}
+                onClick={() => navigateToSearch(i, 'start')}
+                rounded="rounded-t-10"
+              />
+              <SelectionInput
+                placeholder="도착지"
+                value={day.end.name}
+                onClick={() => navigateToSearch(i, 'end')}
+                rounded="rounded-b-10"
+              />
+              {distanceErrors[i] && (
+                <FieldMessage type="error">{distanceErrors[i]}</FieldMessage>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </SelectionLayout>
   );
 }

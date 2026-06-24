@@ -1,0 +1,55 @@
+import sample from '../../assets/images/mock/sample.png';
+
+// TODO: API 연동 시 제거
+export const mockTopPlaces = [
+  {
+    id: 1,
+    src: sample,
+    tags: ['홍대', '데이트 코스'],
+    name: '타코잇 상수역점',
+    description: '일본을 대표하는 라멘 전문점',
+    lat: 37.5479,
+    lng: 126.9228,
+    placeId: '1611642967',
+  },
+  {
+    id: 2,
+    src: sample,
+    tags: ['홍대', '데이트 코스'],
+    name: '스타벅스 합정점',
+    description: '한강뷰가 보이는 카페',
+    lat: 37.5497,
+    lng: 126.9143,
+    placeId: '1234567890',
+  },
+  {
+    id: 3,
+    src: sample,
+    tags: ['홍대', '데이트 코스'],
+    name: '홍대 놀이터',
+    description: '홍대 특유의 활기찬 분위기',
+    lat: 37.5564,
+    lng: 126.9238,
+    placeId: '0987654321',
+  },
+  {
+    id: 4,
+    src: sample,
+    tags: ['홍대', '데이트 코스'],
+    name: '연남동 카페거리',
+    description: '감성적인 카페들이 모여있는 거리',
+    lat: 37.5617,
+    lng: 126.9237,
+    placeId: '1122334455',
+  },
+  {
+    id: 5,
+    src: sample,
+    tags: ['홍대', '데이트 코스'],
+    name: '망원한강공원',
+    description: '한강을 바라보며 쉬어가기 좋은 공원',
+    lat: 37.5537,
+    lng: 126.9008,
+    placeId: '5544332211',
+  },
+];

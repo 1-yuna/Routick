@@ -23,11 +23,12 @@ export default function ActivityPage() {
 
   return (
     <SelectionLayout
-      step={6}
+      step={8}
+      url="/select/mood"
       icon="🏄️"
       text1="어떤 활동을"
       text2="원하세요?"
-      onNext={() => navigate('/select/transport')}
+      onNext={() => navigate('/select/dislike')}
       disabled={activity.length === 0}
       subText="다중선택이 가능해요"
     >

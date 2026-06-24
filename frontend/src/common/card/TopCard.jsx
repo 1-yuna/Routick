@@ -1,15 +1,24 @@
-// 홈 - Top5 추천 카드 (이미지 + 해시태그)
-export default function TopCard({ image, tags = [], onClick }) {
+import PlaceImageDefault from '../imageDefault/PlaceImageDefault.jsx';
+
+// 홈 - Top5 추천 카드 (이미지 + 제목 + 해시태그)
+export default function TopCard({ image, title, tags = [], onClick }) {
   return (
     <button
       onClick={onClick}
-      className="relative flex-shrink-0 w-[150px] h-[180px] rounded-xl overflow-hidden shadow-xl"
+      className="relative flex-shrink-0 w-[150px] h-[180px] rounded-10 overflow-hidden shadow-lg"
     >
-      {/*배경 이미지*/}
-      <img className="h-full w-full object-cover" src={image} alt="card" />
+      {/*배경 이미지 - 없으면 기본 이미지*/}
+      {image ? (
+        <img className="h-full w-full object-cover" src={image} alt="card" />
+      ) : (
+        <PlaceImageDefault className="w-full h-full" />
+      )}
 
       {/*어두운 오버레이*/}
       <div className="absolute inset-0 bg-black/35"></div>
+
+      {/*제목*/}
+      <p className="absolute top-3 left-3 text-white text-14-sb">{title}</p>
 
       {/*해시태그*/}
       <div className="absolute flex flex-col items-start bottom-2 left-3 text-white text-12-sb">

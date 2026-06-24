@@ -17,22 +17,23 @@ export default function SelectionLayout({
   disabled,
   subText,
   buttonText,
+  contentGap = 'gap-11',
 }) {
   const navigate = useNavigate();
 
   return (
-    <div className="pt-12 px-6 h-screen pb-28 flex flex-col bg-default">
+    <div className="pt-12 px-6 h-screen pb-[88px] flex flex-col bg-default">
       {/*상단 바 - url 있으면 해당 경로로, 없으면 이전 페이지로*/}
       <TopBar
         className="text-primary text-16-sb"
-        text={`${step}/8`}
+        text={`${step}/9`}
         onClick={() => (url ? navigate(url) : navigate(-1))}
       >
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
 
       {/*질문 + 선택 컴포넌트*/}
-      <div className="flex flex-col w-full gap-11">
+      <div className={`flex flex-col w-full ${contentGap}`}>
         <PromptText icon={icon} text1={text1} text2={text2} subText={subText} />
         {children}
       </div>

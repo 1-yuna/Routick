@@ -12,23 +12,28 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 export default function SignUpPage() {
   const navigate = useNavigate();
   const {
+    email,
+    setEmail,
+    emailError,
+    handleVerifyEmail,
     showVerify,
-    setShowVerify,
     isVerified,
-    setIsVerified,
+    code,
+    setCode,
+    codeError,
+    handleConfirmCode,
     password,
     setPassword,
     passwordCheck,
     setPasswordCheck,
     error,
     time,
-    setTime,
     formatTime,
     handleSignup,
   } = useSignup();
 
   return (
-    <div className="px-6 pt-12 pb-24 h-screen flex flex-col bg-login">
+    <div className="px-6 pt-12 pb-[88px] h-screen flex flex-col bg-login">
       {/*상단 바*/}
       <TopBar className="bg-login" onClick={() => navigate(-1)}>
         <LeftIcon className="w-5 h-10 text-primary" />
@@ -40,12 +45,17 @@ export default function SignUpPage() {
 
         {/*기본 정보 폼*/}
         <AccountInfoSection
+          email={email}
+          setEmail={setEmail}
+          emailError={emailError}
+          onVerifyEmail={handleVerifyEmail}
           showVerify={showVerify}
           time={time}
           formatTime={formatTime}
-          setShowVerify={setShowVerify}
-          setTime={setTime}
-          setIsVerified={setIsVerified}
+          code={code}
+          setCode={setCode}
+          codeError={codeError}
+          onConfirmCode={handleConfirmCode}
           isVerified={isVerified}
         />
 

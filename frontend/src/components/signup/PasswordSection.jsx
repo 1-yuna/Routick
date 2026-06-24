@@ -1,4 +1,5 @@
 import FullWidthInput from '../../common/input/FullWidthInput.jsx';
+import FieldMessage from '../../common/text/FieldMessage.jsx';
 
 // 비밀번호 정보 폼
 export default function PasswordSection({
@@ -19,7 +20,7 @@ export default function PasswordSection({
       />
 
       {/* 비밀번호 확인*/}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1">
         <FullWidthInput
           placeholder="비밀번호 확인"
           type="password"
@@ -28,7 +29,7 @@ export default function PasswordSection({
         />
 
         {/* Error */}
-        {error && <div className="text-14-rg pl-2 text-error">{error}</div>}
+        <FieldMessage type="error">{error}</FieldMessage>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-// pages/my/ProfilePage.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../../common/bar/TopBar.jsx';
@@ -10,7 +9,7 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 import useUserStore from '../../store/userStore.jsx';
 
 // 프로필 변경 페이지
-export default function EditProfilePage() {
+export default function MyEditPage() {
   const { user, updateUser } = useUserStore();
   const navigate = useNavigate();
   const [name, setName] = useState(user.name);
@@ -30,11 +29,7 @@ export default function EditProfilePage() {
   return (
     <div className="pt-12 pb-32 flex flex-col h-screen bg-white">
       {/*상단 바*/}
-      <TopBar
-        className="px-6 border-b border-line1"
-        title="프로필 변경"
-        onClick={() => navigate(-1)}
-      >
+      <TopBar className="px-6" title="프로필 변경" onClick={() => navigate(-1)}>
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
 
@@ -53,7 +48,7 @@ export default function EditProfilePage() {
             )}
           </div>
           <button
-            className="px-4 py-2 border border-line2 rounded-[5px] text-14-rg text-gray2"
+            className="px-6 py-2 border border-line1 text-14-rg text-black1"
             onClick={() => document.getElementById('profile-image').click()}
           >
             사진 변경
@@ -70,10 +65,11 @@ export default function EditProfilePage() {
         {/*닉네임*/}
         <div className="flex flex-col gap-2 w-full">
           <p className="text-14-rg text-black1">닉네임</p>
-          <FullWidthInput
+          <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="닉네임 입력"
+            placeholder="닉네임을 입력하세요"
+            className="w-full bg-neutral rounded-5 px-3 py-2 text-14-rg text-black1 outline-none"
           />
         </div>
       </div>
