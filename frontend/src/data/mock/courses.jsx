@@ -1,7 +1,7 @@
 import SampleImage from '../../assets/images/mock/sample.png';
 
 // ========================================
-// 자동차 모드 mock
+// 자동차 모드 mock + 출발지/목적지
 // Day1: 주차장 → 장소 → 도보 → 장소 → 주차장+주차장 → 장소
 // Day2: 주차장(Day1마지막) → 장소 → 주차장+주차장 → 장소
 // ========================================
@@ -18,8 +18,20 @@ export const mockCourse = {
   days: [
     {
       dayNumber: 1,
-      startRegion: '홍대',
-      endRegion: '망원',
+      start: {
+        name: '홍대역 2번 출구',
+        address: '서울 마포구 양화로 152',
+        lat: 37.5572,
+        lng: 126.9251,
+        exitTransport: { mode: 'car', minutes: 10 },
+      },
+      end: {
+        name: '망원한강공원',
+        address: '서울 마포구 마포나루길 467',
+        lat: 37.5537,
+        lng: 126.9008,
+        enterTransport: { mode: 'walk', minutes: 7 },
+      },
       blocks: [
         {
           blockOrder: 1,
@@ -30,6 +42,7 @@ export const mockCourse = {
           description: null,
           lat: 37.548,
           lng: 126.9237,
+          enterTransport: { mode: 'car', minutes: 10 },
           exitTransport: { mode: 'walk', minutes: 5 },
         },
         {
@@ -116,8 +129,20 @@ export const mockCourse = {
     },
     {
       dayNumber: 2,
-      startRegion: '망원',
-      endRegion: '여의도',
+      start: {
+        name: '망원한강공원',
+        address: '서울 마포구 마포나루길 467',
+        lat: 37.5537,
+        lng: 126.9008,
+        exitTransport: { mode: 'car', minutes: 15 },
+      },
+      end: {
+        name: '여의도한강공원',
+        address: '서울 영등포구 여의동로 330',
+        lat: 37.5257,
+        lng: 126.9283,
+        enterTransport: { mode: 'walk', minutes: 5 },
+      },
       blocks: [
         {
           blockOrder: 1,
@@ -193,17 +218,24 @@ export const mockCourse = {
 };
 
 // ========================================
-// 도보 모드 mock
+// 도보 모드 mock + 목적지만
 // Day1: 장소 → 도보 → 장소 → 도보 → 장소
 // Day2: 장소 → 도보 → 장소 → 도보 → 장소
 // ========================================
 // export const mockCourse = {
 //   transport: 'walk',
+//   meta: {
+//     period: '당일치기',
+//     date: '2026-06-23',
+//     companion: '혼자',
+//     mood: ['감성적인', '조용한'],
+//     activity: ['맛집', '산책'],
+//     dislike: ['사람 많은 곳'],
+//   },
 //   days: [
 //     {
 //       dayNumber: 1,
-//       startRegion: '홍대',
-//       endRegion: '합정',
+//       // start/end 없음 (목적지만 입력한 경우)
 //       blocks: [
 //         {
 //           blockOrder: 1,
@@ -259,8 +291,7 @@ export const mockCourse = {
 //     },
 //     {
 //       dayNumber: 2,
-//       startRegion: '망원',
-//       endRegion: '여의도',
+//       // start/end 없음 (목적지만 입력한 경우)
 //       blocks: [
 //         {
 //           blockOrder: 1,

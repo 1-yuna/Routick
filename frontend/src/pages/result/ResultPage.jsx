@@ -49,12 +49,15 @@ export default function ResultPage() {
   const pendingBlocks = pendingDayData
     ? pendingDayData.blocks.map(({ _uid, ...rest }) => rest)
     : null;
-  const mapMarkers = extractMarkers(pendingBlocks ?? selectedBlocks);
+  const mapMarkers = extractMarkers(
+    pendingBlocks ?? selectedBlocks,
+    selectedDayData
+  );
 
   const handleSave = (title) => {
     const days = course.days ?? [];
-    const startRegion = days[0]?.startRegion ?? '';
-    const endRegion = days[days.length - 1]?.endRegion ?? '';
+    const startRegion = days[0]?.start?.name ?? '';
+    const endRegion = days[days.length - 1]?.end?.name ?? '';
     const region =
       startRegion === endRegion ? startRegion : `${startRegion} → ${endRegion}`;
 
