@@ -10,8 +10,10 @@
 #      - 동행 유형 기반 제거
 #      - 세부 카테고리별 중복 제한
 #   2. 조건별 로직 수행 (pet 우선순위 처리)
-#   3. 정렬 (음식점/카페 우선 + 활동 매칭 → 체인점 후순위)
-#   4. 카테고리별 cap + 전체 cap 적용
+#   3. 정렬
+#      - 1단계: 유저 선택 활동 매칭 → 앞으로
+#      - 2단계: 프랜차이즈 → 뒤로
+#   4. cap 적용 (cafe 8 / food 12 / others 30 = 50개)
 # ─────────────────────────────────────────────────────────────────────
 
 from constants.place_keywords import (
@@ -20,16 +22,13 @@ from constants.place_keywords import (
     KEYWORD_EXPANSIONS,
 )
 
-# ─── day 1개 기준 전체 cap ───
-DAY_FILTER_CAP = 50
-
 # ─── day 1개 기준 카테고리별 cap ───
-# 문서: cafe 8 / food 12 / 나머지 30 = 합계 50
+DAY_FILTER_CAP   = 50
 DAY_CATEGORY_CAP = {
     "CE7": 8,   # 카페
     "FD6": 12,  # 음식점
 }
-DAY_OTHERS_CAP = 30  # 나머지 (AT4, CT1 등)
+DAY_OTHERS_CAP = 30  # activity / 기타
 
 
 # ─── avoid_activities 키워드 제거 ───
@@ -97,9 +96,6 @@ def filter_by_subcategory_cap(
         category = p.get("category", "")
         parts    = category.split(" > ")
 
-        # 3단계 이상이면 2~3번째 카테고리 조합으로 체크
-        # 예) "스포츠,레저 > 골프 > 골프연습장 > 스크린골프연습장"
-        #     → "골프 > 골프연습장" 으로 체크
         if len(parts) >= 3:
             subcategory = " > ".join(parts[1:3])
         elif len(parts) == 2:
@@ -152,17 +148,10 @@ CHAIN_BRANDS = [
 ]
 
 
-# ─── 체인점 후순위 정렬 ───
 def is_chain_brand(place: dict) -> bool:
     name     = place.get("name", "")
     category = place.get("category", "")
     return any(brand in name or brand in category for brand in CHAIN_BRANDS)
-
-
-def sort_by_brand_priority(places: list[dict]) -> list[dict]:
-    locals_ = [p for p in places if not is_chain_brand(p)]
-    chains  = [p for p in places if is_chain_brand(p)]
-    return locals_ + chains
 
 
 # ─── 유저 선택 activity 확장 키워드 수집 ───
@@ -174,30 +163,34 @@ def get_activity_keywords(activities_kr: list[str]) -> list[str]:
     return list(set(keywords))
 
 
-# ─── 음식점/카페 우선 + 유저 선택 activity 키워드 매칭 정렬 ───
-def sort_by_priority(places: list[dict], activity_keywords: list[str] = None) -> list[dict]:
-    if activity_keywords is None:
+# ─── 정렬
+# 1단계: 유저 선택 활동 매칭 → 앞으로
+# 2단계: 프랜차이즈 → 뒤로
+# ───
+def sort_by_priority(
+        places: list[dict],
+        activity_keywords: list[str] = None,
+) -> list[dict]:
+    if not activity_keywords:
         activity_keywords = []
 
     def priority(p):
-        code     = p.get("category_group_code", "")
         name     = p.get("name", "")
         category = p.get("category", "")
-
-        if code == "FD6":   # 음식점 최우선
-            return 0
-        if code == "CE7":   # 카페 2순위
-            return 1
-        if activity_keywords and any(
+        matched  = bool(activity_keywords) and any(
             kw in name or kw in category for kw in activity_keywords
-        ):
-            return 2        # 유저 선택 활동 매칭 장소
-        return 3            # 나머지
+        )
+        chain = is_chain_brand(p)
+
+        if matched and not chain:  return 0  # 활동 매칭 + 비프랜차이즈
+        if matched and chain:      return 1  # 활동 매칭 + 프랜차이즈
+        if not chain:              return 2  # 비매칭 + 비프랜차이즈
+        return 3                             # 비매칭 + 프랜차이즈 (맨 뒤)
 
     return sorted(places, key=priority)
 
 
-# ─── 카테고리별 cap + 전체 cap 적용 (day 1개 기준) ───
+# ─── cap 적용 (day 1개 기준) ───
 def filter_by_category_cap(places: list[dict]) -> tuple[list[dict], int]:
     cafe_count   = 0
     food_count   = 0

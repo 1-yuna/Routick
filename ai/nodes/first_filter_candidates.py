@@ -24,7 +24,6 @@ from utils.first_filter.place_filter_pipeline import (
     filter_by_companion,
     filter_by_subcategory_cap,
     boost_pet_places,
-    sort_by_brand_priority,
     sort_by_priority,
     filter_by_category_cap,
     get_activity_keywords,
@@ -88,8 +87,8 @@ def _filter_one_day(
     if debug:
         _debug_print(f"3️⃣  [{day_label}] companion='{companion_kr}' 필터", filtered, removed)
 
-    # 4. 세부 카테고리별 중복 제한
-    filtered, removed = filter_by_subcategory_cap(filtered, max_per_subcategory=3)
+    # 4. 세부 카테고리별 중복 제한 (동일 목적 장소 최대 2개)
+    filtered, removed = filter_by_subcategory_cap(filtered, max_per_subcategory=2)
     if debug:
         _debug_print(f"4️⃣  [{day_label}] 세부 카테고리 중복 제한", filtered, removed)
 
@@ -99,11 +98,10 @@ def _filter_one_day(
         if debug:
             _debug_print(f"5️⃣  [{day_label}] pet 우선순위 처리", filtered, 0)
 
-    # 6. 정렬
+    # 6. 정렬 (활동 매칭 → 프랜차이즈 뒤로)
     filtered = sort_by_priority(filtered, activity_keywords)
-    filtered = sort_by_brand_priority(filtered)
     if debug:
-        _debug_print(f"6️⃣  [{day_label}] 우선순위 + 체인점 정렬", filtered, 0)
+        _debug_print(f"6️⃣  [{day_label}] 우선순위 정렬", filtered, 0)
 
     # 7. 카테고리별 cap + 전체 cap (day 1개 기준)
     filtered, removed = filter_by_category_cap(filtered)
