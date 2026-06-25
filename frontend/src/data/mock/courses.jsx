@@ -1,12 +1,7 @@
 import SampleImage from '../../assets/images/mock/sample.png';
 
-// ========================================
-// 자동차 모드 mock + 출발지/목적지
-// Day1: 주차장 → 장소 → 도보 → 장소 → 주차장+주차장 → 장소
-// Day2: 주차장(Day1마지막) → 장소 → 주차장+주차장 → 장소
-// ========================================
 export const mockCourse = {
-  transport: 'car', // 'car' | 'walk'
+  transport: 'car',
   meta: {
     period: '당일치기',
     date: '2026-06-23',
@@ -23,7 +18,6 @@ export const mockCourse = {
         address: '서울 마포구 양화로 152',
         lat: 37.5572,
         lng: 126.9251,
-        time: '09:00',
         exitTransport: { mode: 'car', minutes: 10 },
       },
       end: {
@@ -31,7 +25,6 @@ export const mockCourse = {
         address: '서울 마포구 마포나루길 467',
         lat: 37.5537,
         lng: 126.9008,
-        time: '13:32',
         enterTransport: { mode: 'walk', minutes: 7 },
       },
       blocks: [
@@ -44,6 +37,8 @@ export const mockCourse = {
           description: null,
           lat: 37.548,
           lng: 126.9237,
+          arriveTime: '09:10',
+          leaveTime: '09:15',
           enterTransport: { mode: 'car', minutes: 10 },
           exitTransport: { mode: 'walk', minutes: 5 },
         },
@@ -62,8 +57,8 @@ export const mockCourse = {
           lat: 37.5479,
           lng: 126.9228,
           stayMinutes: 60,
-          arriveTime: '09:00',
-          leaveTime: '10:00',
+          arriveTime: '09:15',
+          leaveTime: '10:15',
         },
         {
           blockOrder: 3,
@@ -84,8 +79,8 @@ export const mockCourse = {
           lat: 37.5617,
           lng: 126.9237,
           stayMinutes: 60,
-          arriveTime: '10:10',
-          leaveTime: '11:10',
+          arriveTime: '10:25',
+          leaveTime: '11:25',
         },
         {
           blockOrder: 5,
@@ -96,6 +91,7 @@ export const mockCourse = {
           description: null,
           lat: 37.5497,
           lng: 126.9143,
+          arriveTime: '11:35',
           enterTransport: { mode: 'walk', minutes: 10 },
           exitTransport: { mode: 'car', minutes: 8 },
         },
@@ -108,6 +104,8 @@ export const mockCourse = {
           description: '30분에 500원',
           lat: 37.556,
           lng: 126.902,
+          leaveTime: '11:50',
+          enterTransport: { mode: 'car', minutes: 8 },
           exitTransport: { mode: 'walk', minutes: 7 },
         },
         {
@@ -124,8 +122,8 @@ export const mockCourse = {
           lat: 37.5537,
           lng: 126.9008,
           stayMinutes: 120,
-          arriveTime: '11:25',
-          leaveTime: '13:25',
+          arriveTime: '11:50',
+          leaveTime: '13:50',
         },
       ],
     },
@@ -136,7 +134,6 @@ export const mockCourse = {
         address: '서울 마포구 마포나루길 467',
         lat: 37.5537,
         lng: 126.9008,
-        time: '09:00',
         exitTransport: { mode: 'car', minutes: 15 },
       },
       end: {
@@ -144,7 +141,6 @@ export const mockCourse = {
         address: '서울 영등포구 여의동로 330',
         lat: 37.5257,
         lng: 126.9283,
-        time: '13:23',
         enterTransport: { mode: 'walk', minutes: 5 },
       },
       blocks: [
@@ -157,6 +153,9 @@ export const mockCourse = {
           description: '30분에 500원',
           lat: 37.556,
           lng: 126.902,
+          arriveTime: '09:15',
+          leaveTime: '09:22',
+          enterTransport: { mode: 'car', minutes: 15 },
           exitTransport: { mode: 'walk', minutes: 7 },
         },
         {
@@ -173,8 +172,8 @@ export const mockCourse = {
           lat: 37.5257,
           lng: 126.9283,
           stayMinutes: 90,
-          arriveTime: '10:00',
-          leaveTime: '11:30',
+          arriveTime: '09:22',
+          leaveTime: '10:52',
         },
         {
           blockOrder: 3,
@@ -185,6 +184,7 @@ export const mockCourse = {
           description: null,
           lat: 37.5497,
           lng: 126.9143,
+          arriveTime: '11:02',
           enterTransport: { mode: 'walk', minutes: 10 },
           exitTransport: { mode: 'car', minutes: 8 },
         },
@@ -197,6 +197,8 @@ export const mockCourse = {
           description: '30분에 500원',
           lat: 37.556,
           lng: 126.902,
+          leaveTime: '11:17',
+          enterTransport: { mode: 'car', minutes: 8 },
           exitTransport: { mode: 'walk', minutes: 7 },
         },
         {
@@ -213,8 +215,8 @@ export const mockCourse = {
           lat: 37.5285,
           lng: 126.9326,
           stayMinutes: 90,
-          arriveTime: '11:48',
-          leaveTime: '13:18',
+          arriveTime: '11:17',
+          leaveTime: '12:47',
         },
       ],
     },
@@ -239,7 +241,6 @@ export const mockCourse = {
 //   days: [
 //     {
 //       dayNumber: 1,
-//       // start/end 없음 (목적지만 입력한 경우)
 //       blocks: [
 //         {
 //           blockOrder: 1,
@@ -295,7 +296,6 @@ export const mockCourse = {
 //     },
 //     {
 //       dayNumber: 2,
-//       // start/end 없음 (목적지만 입력한 경우)
 //       blocks: [
 //         {
 //           blockOrder: 1,
