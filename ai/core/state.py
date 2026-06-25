@@ -127,7 +127,6 @@ class Place(TypedDict):
     # ── fetch_details (구글 Places API) 후 채워지는 값 ─────────────
     src: Optional[str]              # 대표 이미지 URL
     status: Optional[str]           # 영업 상태 ("영업 중" / "영업 종료" 등)
-    opening_hours: Optional[dict]   # 영업시간/휴무일 정보
 
 
 class ScoredPlace(TypedDict):
@@ -163,6 +162,17 @@ class ParkingBlock(TypedDict):
     exit_transport: Optional[Transport]  # 주차장 → 다음 블록
 
 
+class StartEndPoint(TypedDict):
+    """출발지/도착지 정보 (endpoint 케이스만)"""
+    name: str
+    address: str
+    lat: float
+    lng: float
+    place_id: str
+    exit_transport: Optional[Transport]   # 출발지 → 첫 블록 (start용)
+    enter_transport: Optional[Transport]  # 마지막 블록 → 도착지 (end용)
+
+
 class ItineraryItem(TypedDict):
     """동선 내 장소 아이템 (plan_itinerary에서 생성)"""
     order: int
@@ -178,6 +188,8 @@ class DayItinerary(TypedDict):
     day_number: int
     itinerary: list[ItineraryItem]
     parking_blocks: list[ParkingBlock]  # transport=car일 때만 (plan_itinerary에서 추가)
+    start: Optional[StartEndPoint]      # 출발지 (endpoint 케이스만)
+    end: Optional[StartEndPoint]        # 도착지 (endpoint 케이스만)
 
 
 # ─────────────────────────────────────────────────────────────────────
