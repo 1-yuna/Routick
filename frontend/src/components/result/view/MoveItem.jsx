@@ -13,7 +13,7 @@ export default function MoveItem({ mode, minutes }) {
       </div>
 
       {/* 오른쪽: 아이콘 + 텍스트 */}
-      <div className="flex items-center gap-1 text-gray2 py-3">
+      <div className="flex items-center gap-1 text-gray2 py-5">
         {mode === 'walk' ? (
           <WalkIcon className="w-4 h-4" />
         ) : (
