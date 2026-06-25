@@ -16,6 +16,7 @@ export function extractMarkers(blocks, dayData = null) {
       lat: dayData.start.lat,
       lng: dayData.start.lng,
       color: MARKER_COLOR.mark,
+      label: 'S',
       type: 'start',
     });
   }

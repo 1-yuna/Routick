@@ -10,6 +10,7 @@ export default function KakaoMap({
   padding = [50, 50, 50, 50],
 }) {
   const mapRef = useRef(null);
+  const placesKey = JSON.stringify(places);
 
   useEffect(() => {
     window.kakao.maps.load(() => {
@@ -43,7 +44,7 @@ export default function KakaoMap({
               font-weight: 600;
               border: 2px solid white;
               box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            ">${place.label}</div>
+            ">${place.label ?? ''}</div>
           `;
 
           new window.kakao.maps.CustomOverlay({
@@ -75,7 +76,7 @@ export default function KakaoMap({
         new window.kakao.maps.Marker({ position, map });
       }
     });
-  }, [lat, lng, places]);
+  }, [placesKey, lat, lng]);
 
   return <div ref={mapRef} className="absolute w-full h-full z-0" />;
 }

@@ -6,13 +6,14 @@ const STATUS_COLOR = {
   휴무: 'text-red',
 };
 
-// bucket별 dot 색상
-// food: #FF8A5C(bg-food), cafe/activity/other: #4B5FDC(bg-primary)
+// bucket별 dot 색상 - 지도 마커와 동일
+// place 계열: #4B5FDC(bg-primary), parking: #FFB705(bg-parking)
 const DOT_COLOR = {
-  food: 'bg-food',
+  food: 'bg-primary',
   cafe: 'bg-primary',
   activity: 'bg-primary',
   other: 'bg-primary',
+  parking: 'bg-parking',
 };
 
 export default function CourseItem({ block, onCardClick }) {
