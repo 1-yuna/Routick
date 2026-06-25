@@ -23,6 +23,7 @@ export const mockCourse = {
         address: '서울 마포구 양화로 152',
         lat: 37.5572,
         lng: 126.9251,
+        time: '09:00',
         exitTransport: { mode: 'car', minutes: 10 },
       },
       end: {
@@ -30,6 +31,7 @@ export const mockCourse = {
         address: '서울 마포구 마포나루길 467',
         lat: 37.5537,
         lng: 126.9008,
+        time: '13:32',
         enterTransport: { mode: 'walk', minutes: 7 },
       },
       blocks: [
@@ -134,6 +136,7 @@ export const mockCourse = {
         address: '서울 마포구 마포나루길 467',
         lat: 37.5537,
         lng: 126.9008,
+        time: '09:00',
         exitTransport: { mode: 'car', minutes: 15 },
       },
       end: {
@@ -141,6 +144,7 @@ export const mockCourse = {
         address: '서울 영등포구 여의동로 330',
         lat: 37.5257,
         lng: 126.9283,
+        time: '13:23',
         enterTransport: { mode: 'walk', minutes: 5 },
       },
       blocks: [

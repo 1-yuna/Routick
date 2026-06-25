@@ -96,7 +96,10 @@ export default function CourseList({
       {selectedDayData && (
         <div>
           {selectedDayData.start && (
-            <StartPointItem name={selectedDayData.start.name} />
+            <StartPointItem
+              name={selectedDayData.start.name}
+              time={selectedDayData.start.time}
+            />
           )}
           {renderBlocks(
             selectedDayData.blocks,
@@ -111,7 +114,11 @@ export default function CourseList({
                   minutes={selectedDayData.end.enterTransport.minutes}
                 />
               )}
-              <StartPointItem name={selectedDayData.end.name} isEnd />
+              <StartPointItem
+                name={selectedDayData.end.name}
+                time={selectedDayData.end.time}
+                isEnd
+              />
             </>
           )}
         </div>
