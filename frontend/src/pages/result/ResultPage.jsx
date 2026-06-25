@@ -186,7 +186,44 @@ export default function ResultPage() {
         />
       )}
 
-      <KakaoMap places={mapMarkers} padding={[50, 50, sheetY + 50, 50]} />
+      <KakaoMap
+        places={mapMarkers}
+        padding={[50, 50, sheetY + 50, 50]}
+        onMarkerClick={(marker) => {
+          if (marker.type === 'place') {
+            // place 마커: placeId로 상세페이지
+            const block = selectedBlocks.find(
+              (b) => String(b.placeOrder) === marker.label
+            );
+            if (block) {
+              navigate(`/place/${block.placeId}`, {
+                state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          } else if (marker.type === 'parking') {
+            // parking 마커: 이름으로 상세페이지
+            navigate(`/place/${encodeURIComponent(marker.label)}`, {
+              state: {
+                name: marker.label,
+                lat: marker.lat,
+                lng: marker.lng,
+                from: fromMyTrip ? 'mytrip' : 'result',
+              },
+            });
+          } else if (marker.type === 'start' || marker.type === 'end') {
+            const dayData = course.days.find(
+              (d) => d.dayNumber === selectedDay
+            );
+            const point =
+              marker.type === 'start' ? dayData?.start : dayData?.end;
+            if (point) {
+              navigate(`/place/${encodeURIComponent(point.name)}`, {
+                state: { ...point, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          }
+        }}
+      />
 
       <BottomSheet
         sheetY={sheetY}
@@ -223,6 +260,11 @@ export default function ResultPage() {
               onCardClick={(block) =>
                 navigate(`/place/${block.placeId}`, {
                   state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
+                })
+              }
+              onPointClick={(point) =>
+                navigate(`/place/${encodeURIComponent(point.name)}`, {
+                  state: { ...point, from: fromMyTrip ? 'mytrip' : 'result' },
                 })
               }
             />

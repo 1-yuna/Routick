@@ -82,6 +82,7 @@ export default function CourseList({
   selectedDay,
   onDaySelect,
   onCardClick,
+  onPointClick,
 }) {
   const dayNumbers = course.days.map((d) => d.dayNumber);
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
@@ -99,6 +100,7 @@ export default function CourseList({
             <StartPointItem
               name={selectedDayData.start.name}
               time={selectedDayData.start.time}
+              onClick={() => onPointClick?.(selectedDayData.start)}
             />
           )}
           {renderBlocks(
@@ -118,6 +120,7 @@ export default function CourseList({
                 name={selectedDayData.end.name}
                 time={selectedDayData.end.time}
                 isEnd
+                onClick={() => onPointClick?.(selectedDayData.end)}
               />
             </>
           )}

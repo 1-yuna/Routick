@@ -8,6 +8,7 @@ export default function KakaoMap({
   lng,
   places,
   padding = [50, 50, 50, 50],
+  onMarkerClick,
 }) {
   const mapRef = useRef(null);
   const placesKey = JSON.stringify(places);
@@ -44,15 +45,29 @@ export default function KakaoMap({
               font-weight: 600;
               border: 2px solid white;
               box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              cursor: pointer;
             ">${place.label ?? ''}</div>
           `;
 
-          new window.kakao.maps.CustomOverlay({
+          const overlay = new window.kakao.maps.CustomOverlay({
             position,
             content,
             map,
             yAnchor: 0.5,
           });
+
+          // 마커 클릭 이벤트
+          if (onMarkerClick) {
+            const el = overlay.getContent();
+            // DOM이 추가된 후 이벤트 등록
+            setTimeout(() => {
+              const node =
+                typeof el === 'string' ? overlay.a?.querySelector('div') : el;
+              if (node) {
+                node.addEventListener('click', () => onMarkerClick(place));
+              }
+            }, 0);
+          }
         });
 
         // 장소 간 동선 표시
