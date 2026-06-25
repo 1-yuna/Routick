@@ -18,13 +18,15 @@ export const mockCourse = {
         address: '서울 마포구 양화로 152',
         lat: 37.5572,
         lng: 126.9251,
+        placeId: '8137700',
         exitTransport: { mode: 'car', minutes: 10 },
       },
       end: {
-        name: '망원한강공원',
-        address: '서울 마포구 마포나루길 467',
-        lat: 37.5537,
-        lng: 126.9008,
+        name: '홍대 걷고싶은거리',
+        address: '서울 마포구 어울마당로',
+        lat: 37.5563,
+        lng: 126.9236,
+        placeId: '7947296',
         enterTransport: { mode: 'walk', minutes: 7 },
       },
       blocks: [
@@ -134,6 +136,7 @@ export const mockCourse = {
         address: '서울 마포구 마포나루길 467',
         lat: 37.5537,
         lng: 126.9008,
+        placeId: '11614890',
         exitTransport: { mode: 'car', minutes: 15 },
       },
       end: {
@@ -141,6 +144,7 @@ export const mockCourse = {
         address: '서울 영등포구 여의동로 330',
         lat: 37.5257,
         lng: 126.9283,
+        placeId: '9195938',
         enterTransport: { mode: 'walk', minutes: 5 },
       },
       blocks: [

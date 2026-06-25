@@ -1,8 +1,5 @@
 import { useEffect, useRef } from 'react';
 
-// 카카오맵 컴포넌트
-// - places 있으면: 다중 마커 + 동선 표시 (ResultPage)
-// - places 없으면: 단일 마커 (PlaceDetailPage)
 export default function KakaoMap({
   lat,
   lng,
@@ -14,6 +11,11 @@ export default function KakaoMap({
   const placesKey = JSON.stringify(places);
 
   useEffect(() => {
+    // 지도 렌더링 전에 콜백 먼저 등록
+    window.__kakaoMarkerClick = (idx) => {
+      if (places?.[idx]) onMarkerClick?.(places[idx]);
+    };
+
     window.kakao.maps.load(() => {
       const container = mapRef.current;
 
@@ -26,51 +28,39 @@ export default function KakaoMap({
         const bounds = new window.kakao.maps.LatLngBounds();
         const linePath = [];
 
-        places.forEach((place) => {
+        places.forEach((place, idx) => {
           const position = new window.kakao.maps.LatLng(place.lat, place.lng);
           bounds.extend(position);
           linePath.push(position);
 
           const content = `
-            <div style="
-              width: 24px;
-              height: 24px;
-              background: ${place.color};
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-size: 11px;
-              font-weight: 600;
-              border: 2px solid white;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-              cursor: pointer;
-            ">${place.label ?? ''}</div>
+            <div
+              onclick="window.__kakaoMarkerClick(${idx})"
+              style="
+                width: 24px;
+                height: 24px;
+                background: ${place.color};
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 11px;
+                font-weight: 600;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                cursor: pointer;
+              ">${place.label ?? ''}</div>
           `;
 
-          const overlay = new window.kakao.maps.CustomOverlay({
+          new window.kakao.maps.CustomOverlay({
             position,
             content,
             map,
             yAnchor: 0.5,
           });
-
-          // 마커 클릭 이벤트
-          if (onMarkerClick) {
-            const el = overlay.getContent();
-            // DOM이 추가된 후 이벤트 등록
-            setTimeout(() => {
-              const node =
-                typeof el === 'string' ? overlay.a?.querySelector('div') : el;
-              if (node) {
-                node.addEventListener('click', () => onMarkerClick(place));
-              }
-            }, 0);
-          }
         });
 
-        // 장소 간 동선 표시
         new window.kakao.maps.Polyline({
           path: linePath,
           strokeWeight: 3,
@@ -82,7 +72,6 @@ export default function KakaoMap({
 
         map.setBounds(bounds, padding[0], padding[1], padding[2], padding[3]);
       } else {
-        // 단일 마커
         const position = new window.kakao.maps.LatLng(lat, lng);
         const map = new window.kakao.maps.Map(container, {
           center: new window.kakao.maps.LatLng(lat - 0.001, lng),
@@ -91,6 +80,10 @@ export default function KakaoMap({
         new window.kakao.maps.Marker({ position, map });
       }
     });
+
+    return () => {
+      delete window.__kakaoMarkerClick;
+    };
   }, [placesKey, lat, lng]);
 
   return <div ref={mapRef} className="absolute w-full h-full z-0" />;

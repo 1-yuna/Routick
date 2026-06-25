@@ -25,15 +25,17 @@ export default function PlaceCard({ place }) {
             <p className="w-36 text-10-rg text-gray2">{description}</p>
           </div>
 
-          {/*카카오맵 새 탭으로 열기*/}
-          <button
-            onClick={() =>
-              window.open(`https://place.map.kakao.com/${placeId}`, '_blank')
-            }
-            className="grid place-items-center w-[92px] h-6 bg-primary rounded-2 text-white text-12-rg"
-          >
-            바로가기
-          </button>
+          {/*카카오맵 새 탭으로 열기 - placeId 있을 때만*/}
+          {placeId && (
+            <button
+              onClick={() =>
+                window.open(`https://place.map.kakao.com/${placeId}`, '_blank')
+              }
+              className="grid place-items-center w-[92px] h-6 bg-primary rounded-2 text-white text-12-rg"
+            >
+              바로가기
+            </button>
+          )}
         </div>
       </div>
     </div>

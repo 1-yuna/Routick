@@ -101,11 +101,39 @@ export default function ResultPage() {
         .filter((b) => b.type === 'place' || b.type === 'parking')
         .map(({ _uid, ...rest }) => rest);
 
+      // start/end 좌표를 임시 블록으로 앞뒤에 추가
+      // recalcTransportUtils에서 첫/마지막 블록의 이전/다음 좌표 참조에 사용
+      const startBlock = dayData.start
+        ? {
+            type: 'place',
+            lat: dayData.start.lat,
+            lng: dayData.start.lng,
+            _isAnchor: true,
+          }
+        : null;
+      const endBlock = dayData.end
+        ? {
+            type: 'place',
+            lat: dayData.end.lat,
+            lng: dayData.end.lng,
+            _isAnchor: true,
+          }
+        : null;
+
+      const blocksWithAnchors = [
+        ...(startBlock ? [startBlock] : []),
+        ...visibleBlocks,
+        ...(endBlock ? [endBlock] : []),
+      ];
+
       const recalculated = await recalcTransportUtils(
-        visibleBlocks,
+        blocksWithAnchors,
         course.transport
       );
-      updateBlocks(localDay.dayNumber, recalculated);
+
+      // anchor 블록 제거 후 store 반영
+      const withoutAnchors = recalculated.filter((b) => !b._isAnchor);
+      updateBlocks(localDay.dayNumber, withoutAnchors);
     }
 
     setIsEditing(false);
@@ -190,10 +218,10 @@ export default function ResultPage() {
         places={mapMarkers}
         padding={[50, 50, sheetY + 50, 50]}
         onMarkerClick={(marker) => {
+          const dayData = course.days.find((d) => d.dayNumber === selectedDay);
           if (marker.type === 'place') {
-            // place 마커: placeId로 상세페이지
             const block = selectedBlocks.find(
-              (b) => String(b.placeOrder) === marker.label
+              (b) => b.type === 'place' && String(b.placeOrder) === marker.label
             );
             if (block) {
               navigate(`/place/${block.placeId}`, {
@@ -201,21 +229,21 @@ export default function ResultPage() {
               });
             }
           } else if (marker.type === 'parking') {
-            // parking 마커: 이름으로 상세페이지
-            navigate(`/place/${encodeURIComponent(marker.label)}`, {
-              state: {
-                name: marker.label,
-                lat: marker.lat,
-                lng: marker.lng,
-                from: fromMyTrip ? 'mytrip' : 'result',
-              },
-            });
-          } else if (marker.type === 'start' || marker.type === 'end') {
-            const dayData = course.days.find(
-              (d) => d.dayNumber === selectedDay
-            );
-            const point =
-              marker.type === 'start' ? dayData?.start : dayData?.end;
+            const block = selectedBlocks.find((b) => b.type === 'parking');
+            if (block) {
+              navigate(`/place/${encodeURIComponent(block.name)}`, {
+                state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          } else if (marker.type === 'start') {
+            const point = dayData?.start;
+            if (point) {
+              navigate(`/place/${encodeURIComponent(point.name)}`, {
+                state: { ...point, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          } else if (marker.type === 'end') {
+            const point = dayData?.end;
             if (point) {
               navigate(`/place/${encodeURIComponent(point.name)}`, {
                 state: { ...point, from: fromMyTrip ? 'mytrip' : 'result' },
