@@ -1,35 +1,28 @@
-// 출발지/도착지 블록
-// start: 주황 dot(8px) + 아래 점선, 옆에 시간 + 이름
-// end:   점선 → 주황 dot(8px) → 짧은 점선 → 주황 dot(8px) + 시간 + 이름
-export default function StartPointItem({ name, time, isEnd = false, onClick }) {
+import Map2Icon from '../../../assets/icons/map2.svg?react';
+
+// 출발지/도착지 블록 - 뱃지 스타일
+// 핀 아이콘 + 출발/도착 라벨 + 장소명 + 시간
+export default function StartPointItem({ name, isEnd = false, onClick }) {
   return (
-    <div className="flex gap-3 h-12">
-      {/* 왼쪽: dot + 선 구조 */}
-      <div className="flex flex-col items-center flex-shrink-0 w-5">
-        {isEnd ? (
-          <>
-            <div className="w-2 h-2 rounded-full flex-shrink-0 bg-[#FF8A5C]" />
-            <div className="w-[1px] h-full border-l-2 border-dashed border-gray1" />
-            <div className="w-2 h-2 rounded-full flex-shrink-0 bg-[#FF8A5C]" />
-          </>
-        ) : (
-          <>
-            <div className="w-2 h-2 rounded-full flex-shrink-0 bg-[#FF8A5C]" />
-            <div className="w-[1px] h-full border-l-2 border-dashed border-gray1" />
-          </>
-        )}
+    <button
+      type="button"
+      className={`w-full flex items-center gap-3 bg-mark/5 rounded-5 px-3 py-2 ${isEnd ? 'mt-[28px]' : 'mb-[28px]'}`}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2">
+        {/* 핀 아이콘 */}
+        <Map2Icon className="w-4 h-4 text-mark" />
+
+        {/* 출발/도착 라벨 */}
+        <span className="text-12-sb text-mark flex-shrink-0">
+          {isEnd ? '도착' : '출발'}
+        </span>
       </div>
 
-      {/* 오른쪽: 시간 + 이름 */}
-      <div
-        className={`flex text-gray2 cursor-pointer active:opacity-70 ${isEnd ? 'items-end' : 'items-start'}`}
-        onClick={onClick}
-      >
-        <div className="flex items-center gap-2">
-          {time && <span className="text-12-sb text-black1">{time}</span>}
-          <span className="text-12-rg">{name}</span>
-        </div>
-      </div>
-    </div>
+      {/* 장소명 */}
+      <span className="text-12-sb text-black1 flex-1 flex items-start">
+        {name}
+      </span>
+    </button>
   );
 }

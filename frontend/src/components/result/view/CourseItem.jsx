@@ -33,7 +33,7 @@ export default function CourseItem({ block, onCardClick }) {
 
       {/* 오른쪽: 시간 + 카드 */}
       <div className="flex flex-col gap-2 flex-1 pb-3">
-        <span className="text-12-rg text-gray2">
+        <span className="text-12-sb text-black1">
           {block.arriveTime} ~ {block.leaveTime}
         </span>
         <div

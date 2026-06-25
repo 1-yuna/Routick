@@ -24,7 +24,7 @@ export default {
         primaryOpacity: '#C9CFF5',
 
         parking: '#FFB705',
-        food: '#FF8A5C',
+        mark: '#FF8A5C',
         label: '#F25637',
         button: '#F1F1F1',
         green: '#2D9E5F',
