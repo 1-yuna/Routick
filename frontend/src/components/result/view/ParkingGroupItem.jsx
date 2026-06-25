@@ -60,22 +60,25 @@ export default function ParkingGroupItem({ parkings }) {
           </span>
         )}
 
-        {parkings.map((parking, idx) => (
-          <div key={idx} className="flex w-full items-center">
-            <div className="flex items-center justify-center w-16">
-              <TransportChip transport={parking.enterTransport} />
+        {parkings.map((parking, idx) => {
+          const isLast = idx === parkings.length - 1;
+          return (
+            <div key={idx} className="flex w-full items-center">
+              <div className="flex items-center justify-center w-16">
+                <TransportChip transport={parking.enterTransport} />
+              </div>
+              <div className="flex items-center justify-center flex-1 px-3 border-x border-line2">
+                <ParkingChip
+                  name={parking.name}
+                  onClick={() => handleParkingClick(parking)}
+                />
+              </div>
+              <div className="flex items-center justify-center w-16">
+                {isLast && <TransportChip transport={parking.exitTransport} />}
+              </div>
             </div>
-            <div className="flex items-center justify-center flex-1 border-x border-line2 px-3">
-              <ParkingChip
-                name={parking.name}
-                onClick={() => handleParkingClick(parking)}
-              />
-            </div>
-            <div className="flex items-center justify-center w-16">
-              <TransportChip transport={parking.exitTransport} />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

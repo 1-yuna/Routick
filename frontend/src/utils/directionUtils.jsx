@@ -28,17 +28,30 @@ export const getTransportTime = async (origin, destination, transport) => {
   if (transport === '도보') {
     return getWalkTime(origin, destination);
   }
-  const res = await axios.get(
-    `https://apis-navi.kakaomobility.com/v1/directions`,
-    {
-      params: {
-        origin: `${origin.lng},${origin.lat}`,
-        destination: `${destination.lng},${destination.lat}`,
-      },
-      headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` },
+  try {
+    const res = await axios.get(
+      `https://apis-navi.kakaomobility.com/v1/directions`,
+      {
+        params: {
+          origin: `${origin.lng},${origin.lat}`,
+          destination: `${destination.lng},${destination.lat}`,
+        },
+        headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` },
+      }
+    );
+    const route = res.data.routes?.[0];
+    if (!route || route.result_code !== 0) {
+      console.warn(
+        '카카오 경로 탐색 실패, 도보 추정값 사용:',
+        route?.result_msg
+      );
+      return getWalkTime(origin, destination);
     }
-  );
-  return Math.ceil(res.data.routes[0].summary.duration / 60);
+    return Math.ceil(route.summary.duration / 60);
+  } catch (e) {
+    console.warn('카카오 API 오류, 도보 추정값 사용:', e);
+    return getWalkTime(origin, destination);
+  }
 };
 
 export const calcAllTransportTimes = async (course) => {

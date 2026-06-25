@@ -109,20 +109,12 @@ export default function CourseList({
             !!selectedDayData.end
           )}
           {selectedDayData.end && (
-            <>
-              {selectedDayData.end.enterTransport && (
-                <MoveItem
-                  mode={selectedDayData.end.enterTransport.mode}
-                  minutes={selectedDayData.end.enterTransport.minutes}
-                />
-              )}
-              <StartPointItem
-                name={selectedDayData.end.name}
-                time={selectedDayData.end.time}
-                isEnd
-                onClick={() => onPointClick?.(selectedDayData.end)}
-              />
-            </>
+            <StartPointItem
+              name={selectedDayData.end.name}
+              time={selectedDayData.end.time}
+              isEnd
+              onClick={() => onPointClick?.(selectedDayData.end)}
+            />
           )}
         </div>
       )}
