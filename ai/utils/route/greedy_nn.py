@@ -12,10 +12,12 @@
 #   → 슬롯5: food (저녁)
 #   → 슬롯6: activity
 #   각 슬롯에서 travel_limit 이내 가까운 5개 중 랜덤 선택
+#   슬롯6 (마지막): end 좌표에 가까운 장소 우선 선택 (endpoint 케이스)
 #   excluded_place_ids: rollback 시 제외 목록
 # ─────────────────────────────────────────────────────────────────────
 
 import random
+import math
 
 
 # ─── bucket별 체류시간 (분) ───
@@ -38,15 +40,29 @@ SLOTS = [
 ]
 
 
+# ─── Haversine (end 좌표까지 거리 계산용) ───
+def haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    R = 6371
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = (math.sin(d_lat / 2) ** 2
+         + math.cos(math.radians(lat1))
+         * math.cos(math.radians(lat2))
+         * math.sin(d_lng / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
 # ─── Greedy NN 한 번 실행 ───
 def greedy_nn(
-    start_idx:         int,
-    candidates:        list[dict],
-    place_index:       list[str],
-    time_matrix:       list[list[float]],
-    total_minutes:     int,
-    travel_limit:      int = 20,
+    start_idx:          int,
+    candidates:         list[dict],
+    place_index:        list[str],
+    time_matrix:        list[list[float]],
+    total_minutes:      int,
+    travel_limit:       int = 20,
     excluded_place_ids: set[str] = None,
+    end_lat:            float = None,
+    end_lng:            float = None,
 ) -> tuple[list[dict], float]:
 
     if excluded_place_ids is None:
@@ -54,14 +70,14 @@ def greedy_nn(
 
     id_to_matrix_idx = {pid: i for i, pid in enumerate(place_index)}
 
-    visited      = []
-    visited_ids  = set()
+    visited       = []
+    visited_ids   = set()
     visited_names = set()
-    total_travel = 0.0
-    used_minutes = 0.0
+    total_travel  = 0.0
+    used_minutes  = 0.0
 
     # 시작 장소는 슬롯1 bucket만 허용
-    first = candidates[start_idx]
+    first    = candidates[start_idx]
     first_id = first["place"]["id"]
 
     if first["place"].get("bucket") not in SLOTS[0]["bucket"]:
@@ -73,11 +89,14 @@ def greedy_nn(
     visited_ids.add(first_id)
     visited_names.add(first["place"].get("name", ""))
     used_minutes += STAY_MINUTES.get(first["place"].get("bucket", "other"), 90)
-    current_idx = id_to_matrix_idx[first_id]
+    current_idx   = id_to_matrix_idx[first_id]
+
+    is_endpoint = end_lat is not None and end_lng is not None
 
     # 슬롯 2~6 순서대로 채우기
-    for slot in SLOTS[1:]:
+    for slot_idx, slot in enumerate(SLOTS[1:], start=1):
         allowed_buckets = slot["bucket"]
+        is_last_slot    = slot_idx == len(SLOTS) - 1
 
         # travel_limit 이내 + 허용 bucket + 미방문 + 제외 목록 제외
         selectable = [
@@ -90,7 +109,6 @@ def greedy_nn(
         ]
 
         if not selectable:
-            # travel_limit 이내 없으면 전체에서 찾기
             selectable = [
                 item for item in candidates
                 if item["place"]["id"] not in visited_ids
@@ -102,11 +120,22 @@ def greedy_nn(
         if not selectable:
             continue
 
-        # 가까운 순 5개 중 랜덤 선택
-        pool_sorted = sorted(
-            selectable,
-            key=lambda item: time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]]
-        )
+        # 마지막 슬롯 + endpoint 케이스: end 좌표에 가까운 장소 우선
+        if is_last_slot and is_endpoint:
+            pool_sorted = sorted(
+                selectable,
+                key=lambda item: haversine(
+                    item["place"]["lat"], item["place"]["lng"],
+                    end_lat, end_lng
+                )
+            )
+        else:
+            # 현재 위치에서 가까운 순
+            pool_sorted = sorted(
+                selectable,
+                key=lambda item: time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]]
+            )
+
         top5      = pool_sorted[:5]
         best_item = random.choice(top5)
 
@@ -114,7 +143,6 @@ def greedy_nn(
         next_bucket = best_item["place"].get("bucket", "other")
         next_stay   = STAY_MINUTES.get(next_bucket, 90)
 
-        # 총 여행시간 초과 시 스킵
         if used_minutes + travel_time + next_stay > total_minutes:
             continue
 
