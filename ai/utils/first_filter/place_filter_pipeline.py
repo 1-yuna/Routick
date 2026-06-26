@@ -6,25 +6,22 @@
 # 흐름:
 #   1. 키워드 제거
 #      - avoid_activities 제거
-#      - 여행과 무관한 키워드 제거
-#      - 동행 유형 기반 제거
-#      - 세부 카테고리별 중복 제한
-#   2. bucket 예비 분류 + activity 필터링
-#      - CE7 + 체험형 카페 키워드 → activity로 분류
-#      - FD6 + 베이커리/제과/디저트 → cafe로 분류
-#      - 유저가 선택한 활동에 해당하지 않는 activity 장소 제거
-#      - 음식점/카페는 항상 유지
-#   3. 정렬
+#      - 여행과 무관한 키워드 제거 (category: EXCLUDE_KEYWORDS, name: EXCLUDE_KEYWORDS_NAME)
+#      - 활동/동행 유형 기반 제거 (COMPANION_EXCLUDE_KEYWORDS)
+#      - 세부 카테고리별 중복 제한 (동일 카테고리 최대 2개)
+#   2. 정렬
+#      - 활동/동행자별 장소 우선 정렬 (PRIORITY_KEYWORDS)
 #      - 유저 선택 activity 키워드 매칭 → 앞으로
-#      - 반려동물과일 경우 펫 프렌들리 장소 우선 정렬
 #      - 프랜차이즈 → 뒤로
-#   4. cap 적용
+#   3. cap 적용
 # ─────────────────────────────────────────────────────────────────────
 
 from constants.place_keywords import (
     EXCLUDE_KEYWORDS,
-    COMPANION_EXCLUDE_KEYWORDS,
+    EXCLUDE_KEYWORDS_NAME,
+    ACTIVITY_EXCLUDE_KEYWORDS,
     KEYWORD_EXPANSIONS,
+    PRIORITY_KEYWORDS,
 )
 
 # ─── day 1개 기준 카테고리별 cap (endpoint 케이스) ───
@@ -129,33 +126,42 @@ def filter_by_avoid(
     return filtered, len(places) - len(filtered)
 
 
-# ─── 여행과 무관한 키워드 제거 ───
+# ─── 여행과 무관한 키워드 제거 (category/name 분리) ───
 def filter_by_irrelevant(places: list[dict]) -> tuple[list[dict], int]:
     filtered = []
     for p in places:
-        name     = p.get("name", "")
-        category = p.get("category", "")
-        if any(kw in name or kw in category for kw in EXCLUDE_KEYWORDS):
+        name     = p.get("name", "") or ""
+        category = p.get("category", "") or ""
+
+        # category 기반 제거
+        if any(kw in category for kw in EXCLUDE_KEYWORDS):
             continue
+        # name 기반 제거
+        if any(kw in name for kw in EXCLUDE_KEYWORDS_NAME):
+            continue
+
         filtered.append(p)
 
     return filtered, len(places) - len(filtered)
 
 
-# ─── 동행 유형 기반 제거 ───
-def filter_by_companion(
+# ─── activities 선택 여부 기반 제거 ───
+def filter_by_activity_exclude(
         places: list[dict],
-        companion: str,
+        activities_kr: list[str],
 ) -> tuple[list[dict], int]:
-    exclude_keywords = COMPANION_EXCLUDE_KEYWORDS.get(companion, [])
+    exclude_keywords = []
+    for activity, rule in ACTIVITY_EXCLUDE_KEYWORDS.items():
+        if activity not in activities_kr:
+            exclude_keywords.extend(rule.get("exclude_if_not_selected", []))
 
     if not exclude_keywords:
         return places, 0
 
     filtered = []
     for p in places:
-        name     = p.get("name", "")
-        category = p.get("category", "")
+        name     = p.get("name", "") or ""
+        category = p.get("category", "") or ""
         if any(kw in name or kw in category for kw in exclude_keywords):
             continue
         filtered.append(p)
@@ -192,31 +198,40 @@ def filter_by_subcategory_cap(
     return filtered, len(places) - len(filtered)
 
 
-# ─── pet 우선순위 처리 ───
-def boost_pet_places(places: list[dict]) -> list[dict]:
-    pet_keywords      = ["펫", "반려동물", "애견", "도그"]
-    fallback_keywords = ["공원", "산책로"]
+# ─── 활동/동행자별 우선순위 정렬 ───
+def boost_by_priority(
+        places: list[dict],
+        companion_kr: str,
+        activities_kr: list[str],
+) -> list[dict]:
+    priority_keywords = []
 
-    pet_places = []
-    others     = []
+    # 동행자 기반 우선순위 키워드
+    if companion_kr in PRIORITY_KEYWORDS:
+        kw_map = PRIORITY_KEYWORDS[companion_kr]
+        priority_keywords.extend(kw_map.get("name", []))
+        priority_keywords.extend(kw_map.get("category", []))
 
+    # 술/바 선택 시 우선순위 키워드
+    if "술/바" in activities_kr and "술/바" in PRIORITY_KEYWORDS:
+        kw_map = PRIORITY_KEYWORDS["술/바"]
+        priority_keywords.extend(kw_map.get("name", []))
+        priority_keywords.extend(kw_map.get("category", []))
+
+    if not priority_keywords:
+        return places
+
+    priority = []
+    others   = []
     for p in places:
-        name     = p.get("name", "")
-        category = p.get("category", "")
-        if any(kw in name or kw in category for kw in pet_keywords):
-            pet_places.append(p)
+        name     = p.get("name", "") or ""
+        category = p.get("category", "") or ""
+        if any(kw in name or kw in category for kw in priority_keywords):
+            priority.append(p)
         else:
             others.append(p)
 
-    if not pet_places:
-        fallback = [p for p in others if any(
-            kw in p.get("name", "") or kw in p.get("category", "")
-            for kw in fallback_keywords
-        )]
-        rest = [p for p in others if p not in fallback]
-        return fallback + rest
-
-    return pet_places + others
+    return priority + others
 
 
 # ─── 체인 브랜드 목록 ───

@@ -21,10 +21,10 @@ from collections import Counter
 from utils.first_filter.place_filter_pipeline import (
     filter_by_avoid,
     filter_by_irrelevant,
-    filter_by_companion,
+    filter_by_activity_exclude,
     filter_by_subcategory_cap,
     filter_by_bucket_and_activity,
-    boost_pet_places,
+    boost_by_priority,
     sort_by_priority,
     filter_by_category_cap,
     get_activity_keywords,
@@ -87,10 +87,10 @@ def _filter_one_day(
     if debug:
         _debug_print(f"2️⃣  [{day_label}] 여행 무관 키워드 제거", filtered, removed)
 
-    # 3. 동행 유형 기반 제거
-    filtered, removed = filter_by_companion(filtered, companion_kr)
+    # 3. activities 선택 여부 기반 제거
+    filtered, removed = filter_by_activity_exclude(filtered, activities_kr)
     if debug:
-        _debug_print(f"3️⃣  [{day_label}] companion='{companion_kr}' 필터", filtered, removed)
+        _debug_print(f"3️⃣  [{day_label}] activity 기반 제거 필터", filtered, removed)
 
     # 4. 세부 카테고리별 중복 제한 (동일 목적 장소 최대 2개)
     filtered, removed = filter_by_subcategory_cap(filtered, max_per_subcategory=2)
@@ -109,11 +109,10 @@ def _filter_one_day(
         _debug_print(f"5️⃣  [{day_label}] bucket 분류 + activity 필터", filtered, removed)
 
     # 5. 정렬
+    #    - 활동/동행자별 우선순위 정렬
     #    - 유저 선택 activity 키워드 매칭 → 앞으로
-    #    - 반려동물과일 경우 펫 프렌들리 장소 우선 정렬
     #    - 프랜차이즈 → 뒤로
-    if companion_kr == "반려동물과":
-        filtered = boost_pet_places(filtered)
+    filtered = boost_by_priority(filtered, companion_kr=companion_kr, activities_kr=activities_kr)
     filtered = sort_by_priority(filtered, activity_keywords)
     if debug:
         _debug_print(f"5️⃣  [{day_label}] 정렬", filtered, 0)
