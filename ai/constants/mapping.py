@@ -41,9 +41,10 @@ ACTIVITIES_MAP = {
     "exhibition/art":      "전시/예술",
     "performance/culture": "공연/문화",
     "activity":            "액티비티",
-    "nature":              "자연/관광",
-    "shopping":            "쇼핑",
     "indoor":              "실내오락",
+    "shopping":            "쇼핑",
+    "workshop":            "공방/소품",
+    "nature":              "자연/관광",
     "bar":                 "술/바",
 }
 
