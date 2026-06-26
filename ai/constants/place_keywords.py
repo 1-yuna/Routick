@@ -3,9 +3,12 @@
 # ─────────────────────────────────────────────────────────────────────
 # 키워드 관련 상수 매핑 모음
 #
-# - KEYWORD_EXPANSIONS         : 키워드 → 동의어/유사어 확장 (검색 확장)
-# - COMPANION_EXCLUDE_KEYWORDS : 동행 유형에 따라 제외할 키워드
-# - EXCLUDE_KEYWORDS           : 여행과 무관한 제외 키워드
+# - KEYWORD_EXPANSIONS          : 키워드 → 동의어/유사어 확장 (검색 확장)
+# - NAME_SEARCH_KEYWORDS        : activities별 name 검색 전용 키워드
+# - PRIORITY_KEYWORDS           : 활동/동행자별 우선순위 키워드
+# - ACTIVITY_EXCLUDE_KEYWORDS   : activities 선택 여부 기반 제외 키워드
+# - EXCLUDE_KEYWORDS            : 여행과 무관한 제외 키워드 (category)
+# - EXCLUDE_KEYWORDS_NAME       : 여행과 무관한 제외 키워드 (name)
 # ─────────────────────────────────────────────────────────────────────
 
 # ─── 키워드 → 동의어/유사어 확장 (검색 확장) ───
@@ -22,7 +25,7 @@ KEYWORD_EXPANSIONS = {
     "술/바":        [],
 }
 
-# ─── activities별 name 검색 전용 키워드 ───
+# ─── activities별 name 검색 전용 키워드 (검색 확장) ───
 NAME_SEARCH_KEYWORDS = {
     "액티비티":  ["짚라인", "짚트랙", "짚와이어", "아라나비"],
     "공방/소품": ["공방", "원데이", "팝업"],
@@ -31,8 +34,23 @@ NAME_SEARCH_KEYWORDS = {
 
 # ─── 여행과 무관한 제외 키워드 (name에서만 매칭) ───
 EXCLUDE_KEYWORDS_NAME = [
-    "홀덤펍", "체육센터", "헬스클럽", "스튜디오", "체육센터",
+    "홀덤펍", "체육센터", "헬스클럽", "스튜디오",
+    "피시방", "PC방",
 ]
+
+# ─── activities 선택 여부 기반 제외 키워드 (category에서만 매칭) ───
+ACTIVITY_EXCLUDE_KEYWORDS = {
+    "전시/예술":  {"exclude_if_not_selected": ["박물관", "전시관", "미술관", "문화원", "전시회", "박람회", "화랑"]},
+    "공연/문화":  {"exclude_if_not_selected": ["시장", "영화관", "서점", "전시관", "문화원", "공연장", "연극극장", "화랑"]},
+    "액티비티":   {"exclude_if_not_selected": ["공원시설물", "사진관", "아쿠아리움", "클라이밍", "행글라이딩", "패러글라이딩",
+                                               "사격", "서바이벌게임", "먹자골목", "테마파크", "해수욕장", "실내동물원"]},
+    "실내오락":   {"exclude_if_not_selected": ["사진관", "만화카페", "보드카페", "방탈출카페", "오락실", "게임방", "PC방", "멀티방"]},
+    "쇼핑":       {"exclude_if_not_selected": ["사진관", "백화점", "의류판매"]},
+    "공방/소품":  {"exclude_if_not_selected": ["사진관", "도자기", "수예", "자수", "가죽공예", "목공예", "취미용품점", "기념품판매", "인테리어장식판매"]},
+    "자연/관광":  {"exclude_if_not_selected": ["공원", "공원시설물", "관광", "명소"]},
+    "술/바":      {"exclude_if_not_selected": ["술집"]},
+    "자녀":       {"exclude_if_not_selected": ["놀이교육", "키즈카페"]},
+}
 
 # ─── 활동/동행자별 우선순위 키워드 ───
 PRIORITY_KEYWORDS = {
@@ -43,11 +61,6 @@ PRIORITY_KEYWORDS = {
     "부모님과":     {"name": ["전통찻집"], "category": ["전통찻집"]},
 }
 
-# ─── activities 선택 여부 기반 제외 키워드 ───
-ACTIVITY_EXCLUDE_KEYWORDS = {
-    "술/바":  {"exclude_if_not_selected": ["술집", "호프", "이자카야"]},
-    "자녀":   {"exclude_if_not_selected": ["놀이교육", "키즈카페"]},
-}
 
 # ─── 여행과 무관한 제외 키워드 (category에서만 매칭) ───
 EXCLUDE_KEYWORDS = [

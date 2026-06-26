@@ -145,7 +145,7 @@ def filter_by_irrelevant(places: list[dict]) -> tuple[list[dict], int]:
     return filtered, len(places) - len(filtered)
 
 
-# ─── activities 선택 여부 기반 제거 ───
+# ─── activities 선택 여부 기반 제거 (category에서만 매칭) ───
 def filter_by_activity_exclude(
         places: list[dict],
         activities_kr: list[str],
@@ -160,9 +160,8 @@ def filter_by_activity_exclude(
 
     filtered = []
     for p in places:
-        name     = p.get("name", "") or ""
         category = p.get("category", "") or ""
-        if any(kw in name or kw in category for kw in exclude_keywords):
+        if any(kw in category for kw in exclude_keywords):
             continue
         filtered.append(p)
 
