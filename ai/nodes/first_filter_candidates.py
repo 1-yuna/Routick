@@ -23,6 +23,7 @@ from utils.first_filter.place_filter_pipeline import (
     filter_by_irrelevant,
     filter_by_companion,
     filter_by_subcategory_cap,
+    filter_by_bucket_and_activity,
     boost_pet_places,
     sort_by_priority,
     filter_by_category_cap,
@@ -65,6 +66,7 @@ def _filter_one_day(
     avoid_activities: list[str],
     companion_kr: str,
     activities_kr: list[str],
+    warnings: list[str],
     route_type: str = "endpoint",
     travel_days: int = 1,
     debug: bool = False,
@@ -94,6 +96,17 @@ def _filter_one_day(
     filtered, removed = filter_by_subcategory_cap(filtered, max_per_subcategory=2)
     if debug:
         _debug_print(f"4️⃣  [{day_label}] 세부 카테고리 중복 제한", filtered, removed)
+
+    # 5. bucket 예비 분류 + activity 필터링
+    #    - CE7 + 체험형 카페 키워드 → activity로 분류
+    #    - FD6 + 베이커리/제과/디저트 → cafe로 분류
+    #    - 유저가 선택한 활동에 해당하지 않는 activity 장소 제거
+    #    - 음식점/카페는 항상 유지
+    filtered, removed = filter_by_bucket_and_activity(filtered, activity_keywords)
+    if removed > 0:
+        warnings.append(f"[{day_label}] activity 필터로 {removed}개 제거")
+    if debug:
+        _debug_print(f"5️⃣  [{day_label}] bucket 분류 + activity 필터", filtered, removed)
 
     # 5. 정렬
     #    - 유저 선택 activity 키워드 매칭 → 앞으로
@@ -141,6 +154,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
             avoid_activities=avoid_activities,
             companion_kr=companion_kr,
             activities_kr=activities_kr,
+            warnings=warnings,
             route_type=route_type,
             travel_days=travel_days,
             debug=debug,
@@ -162,6 +176,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 avoid_activities=avoid_activities,
                 companion_kr=companion_kr,
                 activities_kr=activities_kr,
+                warnings=warnings,
                 route_type=route_type,
                 travel_days=travel_days,
                 debug=debug,

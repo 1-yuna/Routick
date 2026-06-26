@@ -9,11 +9,16 @@
 #      - 여행과 무관한 키워드 제거
 #      - 동행 유형 기반 제거
 #      - 세부 카테고리별 중복 제한
-#   2. 조건별 로직 수행 (pet 우선순위 처리)
+#   2. bucket 예비 분류 + activity 필터링
+#      - CE7 + 체험형 카페 키워드 → activity로 분류
+#      - FD6 + 베이커리/제과/디저트 → cafe로 분류
+#      - 유저가 선택한 활동에 해당하지 않는 activity 장소 제거
+#      - 음식점/카페는 항상 유지
 #   3. 정렬
-#      - 1단계: 유저 선택 활동 매칭 → 앞으로
-#      - 2단계: 프랜차이즈 → 뒤로
-#   4. cap 적용 (cafe 8 / food 12 / others 30 = 50개)
+#      - 유저 선택 activity 키워드 매칭 → 앞으로
+#      - 반려동물과일 경우 펫 프렌들리 장소 우선 정렬
+#      - 프랜차이즈 → 뒤로
+#   4. cap 적용
 # ─────────────────────────────────────────────────────────────────────
 
 from constants.place_keywords import (
@@ -23,10 +28,10 @@ from constants.place_keywords import (
 )
 
 # ─── day 1개 기준 카테고리별 cap (endpoint 케이스) ───
-DAY_FILTER_CAP = 50  # endpoint 케이스: day당 고정
+DAY_FILTER_CAP = 50
 DAY_CATEGORY_CAP = {
-    "CE7": 8,   # 카페
-    "FD6": 12,  # 음식점
+    "CE7": 8,
+    "FD6": 12,
 }
 DAY_OTHERS_CAP = 30
 
@@ -37,11 +42,72 @@ ONLY_FILTER_CAP = {
     3: {"total": 100, "CE7": 16, "FD6": 24, "others": 60},
     4: {"total": 120, "CE7": 19, "FD6": 29, "others": 72},
 }
-DAY_CATEGORY_CAP = {
-    "CE7": 8,   # 카페
-    "FD6": 12,  # 음식점
-}
-DAY_OTHERS_CAP = 30  # activity / 기타
+
+# ─── 체험형 카페 키워드 (CE7이지만 activity로 분류) ───
+ACTIVITY_CAFE_KEYWORDS = [
+    "보드카페", "만화카페", "만화방", "방탈출", "방탈출카페",
+    "애견카페", "고양이카페", "동물카페", "VR카페",
+]
+
+# ─── 베이커리/제과/디저트 키워드 (FD6이지만 cafe로 분류) ───
+CAFE_FOOD_KEYWORDS = ["제과", "베이커리", "디저트"]
+
+
+# ─── bucket 예비 분류 ───
+def classify_bucket(place: dict) -> str:
+    code     = place.get("category_group_code", "")
+    name     = place.get("name", "") or ""
+    category = place.get("category", "") or ""
+
+    if code == "CE7":
+        if any(kw in category or kw in name for kw in ACTIVITY_CAFE_KEYWORDS):
+            return "activity"
+        return "cafe"
+    if code == "FD6":
+        if any(kw in category for kw in CAFE_FOOD_KEYWORDS):
+            return "cafe"
+        return "food"
+    if code in ("AT4", "CT1"):
+        return "activity"
+    # category 텍스트로 판단
+    if any(kw in category for kw in ["음식점", "한식", "양식", "일식", "중식", "분식"]):
+        return "food"
+    if "카페" in category:
+        return "cafe"
+    if any(kw in category for kw in ["관광", "문화", "전시", "박물", "체험", "스포츠", "레저", "공원", "해수욕장", "해변"]):
+        return "activity"
+    return "other"
+
+
+# ─── bucket 예비 분류 + activity 필터링 ───
+# 음식점/카페는 항상 유지
+# activity/other는 유저가 선택한 활동 키워드에 매칭되는 장소만 유지
+def filter_by_bucket_and_activity(
+        places: list[dict],
+        activity_keywords: list[str],
+) -> tuple[list[dict], int]:
+    filtered = []
+    for p in places:
+        bucket = classify_bucket(p)
+        # bucket 예비 분류 결과 저장
+        p = {**p, "_bucket": bucket}
+
+        # 음식점/카페는 항상 통과
+        if bucket in ("food", "cafe"):
+            filtered.append(p)
+            continue
+
+        # activity/other는 유저 선택 활동 키워드 매칭 시만 통과
+        if not activity_keywords:
+            filtered.append(p)
+            continue
+
+        name     = p.get("name", "")
+        category = p.get("category", "")
+        if any(kw in name or kw in category for kw in activity_keywords):
+            filtered.append(p)
+
+    return filtered, len(places) - len(filtered)
 
 
 # ─── avoid_activities 키워드 제거 ───
@@ -100,7 +166,7 @@ def filter_by_companion(
 # ─── 세부 카테고리별 중복 제한 ───
 def filter_by_subcategory_cap(
         places: list[dict],
-        max_per_subcategory: int = 3,
+        max_per_subcategory: int = 2,
 ) -> tuple[list[dict], int]:
     subcategory_count = {}
     filtered = []
@@ -195,17 +261,15 @@ def sort_by_priority(
         )
         chain = is_chain_brand(p)
 
-        if matched and not chain:  return 0  # 활동 매칭 + 비프랜차이즈
-        if matched and chain:      return 1  # 활동 매칭 + 프랜차이즈
-        if not chain:              return 2  # 비매칭 + 비프랜차이즈
-        return 3                             # 비매칭 + 프랜차이즈 (맨 뒤)
+        if matched and not chain:  return 0
+        if matched and chain:      return 1
+        if not chain:              return 2
+        return 3
 
     return sorted(places, key=priority)
 
 
 # ─── cap 적용 ───
-# endpoint 케이스: day당 고정 (cafe 8 / food 12 / others 30)
-# only 케이스: travel_days별 단계적 확장
 def filter_by_category_cap(
         places: list[dict],
         travel_days: int = 1,
@@ -213,7 +277,7 @@ def filter_by_category_cap(
 ) -> tuple[list[dict], int]:
 
     if route_type == "only":
-        cap = ONLY_FILTER_CAP.get(travel_days, ONLY_FILTER_CAP[1])
+        cap        = ONLY_FILTER_CAP.get(travel_days, ONLY_FILTER_CAP[1])
         cafe_cap   = cap["CE7"]
         food_cap   = cap["FD6"]
         others_cap = cap["others"]
@@ -228,13 +292,15 @@ def filter_by_category_cap(
     filtered     = []
 
     for p in places:
-        code = p.get("category_group_code", "")
+        code   = p.get("category_group_code", "")
+        bucket = p.get("_bucket", "")
 
-        if code == "CE7":
+        # _bucket 기준으로 cafe/food 분류 (CE7이라도 activity면 others로)
+        if bucket == "cafe" or (code == "CE7" and bucket != "activity"):
             if cafe_count >= cafe_cap:
                 continue
             cafe_count += 1
-        elif code == "FD6":
+        elif bucket == "food" or code == "FD6":
             if food_count >= food_cap:
                 continue
             food_count += 1
