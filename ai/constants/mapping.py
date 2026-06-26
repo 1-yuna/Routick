@@ -38,13 +38,12 @@ MOODS_MAP = {
 }
 
 ACTIVITIES_MAP = {
-    "tour/exhibition":     "관광/전시",
+    "exhibition/art":      "전시/예술",
     "performance/culture": "공연/문화",
-    "thrill/experience":   "스릴/체험",
-    "sports":              "스포츠",
-    "nature/walk":         "자연/산책",
+    "activity":            "액티비티",
+    "nature":              "자연/관광",
     "shopping":            "쇼핑",
-    "entertainment":       "오락",
+    "indoor":              "실내오락",
     "bar":                 "술/바",
 }
 
