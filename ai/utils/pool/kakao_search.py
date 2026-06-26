@@ -25,10 +25,11 @@ KAKAO_BASE    = "https://dapi.kakao.com/v2/local/search"
 KAKAO_GEO     = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
 
 CATEGORY_CODES = {
-    "카페":   "CE7",
-    "음식점": "FD6",
+    "카페":     "CE7",
+    "음식점":   "FD6",
     "관광명소": "AT4",
     "문화시설": "CT1",
+    "주차장":   "PK6",
 }
 
 
@@ -172,13 +173,44 @@ async def coord_to_region(
     return ""
 
 
-# ─── [메인] 단일 day 검색 (radius) ───
+# ─── [메인] 단일 day 검색 - category 키워드 (radius) ───
 async def search_kakao_by_radius(
     keywords: list[str],
     lat: float,
     lng: float,
     radius_km: float,
-    name_keywords: list[str] = None,
+    category_codes: dict[str, str] = None,
+    pages: int = 3,
+) -> tuple[list[dict], list[str]]:
+    radius_m  = min(int(radius_km * 1000), 20000)
+    warnings: list[str] = []
+    codes = category_codes or CATEGORY_CODES
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        tasks  = []
+        labels = []
+
+        for kw in keywords:
+            for page in range(1, pages + 1):
+                tasks.append(kakao_keyword_search_radius(client, kw, lat, lng, radius_m, page))
+                labels.append(f"category_kw:{kw}:p{page}")
+
+                if kw in codes:
+                    code = codes[kw]
+                    tasks.append(kakao_category_search_radius(client, code, lat, lng, radius_m, page))
+                    labels.append(f"category:{code}:p{page}")
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    return _merge_results(results, labels, warnings), warnings
+
+
+# ─── [메인] 단일 day 검색 - name 키워드 (radius) ───
+async def search_kakao_by_radius_name(
+    name_keywords: list[str],
+    lat: float,
+    lng: float,
+    radius_km: float,
     pages: int = 3,
 ) -> tuple[list[dict], list[str]]:
     radius_m  = min(int(radius_km * 1000), 20000)
@@ -188,19 +220,7 @@ async def search_kakao_by_radius(
         tasks  = []
         labels = []
 
-        # 1. category 검색용 키워드 → keyword 검색 (category 필드 매칭) + category 코드 검색
-        for kw in keywords:
-            for page in range(1, pages + 1):
-                tasks.append(kakao_keyword_search_radius(client, kw, lat, lng, radius_m, page))
-                labels.append(f"category_kw:{kw}:p{page}")
-
-                if kw in CATEGORY_CODES:
-                    code = CATEGORY_CODES[kw]
-                    tasks.append(kakao_category_search_radius(client, code, lat, lng, radius_m, page))
-                    labels.append(f"category:{code}:p{page}")
-
-        # 2. name 검색용 키워드 → keyword 검색 (name 필드 매칭)
-        for kw in (name_keywords or []):
+        for kw in name_keywords:
             for page in range(1, pages + 1):
                 tasks.append(kakao_keyword_search_radius(client, kw, lat, lng, radius_m, page))
                 labels.append(f"name_kw:{kw}:p{page}")
@@ -210,14 +230,47 @@ async def search_kakao_by_radius(
     return _merge_results(results, labels, warnings), warnings
 
 
-# ─── [메인] 단일 day 검색 (rect) ───
+# ─── [메인] 단일 day 검색 - category 키워드 (rect) ───
 async def search_kakao_by_rect(
     keywords: list[str],
     rect_min_lat: float,
     rect_min_lng: float,
     rect_max_lat: float,
     rect_max_lng: float,
-    name_keywords: list[str] = None,
+    category_codes: dict[str, str] = None,
+    pages: int = 3,
+) -> tuple[list[dict], list[str]]:
+    # 카카오 rect: "min_lng,min_lat,max_lng,max_lat"
+    rect  = f"{rect_min_lng},{rect_min_lat},{rect_max_lng},{rect_max_lat}"
+    warnings: list[str] = []
+    codes = category_codes or CATEGORY_CODES
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        tasks  = []
+        labels = []
+
+        for kw in keywords:
+            for page in range(1, pages + 1):
+                tasks.append(kakao_keyword_search_rect(client, kw, rect, page))
+                labels.append(f"category_kw:{kw}:p{page}")
+
+                if kw in codes:
+                    code = codes[kw]
+                    tasks.append(kakao_category_search_rect(client, code, rect, page))
+                    labels.append(f"category:{code}:p{page}")
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    return _merge_results(results, labels, warnings), warnings
+
+
+# ─── [메인] 단일 day 검색 - name 키워드 (rect) ───
+async def search_kakao_by_rect_name(
+    name_keywords: list[str],
+    rect_min_lat: float,
+    rect_min_lng: float,
+    rect_max_lat: float,
+    rect_max_lng: float,
     pages: int = 3,
 ) -> tuple[list[dict], list[str]]:
     # 카카오 rect: "min_lng,min_lat,max_lng,max_lat"
@@ -228,19 +281,7 @@ async def search_kakao_by_rect(
         tasks  = []
         labels = []
 
-        # 1. category 검색용 키워드 → keyword 검색 (category 필드 매칭) + category 코드 검색
-        for kw in keywords:
-            for page in range(1, pages + 1):
-                tasks.append(kakao_keyword_search_rect(client, kw, rect, page))
-                labels.append(f"category_kw:{kw}:p{page}")
-
-                if kw in CATEGORY_CODES:
-                    code = CATEGORY_CODES[kw]
-                    tasks.append(kakao_category_search_rect(client, code, rect, page))
-                    labels.append(f"category:{code}:p{page}")
-
-        # 2. name 검색용 키워드 → keyword 검색 (name 필드 매칭)
-        for kw in (name_keywords or []):
+        for kw in name_keywords:
             for page in range(1, pages + 1):
                 tasks.append(kakao_keyword_search_rect(client, kw, rect, page))
                 labels.append(f"name_kw:{kw}:p{page}")
