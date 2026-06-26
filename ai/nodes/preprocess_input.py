@@ -4,10 +4,16 @@
 # 전처리 노드
 #
 # 흐름:
-#   1. 변수값 매핑 (영어 → 한국어)
-#   2. travel_date → 요일 변환 (영업시간 체크용)
-#   3. 키워드 설정 (맛집/카페 기본 포함)
-#   4. route_type에 따라 day별 검색 파라미터 계산
+#   1. 변수값 매핑
+#      - camelCase → snake_case 변환
+#      - 영어 값 → 한국어 값 변환
+#      - travel_date → 요일 변환 (영업시간 체크용)
+#      - route_type에 따라 좌표 필드 분기
+#   2. 키워드 설정 및 확장
+#      - activities에 음식점 무조건 추가
+#      - 자녀일 경우 키즈카페, 놀이교육 추가
+#      - KEYWORD_EXPANSIONS 기반 동의어 확장
+#   3. 반경/마진 설정
 #      - 케이스 1 (only): 원형 반경 (center_lat/lng + radius_km)
 #      - 케이스 2 (endpoint): 사각형 영역 (rect_min/max_lat/lng)
 # ─────────────────────────────────────────────────────────────────────
@@ -25,6 +31,7 @@ from constants.mapping import (
     RADIUS_MAP,
     MARGIN_MAP,
 )
+from constants.place_keywords import KEYWORD_EXPANSIONS
 
 
 # ─── km → 위도 변환 (1도 ≈ 111km) ───
@@ -35,6 +42,18 @@ def km_to_lat(km: float) -> float:
 # ─── km → 경도 변환 (위도에 따라 달라짐) ───
 def km_to_lng(km: float, lat: float) -> float:
     return km / (111.0 * math.cos(math.radians(lat)))
+
+
+# ─── 키워드 동의어 확장 ───
+def expand_keywords(keywords: list[str]) -> list[str]:
+    expanded = []
+    seen = set()
+    for kw in keywords:
+        for ex in KEYWORD_EXPANSIONS.get(kw, [kw]):
+            if ex not in seen:
+                seen.add(ex)
+                expanded.append(ex)
+    return expanded
 
 
 # ─── [노드] 전처리 ───
@@ -49,13 +68,13 @@ def preprocess_input(state: dict) -> dict:
     moods       = ui.get("moods") or []
     activities  = ui.get("activities") or []
 
-    ui["companion_kr"]   = COMPANION_MAP.get(companion, companion)
-    ui["transport_kr"]   = TRANSPORT_MAP.get(transport, transport)
-    ui["duration_kr"]    = TRAVEL_DAYS_MAP.get(travel_days, "당일")
-    ui["moods_kr"]       = [MOODS_MAP.get(m, m) for m in moods]
-    ui["activities_kr"]  = [ACTIVITIES_MAP.get(a, a) for a in activities]
+    ui["companion_kr"]  = COMPANION_MAP.get(companion, companion)
+    ui["transport_kr"]  = TRANSPORT_MAP.get(transport, transport)
+    ui["duration_kr"]   = TRAVEL_DAYS_MAP.get(travel_days, "당일")
+    ui["moods_kr"]      = [MOODS_MAP.get(m, m) for m in moods]
+    ui["activities_kr"] = [ACTIVITIES_MAP.get(a, a) for a in activities]
 
-    # ── 2. travel_date → 요일 변환 ──────────────────────────────────
+    # travel_date → 요일 변환
     travel_date = ui.get("travel_date", "")
     if travel_date:
         try:
@@ -68,17 +87,23 @@ def preprocess_input(state: dict) -> dict:
         warnings.append("travel_date 없음 → travel_weekday None")
         ui["travel_weekday"] = None
 
-    # ── 3. 키워드 설정 ───────────────────────────────────────────────
-    final_keywords = list(ui.get("activities_kr") or [])
+    # ── 2. 키워드 설정 및 확장 ──────────────────────────────────────
+    base_keywords = list(ui["activities_kr"])
 
-    if "맛집" not in final_keywords:
-        final_keywords.insert(0, "맛집")
-    if "카페" not in final_keywords:
-        final_keywords.insert(1, "카페")
+    # 음식점 무조건 추가
+    if "음식점" not in base_keywords:
+        base_keywords.insert(0, "음식점")
 
-    ui["final_keywords"] = final_keywords
+    # 자녀와일 경우 키즈카페, 놀이교육 자동 추가
+    if companion == "children":
+        for kw in ["키즈카페", "놀이교육"]:
+            if kw not in base_keywords:
+                base_keywords.append(kw)
 
-    # ── 4. route_type에 따라 day별 검색 파라미터 계산 ───────────────
+    # 동의어 확장
+    ui["final_keywords"] = expand_keywords(base_keywords)
+
+    # ── 3. 반경/마진 설정 ───────────────────────────────────────────
     route_type = ui.get("route_type", "only")
 
     radius_by_transport = RADIUS_MAP.get(transport, RADIUS_MAP["walk"])
@@ -97,7 +122,6 @@ def preprocess_input(state: dict) -> dict:
         if lat is None or lng is None:
             warnings.append("route_type=only인데 lat/lng 없음")
 
-        # only 케이스는 travelDays만큼 같은 좌표로 day 생성
         for day_number in range(1, travel_days + 1):
             days_info.append({
                 "day_number":   day_number,
@@ -130,7 +154,6 @@ def preprocess_input(state: dict) -> dict:
                 warnings.append(f"day{day.get('day_number')} 좌표 누락")
                 continue
 
-            # A·B 위경도 min/max + 마진
             center_lat_for_margin = (start_lat + end_lat) / 2
             lat_margin = km_to_lat(margin_km)
             lng_margin = km_to_lng(margin_km, center_lat_for_margin)
