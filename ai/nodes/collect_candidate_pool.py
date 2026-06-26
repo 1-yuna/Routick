@@ -4,14 +4,20 @@
 # Kakao Local API로 raw 후보군 수집 + PostgreSQL 영구 저장
 #
 # 흐름:
-#   1. day별 독립 호출
+#   1. 카테고리 코드 동적 구성
+#      - 카페(CE7), 음식점(FD6) 기본 포함
+#      - CE7은 category_name 깊이 2가 "카페"인 것만 수집
+#      - 자연/관광 선택 시 관광명소(AT4) 추가
+#      - 공연/문화 선택 시 문화시설(CT1) 추가
+#      - transport=car일 경우 주차장(PK6) 추가
+#   2. day별 독립 호출
 #      - 케이스 1 (only): radius 기반 원형 검색
 #      - 케이스 2 (endpoint): rect 기반 사각형 검색
-#      - category 검색용 키워드(final_keywords): category 필드 매칭
-#      - name 검색용 키워드(name_search_keywords): name 필드 매칭
-#   2. 좌표 → 행정구역명 변환 (region/startRegion/endRegion)
+#      - category 검색(final_keywords) + name 검색(name_search_keywords) 따로 호출 후 합산
+#      - 수집 완료 후 name_search_keywords를 final_keywords에 합산
+#   3. 좌표 → 행정구역명 변환 (region/startRegion/endRegion)
 #      → days_info에 채워넣음
-#   3. PostgreSQL upsert
+#   4. PostgreSQL upsert
 # ─────────────────────────────────────────────────────────────────────
 
 import asyncio
@@ -54,7 +60,7 @@ async def collect_candidate_pool(state: dict) -> dict:
 
     if not keywords:
         warnings.append("final_keywords 비어있음 → 기본 키워드 사용")
-        keywords = ["음식점"]
+        keywords = ["카페", "음식점"]
 
     if not days_info:
         errors.append("days_info 없음 — preprocess_input 점검 필요")

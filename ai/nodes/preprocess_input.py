@@ -10,7 +10,7 @@
 #      - travel_date → 요일 변환 (영업시간 체크용)
 #      - route_type에 따라 좌표 필드 분기
 #   2. 키워드 설정 및 확장
-#      - activities에 음식점 무조건 추가
+#      - activities에 음식점, 카페 무조건 추가
 #      - 자녀일 경우 키즈카페, 놀이교육 추가
 #      - KEYWORD_EXPANSIONS 기반 동의어 확장 → final_keywords
 #      - NAME_SEARCH_KEYWORDS 기반 name 검색 전용 키워드 추출 → name_search_keywords
@@ -91,9 +91,11 @@ def preprocess_input(state: dict) -> dict:
     # ── 2. 키워드 설정 및 확장 ──────────────────────────────────────
     base_keywords = list(ui["activities_kr"])
 
-    # 음식점 무조건 추가
+    # 음식점, 카페 무조건 추가
     if "음식점" not in base_keywords:
         base_keywords.insert(0, "음식점")
+    if "카페" not in base_keywords:
+        base_keywords.insert(1, "카페")
 
     # 자녀와일 경우 키즈카페, 놀이교육 자동 추가
     if companion == "children":

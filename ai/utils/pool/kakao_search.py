@@ -307,6 +307,15 @@ def _merge_results(
         for doc in result:
             if doc["id"] in seen_ids:
                 continue
+
+            # CE7(카페/음료)는 category_name 깊이 2가 "카페"인 것만 통과
+            code     = doc.get("category_group_code", "")
+            category = doc.get("category_name", "")
+            if code == "CE7":
+                parts = [p.strip() for p in category.split(">")]
+                if len(parts) < 2 or parts[1] != "카페":
+                    continue
+
             seen_ids.add(doc["id"])
             places.append(parse_kakao_doc(doc))
 
