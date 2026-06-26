@@ -7,6 +7,8 @@
 #   1. day별 독립 호출
 #      - 케이스 1 (only): radius 기반 원형 검색
 #      - 케이스 2 (endpoint): rect 기반 사각형 검색
+#      - category 검색용 키워드(final_keywords): category 필드 매칭
+#      - name 검색용 키워드(name_search_keywords): name 필드 매칭
 #   2. 좌표 → 행정구역명 변환 (region/startRegion/endRegion)
 #      → days_info에 채워넣음
 #   3. PostgreSQL upsert
@@ -32,13 +34,14 @@ async def collect_candidate_pool(state: dict) -> dict:
     warnings: list[str] = []
     errors:   list[str] = []
 
-    keywords   = ui.get("final_keywords") or []
-    days_info  = ui.get("days_info") or []
-    route_type = ui.get("route_type", "only")
+    keywords        = ui.get("final_keywords") or []
+    name_keywords   = ui.get("name_search_keywords") or []
+    days_info       = ui.get("days_info") or []
+    route_type      = ui.get("route_type", "only")
 
     if not keywords:
         warnings.append("final_keywords 비어있음 → 기본 키워드 사용")
-        keywords = ["맛집", "카페"]
+        keywords = ["음식점"]
 
     if not days_info:
         errors.append("days_info 없음 — preprocess_input 점검 필요")
@@ -77,6 +80,7 @@ async def collect_candidate_pool(state: dict) -> dict:
                     lat=lat,
                     lng=lng,
                     radius_km=radius_km,
+                    name_keywords=name_keywords,
                 )
 
                 # ── 2. 좌표 → 지역명 변환 (only: region) ───────────
@@ -100,6 +104,7 @@ async def collect_candidate_pool(state: dict) -> dict:
                     rect_min_lng=rect_min_lng,
                     rect_max_lat=rect_max_lat,
                     rect_max_lng=rect_max_lng,
+                    name_keywords=name_keywords,
                 )
 
                 # ── 2. 좌표 → 지역명 변환 (endpoint: start/end_region) ──

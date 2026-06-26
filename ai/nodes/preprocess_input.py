@@ -12,7 +12,8 @@
 #   2. 키워드 설정 및 확장
 #      - activities에 음식점 무조건 추가
 #      - 자녀일 경우 키즈카페, 놀이교육 추가
-#      - KEYWORD_EXPANSIONS 기반 동의어 확장
+#      - KEYWORD_EXPANSIONS 기반 동의어 확장 → final_keywords
+#      - NAME_SEARCH_KEYWORDS 기반 name 검색 전용 키워드 추출 → name_search_keywords
 #   3. 반경/마진 설정
 #      - 케이스 1 (only): 원형 반경 (center_lat/lng + radius_km)
 #      - 케이스 2 (endpoint): 사각형 영역 (rect_min/max_lat/lng)
@@ -31,7 +32,7 @@ from constants.mapping import (
     RADIUS_MAP,
     MARGIN_MAP,
 )
-from constants.place_keywords import KEYWORD_EXPANSIONS
+from constants.place_keywords import KEYWORD_EXPANSIONS, NAME_SEARCH_KEYWORDS
 
 
 # ─── km → 위도 변환 (1도 ≈ 111km) ───
@@ -102,6 +103,16 @@ def preprocess_input(state: dict) -> dict:
 
     # 동의어 확장
     ui["final_keywords"] = expand_keywords(base_keywords)
+
+    # activities_kr 기반 name 검색 전용 키워드 추출
+    name_keywords = []
+    seen = set()
+    for activity_kr in ui["activities_kr"]:
+        for kw in NAME_SEARCH_KEYWORDS.get(activity_kr, []):
+            if kw not in seen:
+                seen.add(kw)
+                name_keywords.append(kw)
+    ui["name_search_keywords"] = name_keywords
 
     # ── 3. 반경/마진 설정 ───────────────────────────────────────────
     route_type = ui.get("route_type", "only")

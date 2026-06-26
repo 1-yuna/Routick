@@ -4,10 +4,10 @@
 # Kakao Local API 비동기 검색 헬퍼
 #
 # 흐름:
-#   1. 키워드 동의어 확장 (KEYWORD_EXPANSIONS 기반)
-#   2. 확장된 키워드 × 페이지 × (keyword + category) 비동기 병렬 호출
+#   1. category 검색용 키워드 × 페이지 × (keyword + category) 비동기 병렬 호출
 #      - 케이스 1 (only): radius 파라미터
 #      - 케이스 2 (endpoint): rect 파라미터
+#   2. name 검색용 키워드 × 페이지 비동기 병렬 호출 (keyword 검색만)
 #   3. 일부 실패는 warnings에 기록, 성공한 결과만 합침
 #   4. 좌표 → 행정구역명 변환 (region/startRegion/endRegion용)
 #
@@ -20,8 +20,6 @@ import asyncio
 import os
 import httpx
 
-from constants.place_keywords import KEYWORD_EXPANSIONS
-
 KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
 KAKAO_BASE    = "https://dapi.kakao.com/v2/local/search"
 KAKAO_GEO     = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
@@ -32,18 +30,6 @@ CATEGORY_CODES = {
     "관광명소": "AT4",
     "문화시설": "CT1",
 }
-
-
-# ─── 키워드 동의어 확장 ───
-def expand_keywords(keywords: list[str]) -> list[str]:
-    expanded = []
-    seen = set()
-    for kw in keywords:
-        for ex in KEYWORD_EXPANSIONS.get(kw, [kw]):
-            if ex not in seen:
-                seen.add(ex)
-                expanded.append(ex)
-    return expanded
 
 
 # ─── 키워드 검색 (radius) ───
@@ -192,9 +178,9 @@ async def search_kakao_by_radius(
     lat: float,
     lng: float,
     radius_km: float,
+    name_keywords: list[str] = None,
     pages: int = 3,
 ) -> tuple[list[dict], list[str]]:
-    expanded  = expand_keywords(keywords)
     radius_m  = min(int(radius_km * 1000), 20000)
     warnings: list[str] = []
 
@@ -202,15 +188,22 @@ async def search_kakao_by_radius(
         tasks  = []
         labels = []
 
-        for kw in expanded:
+        # 1. category 검색용 키워드 → keyword 검색 (category 필드 매칭) + category 코드 검색
+        for kw in keywords:
             for page in range(1, pages + 1):
                 tasks.append(kakao_keyword_search_radius(client, kw, lat, lng, radius_m, page))
-                labels.append(f"keyword:{kw}:p{page}")
+                labels.append(f"category_kw:{kw}:p{page}")
 
                 if kw in CATEGORY_CODES:
                     code = CATEGORY_CODES[kw]
                     tasks.append(kakao_category_search_radius(client, code, lat, lng, radius_m, page))
                     labels.append(f"category:{code}:p{page}")
+
+        # 2. name 검색용 키워드 → keyword 검색 (name 필드 매칭)
+        for kw in (name_keywords or []):
+            for page in range(1, pages + 1):
+                tasks.append(kakao_keyword_search_radius(client, kw, lat, lng, radius_m, page))
+                labels.append(f"name_kw:{kw}:p{page}")
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -224,9 +217,9 @@ async def search_kakao_by_rect(
     rect_min_lng: float,
     rect_max_lat: float,
     rect_max_lng: float,
+    name_keywords: list[str] = None,
     pages: int = 3,
 ) -> tuple[list[dict], list[str]]:
-    expanded = expand_keywords(keywords)
     # 카카오 rect: "min_lng,min_lat,max_lng,max_lat"
     rect     = f"{rect_min_lng},{rect_min_lat},{rect_max_lng},{rect_max_lat}"
     warnings: list[str] = []
@@ -235,15 +228,22 @@ async def search_kakao_by_rect(
         tasks  = []
         labels = []
 
-        for kw in expanded:
+        # 1. category 검색용 키워드 → keyword 검색 (category 필드 매칭) + category 코드 검색
+        for kw in keywords:
             for page in range(1, pages + 1):
                 tasks.append(kakao_keyword_search_rect(client, kw, rect, page))
-                labels.append(f"keyword:{kw}:p{page}")
+                labels.append(f"category_kw:{kw}:p{page}")
 
                 if kw in CATEGORY_CODES:
                     code = CATEGORY_CODES[kw]
                     tasks.append(kakao_category_search_rect(client, code, rect, page))
                     labels.append(f"category:{code}:p{page}")
+
+        # 2. name 검색용 키워드 → keyword 검색 (name 필드 매칭)
+        for kw in (name_keywords or []):
+            for page in range(1, pages + 1):
+                tasks.append(kakao_keyword_search_rect(client, kw, rect, page))
+                labels.append(f"name_kw:{kw}:p{page}")
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
