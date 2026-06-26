@@ -169,7 +169,17 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
         warnings.append(f"[only] filtered_candidates: {len(filtered)}개 (전 day 공유, cap={total_cap})")
 
     elif route_type == "endpoint":
-        for day_number, day_candidates in candidates_by_day.items():
+        used_place_ids: set[str] = set()  # 이전 day에 포함된 place_id 누적
+
+        for day_number in sorted(candidates_by_day.keys()):
+            day_candidates = candidates_by_day[day_number]
+
+            # 이전 day에 포함된 장소 제외
+            day_candidates = [
+                p for p in day_candidates
+                if p["id"] not in used_place_ids
+            ]
+
             filtered = _filter_one_day(
                 places=day_candidates,
                 avoid_activities=avoid_activities,
@@ -181,6 +191,11 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 debug=debug,
                 day_label=f"day{day_number}",
             )
+
+            # 이번 day 장소를 누적 제외 목록에 추가
+            for p in filtered:
+                used_place_ids.add(p["id"])
+
             filtered_by_day[day_number] = filtered
             all_filtered.extend(filtered)
             warnings.append(f"[endpoint] day{day_number} filtered_candidates: {len(filtered)}개")
