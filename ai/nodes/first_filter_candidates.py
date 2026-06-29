@@ -6,15 +6,17 @@
 # 흐름:
 #   1. 키워드 제거
 #      - avoid_activities 제거
-#      - 여행과 무관한 키워드 제거
-#      - 동행 유형 기반 제거
-#      - 세부 카테고리별 중복 제한
-#   2. 조건별 로직 수행 (pet 우선순위 처리)
-#   3. 정렬 (음식점/카페 우선 + 활동 매칭 → 체인점 후순위)
-#   4. 카테고리별 cap + 전체 cap 적용
-#      - day 1개 기준 50개 고정
-#      - 케이스 1 (only): 전체 cap = 50 × travelDays
-#      - 케이스 2 (endpoint): day별 독립 적용 (day당 50개)
+#      - 여행과 무관한 키워드 제거 (category: EXCLUDE_KEYWORDS, name: EXCLUDE_KEYWORDS_NAME)
+#      - activities 선택 여부 기반 제거 (category: ACTIVITY_EXCLUDE_KEYWORDS)
+#      - 세부 카테고리별 중복 제한 (동일 카테고리 최대 2개)
+#   2. 정렬
+#      - 활동/동행자별 장소 우선 정렬 (PRIORITY_KEYWORDS)
+#      - final_keywords category 매칭 → 최우선
+#      - name_search_keywords name 매칭 → 다음
+#      - 프랜차이즈 → 뒤로
+#   3. 카테고리별 cap + 전체 cap 적용
+#      - 케이스 1 (only): travel_days별 단계적 확장
+#      - 케이스 2 (endpoint): day별 독립 적용 (day당 50개), 이전 day 장소 제외
 # ─────────────────────────────────────────────────────────────────────
 
 from collections import Counter
@@ -66,6 +68,8 @@ def _filter_one_day(
     avoid_activities: list[str],
     companion_kr: str,
     activities_kr: list[str],
+    final_keywords: list[str],
+    name_search_keywords: list[str],
     warnings: list[str],
     route_type: str = "endpoint",
     travel_days: int = 1,
@@ -110,17 +114,18 @@ def _filter_one_day(
 
     # 5. 정렬
     #    - 활동/동행자별 우선순위 정렬
-    #    - 유저 선택 activity 키워드 매칭 → 앞으로
+    #    - final_keywords category 매칭 → 최우선
+    #    - name_search_keywords name 매칭 → 다음
     #    - 프랜차이즈 → 뒤로
     filtered = boost_by_priority(filtered, companion_kr=companion_kr, activities_kr=activities_kr)
-    filtered = sort_by_priority(filtered, activity_keywords)
+    filtered = sort_by_priority(filtered, final_keywords=final_keywords, name_search_keywords=name_search_keywords)
     if debug:
         _debug_print(f"5️⃣  [{day_label}] 정렬", filtered, 0)
 
-    # 3. cap 적용
+    # 6. cap 적용
     filtered, removed = filter_by_category_cap(filtered, travel_days=travel_days, route_type=route_type)
     if debug:
-        _debug_print(f"3️⃣  [{day_label}] 카테고리 cap", filtered, removed)
+        _debug_print(f"6️⃣  [{day_label}] 카테고리 cap", filtered, removed)
         _debug_summary(f"최종 [{day_label}]", filtered)
 
     return filtered
@@ -132,18 +137,18 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     candidates_by_day = state.get("candidates_by_day", {})
     warnings: list[str] = []
 
-    route_type       = ui.get("route_type", "only")
-    travel_days      = ui.get("travel_days", 1)
-    companion_kr     = ui.get("companion_kr", "")
-    avoid_activities = ui.get("avoid_activities") or []
-    activities_kr    = ui.get("activities_kr") or []
+    route_type           = ui.get("route_type", "only")
+    travel_days          = ui.get("travel_days", 1)
+    companion_kr         = ui.get("companion_kr", "")
+    avoid_activities     = ui.get("avoid_activities") or []
+    activities_kr        = ui.get("activities_kr") or []
+    final_keywords       = ui.get("final_keywords") or []
+    name_search_keywords = ui.get("name_search_keywords") or []
 
     filtered_by_day:    dict[int, list] = {}
     all_filtered:       list[dict]      = []
 
     # 케이스 1 (only): 전체 candidates를 한 번 필터링
-    # travel_days별 cap으로 하나의 풀 관리 (당일 50 / 1박2일 80 / 2박3일 100 / 3박4일 120)
-    # plan_itinerary에서 day별 동선 생성 시 이전 day 선택 장소 제외
     if route_type == "only":
         all_candidates = state.get("candidates", [])
         total_cap = ONLY_FILTER_CAP.get(travel_days, ONLY_FILTER_CAP[1])["total"]
@@ -153,6 +158,8 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
             avoid_activities=avoid_activities,
             companion_kr=companion_kr,
             activities_kr=activities_kr,
+            final_keywords=final_keywords,
+            name_search_keywords=name_search_keywords,
             warnings=warnings,
             route_type=route_type,
             travel_days=travel_days,
@@ -185,6 +192,8 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 avoid_activities=avoid_activities,
                 companion_kr=companion_kr,
                 activities_kr=activities_kr,
+                final_keywords=final_keywords,
+                name_search_keywords=name_search_keywords,
                 warnings=warnings,
                 route_type=route_type,
                 travel_days=travel_days,

@@ -7,11 +7,12 @@
 #   1. 키워드 제거
 #      - avoid_activities 제거
 #      - 여행과 무관한 키워드 제거 (category: EXCLUDE_KEYWORDS, name: EXCLUDE_KEYWORDS_NAME)
-#      - 활동/동행 유형 기반 제거 (COMPANION_EXCLUDE_KEYWORDS)
+#      - activities 선택 여부 기반 제거 (category: ACTIVITY_EXCLUDE_KEYWORDS)
 #      - 세부 카테고리별 중복 제한 (동일 카테고리 최대 2개)
 #   2. 정렬
 #      - 활동/동행자별 장소 우선 정렬 (PRIORITY_KEYWORDS)
-#      - 유저 선택 activity 키워드 매칭 → 앞으로
+#      - final_keywords category 매칭 → 최우선
+#      - name_search_keywords name 매칭 → 다음
 #      - 프랜차이즈 → 뒤로
 #   3. cap 적용
 # ─────────────────────────────────────────────────────────────────────
@@ -257,28 +258,35 @@ def get_activity_keywords(activities_kr: list[str]) -> list[str]:
 
 
 # ─── 정렬
-# 1단계: 유저 선택 활동 매칭 → 앞으로
-# 2단계: 프랜차이즈 → 뒤로
+# 0: final_keywords category 매칭 + 비프랜차이즈
+# 1: name_search_keywords name 매칭 + 비프랜차이즈
+# 2: final_keywords category 매칭 + 프랜차이즈
+# 3: name_search_keywords name 매칭 + 프랜차이즈
+# 4: 나머지 비프랜차이즈
+# 5: 나머지 프랜차이즈
 # ───
 def sort_by_priority(
         places: list[dict],
-        activity_keywords: list[str] = None,
+        final_keywords: list[str] = None,
+        name_search_keywords: list[str] = None,
 ) -> list[dict]:
-    if not activity_keywords:
-        activity_keywords = []
+    final_kws = final_keywords or []
+    name_kws  = name_search_keywords or []
 
     def priority(p):
-        name     = p.get("name", "")
-        category = p.get("category", "")
-        matched  = bool(activity_keywords) and any(
-            kw in name or kw in category for kw in activity_keywords
-        )
-        chain = is_chain_brand(p)
+        name     = p.get("name", "") or ""
+        category = p.get("category", "") or ""
+        chain    = is_chain_brand(p)
 
-        if matched and not chain:  return 0
-        if matched and chain:      return 1
-        if not chain:              return 2
-        return 3
+        category_matched = bool(final_kws) and any(kw in category for kw in final_kws)
+        name_matched     = bool(name_kws) and any(kw in name for kw in name_kws)
+
+        if category_matched and not chain: return 0
+        if name_matched and not chain:     return 1
+        if category_matched and chain:     return 2
+        if name_matched and chain:         return 3
+        if not chain:                      return 4
+        return 5
 
     return sorted(places, key=priority)
 
