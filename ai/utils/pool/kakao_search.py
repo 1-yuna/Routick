@@ -33,6 +33,28 @@ CATEGORY_CODES = {
 }
 
 
+# ─── 주차장 검색 (radius) ───
+async def search_parking_by_radius(
+    lat: float,
+    lng: float,
+    radius_m: int = 500,
+) -> list[dict]:
+    """장소 근처 주차장(PK6) 검색"""
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await kakao_category_search_radius(
+                client=client,
+                category_code="PK6",
+                lat=lat,
+                lng=lng,
+                radius_m=radius_m,
+                page=1,
+            )
+            return [parse_kakao_doc(doc) for doc in resp]
+        except Exception:
+            return []
+
+
 # ─── 키워드 검색 (radius) ───
 async def kakao_keyword_search_radius(
     client: httpx.AsyncClient,

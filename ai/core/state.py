@@ -72,7 +72,8 @@ class UserInput(TypedDict):
     transport_kr: Optional[str]         # 도보 / 자동차
     duration_kr: Optional[str]          # 당일 / 1박2일 / 2박3일 / 3박4일
     travel_weekday: Optional[str]       # "월" / "화" / ... (영업시간 체크용)
-    final_keywords: Optional[list[str]] # 검색 키워드 목록
+    final_keywords: Optional[list[str]] # 검색 키워드 목록 (category + name 합산)
+    name_search_keywords: Optional[list[str]]  # name 검색 전용 키워드
 
     # day별 검색 파라미터 (preprocess_input에서 계산)
     days_info: Optional[list["DayInfo"]]
@@ -117,12 +118,14 @@ class Place(TypedDict):
     place_url: str
 
     # ── second_filter (LLM 보강) 후 채워지는 값 ────────────────────
-    bucket: str                     # cafe / food / activity / parking / other
     atmosphere: list[str]           # ["활기찬", "힐링"] 등
     best_for: list[str]             # ["연인", "친구"] 등
     place_tags: list[str]           # ["산책로", "한식"] 등
     revisit_intent: str             # high / medium / low
     summary: str                    # 한줄 요약 (30자 이내)
+
+    # ── generate_candidates (버킷 분류) 후 채워지는 값 ─────────────
+    bucket: str                     # food / cafe / activity / browse / pop / parking
 
     # ── fetch_details (구글 Places API) 후 채워지는 값 ─────────────
     src: Optional[str]              # 대표 이미지 URL
@@ -213,12 +216,17 @@ class TravelState(TypedDict):
     shortlist: list[ScoredPlace]
     shortlist_by_day: dict[int, list[ScoredPlace]]              # day별 분리본
 
-    # 이동시간 행렬 (day별)
+    # 이동시간 행렬 (day별) - generate_candidates에서 계산
     distance_matrix_by_day: dict[int, list[list[float]]]
     time_matrix_by_day: dict[int, list[list[float]]]
     place_index_by_day: dict[int, list[str]]                    # day별 인덱스 → place_id
 
-    # 일정 후보 (day별 N개)
+    # 동선 후보 (generate_candidates에서 생성)
+    all_routes_by_day: dict[int, list[dict]]                    # day별 전체 동선
+    valid_routes_by_day: dict[int, list[dict]]                  # day별 유효 동선
+    invalid_routes_by_day: dict[int, list[dict]]                # day별 제외된 동선
+
+    # 일정 후보 (plan_itinerary에서 상위 5개 추출)
     itineraries_by_day: dict[int, list[list[ItineraryItem]]]    # day별 후보 동선들
 
     # 최종 선택된 동선 (day별)
@@ -258,6 +266,10 @@ def make_initial_state(user_input: UserInput) -> TravelState:
         "distance_matrix_by_day": {},
         "time_matrix_by_day": {},
         "place_index_by_day": {},
+
+        "all_routes_by_day": {},
+        "valid_routes_by_day": {},
+        "invalid_routes_by_day": {},
 
         "itineraries_by_day": {},
 

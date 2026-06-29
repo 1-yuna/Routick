@@ -87,7 +87,8 @@ def haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 # ─── 거리 → 이동시간(분) 변환 ───
 def distance_to_minutes(distance_km: float, transport_kr: str) -> float:
     speed = {"도보": 4, "자동차": 30}.get(transport_kr, 4)
-    return (distance_km / speed) * 60
+    minutes = (distance_km / speed) * 60
+    return max(1.0, round(minutes, 1))
 
 
 # ─── 이동시간 행렬 계산 ───
@@ -146,14 +147,14 @@ def assign_times(
         bucket = place.get("bucket", "activity")
         stay   = STAY_MINUTES.get(bucket, 90)
 
-        travel_min = 0 if order == 0 else time_matrix[id_to_idx.get(route[order-1]["place"]["id"], 0)][id_to_idx.get(pid, 0)]
+        travel_min = 0 if order == 0 else max(1, int(time_matrix[id_to_idx.get(route[order-1]["place"]["id"], 0)][id_to_idx.get(pid, 0)]))
 
         arrive_dt = current_time + timedelta(minutes=travel_min)
         leave_dt  = arrive_dt + timedelta(minutes=stay)
 
         if order < len(route) - 1:
             next_pid       = route[order + 1]["place"]["id"]
-            travel_to_next = int(time_matrix[id_to_idx.get(pid, 0)][id_to_idx.get(next_pid, 0)])
+            travel_to_next = max(1, int(time_matrix[id_to_idx.get(pid, 0)][id_to_idx.get(next_pid, 0)]))
         else:
             travel_to_next = 0
 
