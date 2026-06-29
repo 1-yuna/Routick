@@ -156,13 +156,24 @@ async def _enrich_and_score(
 
     # ── 4. LLM is_valid 기반 제거 ───────────────────────────────────
     llm_map      = {r["place_id"]: r for r in llm_results}
-    place_id_map = {p["id"]: p.get("name", p["id"]) for p in filtered_places}
+    place_id_map = {p["id"]: p for p in filtered_places}
+
+    # FD6(음식점), CE7(카페)는 무조건 통과
+    PROTECTED_CODES = {"FD6", "CE7"}
 
     invalid_ids: set[str] = set()
     for r in llm_results:
         if not r.get("is_valid", True):
-            pid  = r["place_id"]
-            name = place_id_map.get(pid, pid)
+            pid   = r["place_id"]
+            place = place_id_map.get(pid, {})
+            name  = place.get("name", pid)
+            code  = place.get("category_group_code", "")
+
+            # FD6/CE7은 보호
+            if code in PROTECTED_CODES:
+                warnings.append(f"[{label}] LLM 제거 무시 (FD6/CE7 보호): {name}")
+                continue
+
             invalid_ids.add(pid)
             warnings.append(f"[{label}] LLM 제거: {name} - {r.get('invalid_reason', '')}")
 
