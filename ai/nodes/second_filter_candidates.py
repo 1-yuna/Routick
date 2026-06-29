@@ -6,12 +6,15 @@
 #
 # 흐름:
 #   1. 네이버 블로그 snippet 수집 (병렬, Semaphore 5)
-#   2. 부정 키워드 감지 → 제거 또는 패널티
-#   3. 블로그 언급 빈도 반영 → blog_score
-#   4. GPT-4o-mini로 장소 데이터 보강
-#   5. bucket 강제 분류 (LLM 결과보다 우선)
-#   6. 점수 계산 (mood + party + revisit + blog = 최대 200점)
-#   7. shortlist 선별
+#   2. 부정 키워드 감지 → 제거
+#   3. GPT-4o-mini로 장소 데이터 보강 (name/category + 블로그 리뷰 함께 입력)
+#      - is_valid 판단: name/category만으로 여행지 부적합 장소 제거
+#      - 보강: 블로그 기반 atmosphere, revisit_intent 등 추출
+#        (블로그 없어도 제거하지 않고 name/category로 추론)
+#   4. LLM is_valid=false 장소 제거
+#   5. LLM 결과 머지 (atmosphere, best_for, place_tags, revisit_intent, summary)
+#   6. 점수 계산 (mood + blog + party + revisit = 최대 300점)
+#   7. shortlist 선별 (category_group_code 기반 quota)
 #      - 케이스 1 (only): travel_days별 전체 quota
 #      - 케이스 2 (endpoint): day별 독립, day당 30개 고정
 # ─────────────────────────────────────────────────────────────────────
@@ -26,7 +29,7 @@ from utils.second_filter.scoring import (
     calc_blog_score,
     calc_total_score,
 )
-from utils.second_filter.shortlist import select_shortlist, classify_fallback
+from utils.second_filter.shortlist import select_shortlist
 
 
 # ─── [노드] 2차 필터링 및 점수화 ───
@@ -36,6 +39,7 @@ async def second_filter_candidates(state: dict) -> dict:
 
     moods_kr     = ui.get("moods_kr") or []
     companion_kr = ui.get("companion_kr", "")
+    activities_kr = ui.get("activities_kr") or []
     travel_days  = ui.get("travel_days", 1)
     route_type   = ui.get("route_type", "endpoint")
 
@@ -60,6 +64,7 @@ async def second_filter_candidates(state: dict) -> dict:
             places=all_filtered,
             moods_kr=moods_kr,
             companion_kr=companion_kr,
+            activities_kr=activities_kr,
             route_type=route_type,
             travel_days=travel_days,
             warnings=warnings,
@@ -82,6 +87,7 @@ async def second_filter_candidates(state: dict) -> dict:
                 places=day_filtered,
                 moods_kr=moods_kr,
                 companion_kr=companion_kr,
+                activities_kr=activities_kr,
                 route_type=route_type,
                 travel_days=travel_days,
                 warnings=warnings,
@@ -103,13 +109,14 @@ async def second_filter_candidates(state: dict) -> dict:
 
 # ─── 보강 + 점수 계산 공통 함수 ───
 async def _enrich_and_score(
-    places:      list[dict],
-    moods_kr:    list[str],
+    places:       list[dict],
+    moods_kr:     list[str],
     companion_kr: str,
-    route_type:  str,
-    travel_days: int,
-    warnings:    list[str],
-    label:       str,
+    activities_kr: list[str],
+    route_type:   str,
+    travel_days:  int,
+    warnings:     list[str],
+    label:        str,
 ) -> tuple[list[dict], list[dict]]:
 
     if not places:
@@ -142,24 +149,29 @@ async def _enrich_and_score(
         # 부정 제거된 장소만 보강
         blog_filtered = [b for b in blog_data if b["place_id"] not in negative_ids]
         try:
-            llm_results = await enrich_with_llm(blog_filtered, {"companion_kr": companion_kr})
+            llm_results = await enrich_with_llm(blog_filtered, {"companion_kr": companion_kr, "activities_kr": activities_kr})
         except Exception as e:
             warnings.append(f"[{label}] LLM 보강 실패: {e}")
     print(f"⏱  [{label}] LLM 보강: {time.time() - t2:.1f}초 ({len(llm_results)}개)")
 
-    # ── 4. bucket 강제 분류 + LLM 결과 머지 ────────────────────────
-    llm_map = {r["place_id"]: r for r in llm_results}
+    # ── 4. LLM is_valid 기반 제거 ───────────────────────────────────
+    llm_map      = {r["place_id"]: r for r in llm_results}
+    place_id_map = {p["id"]: p.get("name", p["id"]) for p in filtered_places}
 
-    CODE_TO_BUCKET = {
-        "CE7": "cafe",
-        "FD6": "food",
-        "AT4": "activity",
-        "CT1": "activity",
-    }
-    ACTIVITY_CAFE_KEYWORDS = [
-        "보드카페", "만화카페", "만화방", "방탈출", "방탈출카페",
-        "애견카페", "고양이카페", "동물카페", "VR카페",
-    ]
+    invalid_ids: set[str] = set()
+    for r in llm_results:
+        if not r.get("is_valid", True):
+            pid  = r["place_id"]
+            name = place_id_map.get(pid, pid)
+            invalid_ids.add(pid)
+            warnings.append(f"[{label}] LLM 제거: {name} - {r.get('invalid_reason', '')}")
+
+    if invalid_ids:
+        warnings.append(f"[{label}] LLM is_valid=false {len(invalid_ids)}개 제거")
+
+    filtered_places = [p for p in filtered_places if p["id"] not in invalid_ids]
+
+    # ── 5. LLM 결과 머지 ────────────────────────────────────────────
     VALID_PLACE_TAGS = {
         "이색카페", "오락", "스포츠", "역사/문화",
         "산책로", "해변/바다", "등산/산",
@@ -169,34 +181,8 @@ async def _enrich_and_score(
 
     enriched = []
     for place in filtered_places:
-        place_id       = place.get("id")
-        enrich         = llm_map.get(place_id, {})
-        code           = place.get("category_group_code", "")
-        name           = place.get("name", "") or ""
-        category_text  = place.get("category", "") or ""
-
-        # bucket 강제 분류
-        forced_bucket = CODE_TO_BUCKET.get(code)
-
-        if code == "CE7":
-            if any(kw in category_text or kw in name for kw in ACTIVITY_CAFE_KEYWORDS):
-                forced_bucket = "activity"
-        elif code == "FD6":
-            if any(kw in category_text for kw in ["제과", "베이커리", "디저트"]):
-                forced_bucket = "cafe"
-
-        if not forced_bucket:
-            category = place.get("category", "") or ""
-            if any(kw in category for kw in ["방탈출", "보드게임", "만화방", "만화카페", "애견카페", "고양이카페", "동물카페", "VR카페"]):
-                forced_bucket = "activity"
-            elif any(kw in category for kw in ["음식점", "한식", "양식", "일식", "중식", "분식"]):
-                forced_bucket = "food"
-            elif "카페" in category:
-                forced_bucket = "cafe"
-            elif any(kw in category for kw in ["관광", "문화", "전시", "박물", "체험", "스포츠", "레저", "공원", "해수욕장", "해변"]):
-                forced_bucket = "activity"
-
-        bucket = forced_bucket if forced_bucket else (enrich.get("bucket") or classify_fallback(place))
+        place_id = place.get("id")
+        enrich   = llm_map.get(place_id, {})
 
         # place_tags 유효성 검사
         place_tags_raw = enrich.get("place_tags", [])
@@ -204,12 +190,8 @@ async def _enrich_and_score(
             place_tags_raw = [place_tags_raw] if place_tags_raw else []
         place_tags = [tag for tag in place_tags_raw if tag in VALID_PLACE_TAGS]
 
-        if bucket == "cafe":
-            place_tags = ["이색카페"] if any(kw in category_text or kw in name for kw in ACTIVITY_CAFE_KEYWORDS) else []
-
         enriched.append({
             **place,
-            "bucket":         bucket,
             "atmosphere":     enrich.get("atmosphere", []),
             "best_for":       enrich.get("best_for", []),
             "place_tags":     place_tags,
@@ -226,10 +208,10 @@ async def _enrich_and_score(
         has_negative   = blog_info.get("has_negative", False)
 
         mood_score      = calc_mood_score(place, moods_kr)
+        blog_score      = calc_blog_score(positive_count, has_negative)
         party_fit_score = calc_party_fit_score(place, companion_kr)
         revisit_score   = calc_revisit_score(place)
-        blog_score      = calc_blog_score(positive_count, has_negative)
-        total_score     = calc_total_score(mood_score, party_fit_score, revisit_score, blog_score)
+        total_score     = calc_total_score(mood_score, blog_score, party_fit_score, revisit_score)
 
         scored.append({
             "place":           place,

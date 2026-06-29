@@ -1,8 +1,17 @@
 # ─────────────────────────────────────────────────────────────────────
 # enrich_places
 # ─────────────────────────────────────────────────────────────────────
-# 2차 필터에서 사용되는 프롬프트
-# 장소 데이터를 LLM으로 보강하기 위한 프롬프트
+# 2차 필터에서 사용되는 LLM 보강 프롬프트
+#
+# 핵심 역할:
+#   1. 방문 적합성 판단 (is_valid) — name/category만으로 판단
+#      - 블로그 리뷰와 무관하게 name/category만 보고 판단
+#      - 여행 코스에 어울리지 않는 장소 → is_valid=false로 제거
+#      - 애매하면 반드시 true로 처리
+#   2. 분위기 및 리뷰 품질 추출 — 블로그 리뷰 기반
+#      - atmosphere, revisit_intent → 점수화에 직접 반영
+#      - 블로그 없어도 제거하지 말고 name/category로 추론
+#      - best_for, place_tags, summary → 동선 선택 및 추천 이유 생성에 활용
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -11,15 +20,15 @@ def build_prompt(
         blog_data: list[dict],
         user_input: dict,
 ) -> str:
-    companion_kr = user_input.get("companion_kr", "")
-    age_group = user_input.get("age_group", "")
+    companion_kr  = user_input.get("companion_kr", "")
+    activities_kr = user_input.get("activities_kr") or []
 
     user_context = f"""
     [현재 사용자 정보]
     - 동행 유형: {companion_kr}
-    - 연령대: {age_group}
+    - 선호 활동: {", ".join(activities_kr) if activities_kr else "없음"}
 
-    이 정보는 장소 분위기와 추천 대상을 해석할 때 참고하세요.
+    is_valid 판단 시 이 정보를 반드시 참고하세요.
     단, 실제 블로그 리뷰 기반으로 장소 자체 특성을 우선 판단하세요.
     """
 
@@ -40,15 +49,27 @@ def build_prompt(
 
     {user_context}
 
+    [중요]
+    이 작업의 핵심은 두 가지입니다.
+
+    1. 방문 적합성 판단 (is_valid) — 장소 이름과 카테고리만으로 판단
+       블로그 리뷰와 무관하게, 장소 이름(name)과 카테고리(category)만 보고
+       이 장소가 여행 코스에 포함될 만한 곳인지 판단하세요.
+       여행과 무관한 생활편의시설, 업무시설은 is_valid=false로 제거하세요.
+       판단이 애매하면 반드시 true로 처리하세요.
+
+    2. 분위기 및 리뷰 품질 추출 (atmosphere, revisit_intent) — 블로그 리뷰 기반
+       블로그 리뷰를 바탕으로 장소의 분위기가 유저 취향과 얼마나 일치하는지,
+       리뷰의 전반적인 반응이 긍정적인지를 정확하게 판단하세요.
+       블로그 내용이 없어도 제거하지 말고, name/category로 추론해서 채우세요.
+       이 두 항목은 점수화에 직접 반영되므로 신중하게 평가해주세요.
+
     - 블로그 리뷰 기반으로 추론하세요. 정보 부족해도 반드시 추론해서 채우세요.
     - 모든 필드 필수. 빈 배열/빈 문자열 금지.
     - summary: 장소 이름과 블로그 내용 참고, 30자 이내 명사형. "~입니다" 금지.
     - atmosphere: 활기찬/힐링/감성/이색/조용한/따뜻한/로맨틱/깔끔한/빈티지/힙한 중 최대 3개.
     - best_for: 연인/혼자/친구/부모님과/자녀와/반려동물과 중 최대 3개.
-    - bucket: cafe/food/activity/lodging/other 중 1개.
-    - place_tags: 아래 [목록]에 있는 값만 사용. 목록 외 값("기타", "food", "cafe", "activity" 등) 절대 금지.
-      bucket이 cafe 또는 lodging → 빈 배열.
-      나머지(food/activity/other) → 반드시 목록에서 1개 선택.
+    - place_tags: 아래 [목록]에 있는 값만 사용. 목록 외 값 절대 금지.
       목록에 정확히 없으면 가장 유사한 것을 반드시 선택.
       (예: 만화카페/방탈출/보드게임 → 이색카페 / 하천/강/공원 → 산책로 / 볼링/당구/노래방 → 오락 / 클라이밍/배드민턴 → 스포츠 / 와인바/칵테일바/이자카야 → 바/술집 / 삼겹살/갈비/대창 → 고기 / 궁/사찰/유적지/역사 탐방 → 역사/문화)
 
@@ -78,11 +99,27 @@ def build_prompt(
     자녀와: 아이 동반 가능 장소 / 동물원, 아쿠아리움, 놀이공원, 체험 공간
     반려동물과: 야외, 공원, 펫 프렌들리 카페, 산책로
 
+    [is_valid 판단 기준]
+    name과 category를 함께 보고 판단하세요.
+
+    ※ false로 처리하는 경우:
+      - 여행/관광과 전혀 무관한 시설
+        (행정기관, 연구소, 관공서, 안내소, 카지노 등)
+      - 유저 동행 유형과 명확히 맞지 않는 장소
+        예) 동행자가 연인/친구/혼자인데 → 어린이공원, 유아놀이터, 키즈카페
+            동행자가 자녀와인데 → 성인 전용 바, 카지노
+            동행자가 반려동물과인데 → 실내 밀폐 시설
+    
+    ※ 유저가 선택한 활동(activities)과 관련된 장소는 무조건 true
+    ※ 위 경우에 해당하지 않으면 무조건 true
+    ※ 조금이라도 애매하면 true
+
     [응답 형식]
     [
       {{
         "place_id": "장소id",
-        "bucket": "cafe"|"food"|"activity"|"lodging"|"other",
+        "is_valid": true|false,
+        "invalid_reason": "제거 이유 (is_valid=false일 때만, 한 문장. true면 빈 문자열)",
         "atmosphere": [],
         "best_for": [],
         "place_tags": [],
@@ -93,11 +130,11 @@ def build_prompt(
 
     [응답 예시]
     [
-      {{"place_id": "111", "bucket": "activity", "atmosphere": ["이색", "활기찬"], "best_for": ["연인", "친구"], "place_tags": ["이색카페"], "revisit_intent": "high", "summary": "홍대 대표 만화카페"}},
-      {{"place_id": "222", "bucket": "food", "atmosphere": ["활기찬"], "best_for": ["친구"], "place_tags": ["고기"], "revisit_intent": "medium", "summary": "인기 있는 삼겹살 맛집"}},
-      {{"place_id": "333", "bucket": "cafe", "atmosphere": ["감성", "로맨틱"], "best_for": ["연인"], "place_tags": [], "revisit_intent": "high", "summary": "오션뷰가 멋진 감성 카페"}},
-      {{"place_id": "444", "bucket": "activity", "atmosphere": ["힐링"], "best_for": ["연인"], "place_tags": ["산책로"], "revisit_intent": "medium", "summary": "홍제천 힐링 산책 코스"}},
-      {{"place_id": "555", "bucket": "food", "atmosphere": ["로맨틱"], "best_for": ["연인"], "place_tags": ["바/술집"], "revisit_intent": "high", "summary": "분위기 있는 칵테일바"}}
+      {{"place_id": "111", "is_valid": true, "invalid_reason": "", "atmosphere": ["이색", "활기찬"], "best_for": ["연인", "친구"], "place_tags": ["이색카페"], "revisit_intent": "high", "summary": "홍대 대표 만화카페"}},
+      {{"place_id": "222", "is_valid": true, "invalid_reason": "", "atmosphere": ["활기찬"], "best_for": ["친구"], "place_tags": ["고기"], "revisit_intent": "medium", "summary": "인기 있는 삼겹살 맛집"}},
+      {{"place_id": "333", "is_valid": false, "invalid_reason": "헬스장으로 여행지 부적합", "atmosphere": [], "best_for": [], "place_tags": [], "revisit_intent": "low", "summary": ""}},
+      {{"place_id": "444", "is_valid": true, "invalid_reason": "", "atmosphere": ["힐링"], "best_for": ["연인"], "place_tags": ["산책로"], "revisit_intent": "medium", "summary": "홍제천 힐링 산책 코스"}},
+      {{"place_id": "555", "is_valid": true, "invalid_reason": "", "atmosphere": ["로맨틱"], "best_for": ["연인"], "place_tags": ["바/술집"], "revisit_intent": "high", "summary": "분위기 있는 칵테일바"}}
     ]
 
     {places_text}
