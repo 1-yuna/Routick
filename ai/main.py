@@ -27,7 +27,7 @@ from nodes.preprocess_input import preprocess_input
 from nodes.collect_candidate_pool import collect_candidate_pool
 from nodes.first_filter_candidates import first_filter_candidates
 from nodes.second_filter_candidates import second_filter_candidates
-from nodes.travel_matrix import travel_matrix
+from nodes.generate_candidates import travel_matrix
 from nodes.plan_itinerary import plan_itinerary
 from nodes.select_itinerary import select_itinerary
 from nodes.generate_response import generate_response
