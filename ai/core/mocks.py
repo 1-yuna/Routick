@@ -21,7 +21,7 @@ mock_user_input_only: UserInput = {
     "lat":              37.5572,
     "lng":              126.9245,
     "days":             None,
-    "start_time":       "09:00",
+    "start_time":       "10:00",
     "end_time":         "22:00",
 
     # [preprocess_input] 내부 변환 후 채워지는 값
@@ -59,7 +59,7 @@ mock_user_input_endpoint: UserInput = {
          "mid_lat": 35.1531, "mid_lng": 129.1186, "mid_name": "광안리",
          "end_lat": 35.1602, "end_lng": 129.1607, "end_name": "코오롱씨클라우드호텔"},
     ],
-    "start_time":       "09:00",
+    "start_time":       "10:00",
     "end_time":         "22:00",
 
     # [preprocess_input] 내부 변환 후 채워지는 값
