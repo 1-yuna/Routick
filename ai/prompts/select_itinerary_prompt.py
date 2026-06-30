@@ -1,108 +1,130 @@
 # ─────────────────────────────────────────────────────────────────────
 # select_itinerary_prompt
 # ─────────────────────────────────────────────────────────────────────
-# select_itinerary 노드에서 사용되는 프롬프트
+# 3-7 최적 일정 선택에서 사용되는 LLM 프롬프트
+#
+# 핵심 역할:
+#   1. day별 동선 후보를 전체적으로 한 번에 검토하여 day별 최적 동선 1개씩 선택
+#      - companion + moods + activities 종합 판단
+#      - best_for에 companion 포함 비중이 높은 동선 우선
+#      - 무드 전개(atmosphere 순서) 자연스러움 평가
+#      - place_tags 기반 활동 다양성 판단
+#      - day 간 동일 장소 중복 금지를 최우선으로 고려
+#      - 동선 내 동일 place_tags 2개 이상 금지
+#   2. 각 장소별 추천 이유 생성 (moods/activities 매칭 포함, 30자 이내)
+#   3. day별 선택 이유 + 비교(미선택) 이유 생성
 # ─────────────────────────────────────────────────────────────────────
 
-import json
+
+# ─── 동선 1개를 LLM 프롬프트용 텍스트로 축약 ───
+def _format_itinerary(itinerary: list[dict]) -> str:
+    # start/end/parking 블록 제외, 일반 장소만 포함
+    places = [
+        item for item in itinerary
+        if item["place"].get("bucket") not in ("start", "end", "parking")
+    ]
+
+    lines = []
+    for item in places:
+        p = item["place"]
+        atmosphere = ", ".join(p.get("atmosphere", [])) or "정보없음"
+        best_for   = ", ".join(p.get("best_for", [])) or "정보없음"
+        tags       = ", ".join(p.get("place_tags", [])) or "정보없음"
+        summary    = p.get("summary", "")
+        lines.append(
+            f"    - {p.get('name')} (id: {p.get('id')}) "
+            f"| 분위기: {atmosphere} | 추천대상: {best_for} | 활동: {tags} | {summary}"
+        )
+    return "\n".join(lines)
 
 
-def build_prompt(user_input: dict, summarized: list[dict]) -> str:
-    companion_kr     = user_input.get("companion_kr", "")
-    age_group        = user_input.get("age_group", "")
-    moods_kr         = user_input.get("moods_kr", [])
-    activities_kr    = user_input.get("activities_kr", [])
-    transport_kr     = user_input.get("transport_kr", "도보")
-    avoid_activities = user_input.get("avoid_activities", [])
-    travel_days      = user_input.get("travel_days", 1)
+# ─── 프롬프트 ───
+def build_prompt(
+        itineraries_by_day: dict[int, list[list[dict]]],
+        user_input: dict,
+) -> str:
+    companion_kr  = user_input.get("companion_kr", "")
+    moods_kr      = user_input.get("moods_kr") or []
+    activities_kr = user_input.get("activities_kr") or []
 
-    itineraries_text = json.dumps(summarized, ensure_ascii=False, indent=2)
+    user_context = f"""
+    [현재 사용자 정보]
+    - 동행 유형: {companion_kr}
+    - 선호 분위기: {", ".join(moods_kr) if moods_kr else "없음"}
+    - 선호 활동: {", ".join(activities_kr) if activities_kr else "없음"}
+    """
+
+    day_blocks = []
+    single_candidate_days = []
+
+    for day_number in sorted(itineraries_by_day.keys()):
+        itineraries = itineraries_by_day[day_number]
+
+        if len(itineraries) == 1:
+            single_candidate_days.append(day_number)
+
+        candidate_lines = []
+        for idx, itinerary in enumerate(itineraries):
+            candidate_lines.append(
+                f"  [동선 {idx}]\n{_format_itinerary(itinerary)}"
+            )
+        day_blocks.append(
+            f"[day{day_number}] (후보 {len(itineraries)}개)\n" + "\n".join(candidate_lines)
+        )
+
+    days_text = "\n\n".join(day_blocks)
+
+    single_note = ""
+    if single_candidate_days:
+        days_str = ", ".join(f"day{d}" for d in single_candidate_days)
+        single_note = f"""
+    ※ {days_str}는 후보가 1개뿐입니다. 이 day는 selected_index=0으로 고정하고,
+      select_reason과 compare_reason은 "후보가 1개뿐이라 자동 선택됨"으로 작성하세요.
+      (단, recommendation_reasons는 동일하게 생성하세요.)
+    """
 
     return f"""
-아래는 여행 동선 후보 목록입니다.
-유저 정보를 참고하여 {travel_days}일치 동선을 선택해주세요.
-각 day마다 서로 다른 동선을 선택하고, 모든 day를 통틀어 동일한 장소(place_id)가 절대 중복되지 않도록 해주세요.
-JSON 형식으로만 응답하세요. 설명, 마크다운, 코드블록 금지.
+    아래는 여행 일정 동선 후보입니다. day별로 후보 동선 중 가장 적합한 1개를 선택하고,
+    JSON으로만 응답하세요. 설명, 마크다운, 코드블록 금지.
 
-[유저 정보]
-- 동행 유형: {companion_kr}
-- 연령대: {age_group}
-- 선호 분위기: {", ".join(moods_kr)}
-- 선호 활동: {", ".join(activities_kr)}
-- 이동 수단: {transport_kr}
-- 피하고 싶은 것: {", ".join(avoid_activities) if avoid_activities else "없음"}
-- 여행 기간: {travel_days}일
+    {user_context}
 
-[판단 기준]
-- companion + moods + activities 조합을 종합적으로 고려
-- 장소의 name과 summary를 직접 참고하여 유저 분위기에 맞는지 스스로 판단하세요. atmosphere 필드가 잘못 분류됐을 수 있습니다.
-- 유저가 선호하는 분위기(moods)와 잘 어울리는 장소가 많은 동선 우선
-- place_tags를 참고하여 유저가 선호하는 활동(activities)과 일치하는 장소가 많은 동선 우선
-- 동선 내 place_tags 다양성 판단 (같은 활동 유형이 연속되지 않는 동선 우선)
-- 동선 내 장소들의 분위기 흐름이 자연스러운 동선 우선 (예: 활기찬 → 힐링 → 감성)
-- 장소 다양성 (같은 유형 장소가 연속되지 않는 동선)
-- 동선의 자연스러움 (흐름이 어색하지 않은 동선)
-- 유저가 피하고 싶은 활동이 포함되지 않은 동선
-- 모든 day를 통틀어 동일한 place_id가 절대 중복되어서는 안됨
+    [선택 기준]
+    1. companion + moods + activities 조합을 종합적으로 고려해 day별 최적 동선을 선택하세요.
+    2. best_for에 동행 유형({companion_kr})이 포함된 장소 비중이 높은 동선을 우선하세요.
+    3. 무드 전개를 평가하세요: 동선 순서(시간 흐름)대로 atmosphere가 자연스럽게 이어지는지 확인합니다.
+       예) 활기찬 → 힐링 → 감성처럼 점진적으로 전환되는 흐름은 긍정적으로 평가하세요.
+           활기찬 → 조용한 → 활기찬처럼 극단적으로 반복 전환되는 흐름은 감점 요인입니다.
+    4. place_tags 기반으로 활동의 다양성을 판단하세요. 동선 내 동일 place_tags가
+       2개 이상이면 감점 요인입니다.
+    5. day 간 동일 장소(id) 중복을 최우선으로 피하세요. 여러 day에서 좋은 동선이
+       같은 장소를 포함하고 있다면, 전체 조합 관점에서 중복이 없는 조합을 선택하세요.
+    {single_note}
 
-[동행 유형별 장소 선택 기준]
-연인:
-- 분위기 좋은 감성 카페, 오션뷰, 야경 명소, 데이트하기 좋은 장소 우선
-- 체인점(스타벅스, 메가커피 등) 후순위
-- 함께 즐길 수 있는 액티비티 포함
+    [장소별 추천 이유 작성 기준]
+    - 유저가 선택한 분위기(moods) 또는 활동(activities) 중 매칭되는 항목을 반드시 포함하세요.
+    - 30자 이내, 명사형으로 작성하세요. "~입니다", "~해요" 등 종결어미 금지.
+    - 형식 예시: "로맨틱한 분위기의 오션뷰 카페", "활기찬 분위기의 현지 인기 맛집"
 
-친구:
-- 활기차고 시끌벅적한 장소 우선
-- 맛집, 오락, 액티비티 위주
-- 대화하기 좋은 카페 포함
+    [day별 선택/비교 이유 작성 기준]
+    - select_reason: 왜 이 동선을 선택했는지 핵심 이유를 1~2문장으로 작성하세요.
+    - compare_reason: 다른 후보 동선들과 비교했을 때 어떤 점에서 더 나았는지 1문장으로 작성하세요.
 
-혼자:
-- 조용하고 여유로운 공간 우선
-- 혼밥/혼카페 가능한 장소
-- 전시, 산책, 사진찍기 좋은 장소 포함
-
-부모님과:
-- 걷기 편하고 조용한 장소 우선
-- 자연, 문화시설, 식사하기 좋은 장소
-- 클럽, 오락실 등 제외
-
-자녀와:
-- 아이 동반 가능한 장소 우선
-- 체험형, 야외, 놀이 요소 포함
-- 술집, 바 등 제외
-
-반려동물과:
-- 펫 프렌들리 장소 우선
-- 야외, 공원, 산책로 위주
-- 실내 밀폐 공간 후순위
-
-[중요]
-- 모든 장소의 추천 이유는 필수입니다. 빈 문자열 절대 금지.
-- 각 추천 이유는 장소 이름과 지역명을 함께 참고하여 장소 특성과 유저 취향을 반영해 30자 이내 명사형으로 작성하세요.
-  (예: "연인과 함께하기 좋은 오션뷰 카페", "힐링 분위기의 해안 산책로")
-- 모든 day를 통틀어 동일한 place_id가 단 하나도 중복되어서는 안됩니다.
-- 동선 내에서 이름이 유사하거나 같은 브랜드/체인인 장소가 중복되지 않도록 해주세요.
-  (예: 같은 브랜드 카페 2개, 같은 관광지 내 여러 장소 등)
-- 동선 내에서 동일한 place_tags를 가진 장소가 2개 이상 포함되지 않도록 해주세요.
-  (예: place_tags가 "이색카페"인 장소가 2개 이상이면 안됨, "산책로"인 장소가 2개 이상이면 안됨)
-
-[동선 후보]
-{itineraries_text}
-
-[응답 형식]
-{{
-  "days": [
+    [응답 형식]
     {{
-      "day_number": 1,
-      "selected_index": 선택한 동선의 index (숫자),
-      "reason": "이 동선을 선택한 이유 (1문장)",
-      "recommendation_reasons": [
+      "days": [
         {{
-          "place_id": "장소id",
-          "reason": "이 장소를 추천하는 이유 (1문장, 30자 이내)"
+          "day_number": 1,
+          "selected_index": 0,
+          "select_reason": "선택 이유",
+          "compare_reason": "다른 후보 대비 선택 이유 요약",
+          "recommendation_reasons": [
+            {{"place_id": "장소id", "reason": "30자 이내 추천 이유"}}
+          ]
         }}
       ]
     }}
-  ]
-}}
-"""
+
+    [동선 후보]
+    {days_text}
+    """
