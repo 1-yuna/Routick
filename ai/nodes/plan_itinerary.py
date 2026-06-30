@@ -8,6 +8,9 @@
 #      - 동선 내 장소 순회하며 current_parking 기준으로 주차장 블록 추가
 #      - 1km 이내: 기존 주차장 유지
 #      - 1km 초과: 이전 주차장 복귀 블록 + 새 주차장 블록 추가
+#      - end(도착지) 도착 시에도 동일하게 거리 체크: 현재 주차장에서 end까지
+#        1km 초과면 이전 주차장 복귀 → end 근처 새 주차장 검색 → 자동차로 이동 →
+#        새 주차장에서 end까지 도보로 연결
 #      - 이동시간은 Haversine 기반 추정값 (정확한 재계산은 3-8에서 수행)
 #   2. total_score 내림차순 정렬 후 day별 상위 5개 반환
 #      유효 동선 1개 이상이면 진행, 없으면 실패 응답
@@ -91,12 +94,74 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
             result.append(item)
             continue
         if bucket == "end":
+            end_lat = place.get("lat", 0)
+            end_lng = place.get("lng", 0)
+
+            if current_parking is not None:
+                dist_to_end = haversine(current_parking["lat"], current_parking["lng"], end_lat, end_lng)
+
+                if dist_to_end > PARKING_REUSE_DISTANCE_KM:
+                    # end가 현재 주차장에서 멀면, 마지막 장소 → 주차장 복귀 → end 근처 새 주차장 경유 → end
+                    last_place_item = result[-1] if result and result[-1].get("place", {}).get("bucket") not in ("parking",) else None
+                    leave_at = (last_place_item or item).get("leave_at") or item.get("arrive_at") or "09:00"
+                    last_place = (last_place_item or item)["place"]
+
+                    walk_back_min = travel_min(
+                        haversine(last_place["lat"], last_place["lng"],
+                                  current_parking["lat"], current_parking["lng"]),
+                        WALK_SPEED_KMH
+                    )
+                    old_park_arrive = to_str(to_dt(leave_at) + timedelta(minutes=walk_back_min))
+
+                    end_parking = await search_parking(end_lat, end_lng)
+                    if end_parking:
+                        car_min = travel_min(
+                            haversine(current_parking["lat"], current_parking["lng"],
+                                      end_parking["lat"], end_parking["lng"]),
+                            CAR_SPEED_KMH
+                        )
+                        new_park_arrive = to_str(to_dt(old_park_arrive) + timedelta(minutes=car_min))
+                        new_park_leave  = to_str(to_dt(new_park_arrive) + timedelta(minutes=1))
+
+                        walk_to_end = travel_min(
+                            haversine(end_parking["lat"], end_parking["lng"], end_lat, end_lng),
+                            WALK_SPEED_KMH
+                        )
+
+                        # 이전 주차장 복귀 블록
+                        result.append({
+                            "type":            "parking",
+                            "place":           current_parking,
+                            "arrive_at":       old_park_arrive,
+                            "leave_at":        new_park_leave,
+                            "enter_transport": {"mode": "walk", "minutes": walk_back_min},
+                            "exit_transport":  {"mode": "car",  "minutes": car_min},
+                            "travel_to_next_minutes": car_min,
+                        })
+
+                        # end 근처 새 주차장 블록
+                        result.append({
+                            "type":            "parking",
+                            "place":           end_parking,
+                            "arrive_at":       None,
+                            "leave_at":        None,
+                            "enter_transport": {"mode": "car",  "minutes": car_min},
+                            "exit_transport":  {"mode": "walk", "minutes": walk_to_end},
+                            "travel_to_next_minutes": walk_to_end,
+                        })
+
+                        new_end_arrive = to_str(to_dt(new_park_leave) + timedelta(minutes=walk_to_end))
+                        item = {**item, "arrive_at": new_end_arrive}
+                        result.append(item)
+                        continue
+
+            # 1km 이내거나 새 주차장을 못 찾은 경우: 기존처럼 직전 주차장에서 도보로 이동
             if result and result[-1].get("type") == "parking" and result[-1].get("leave_at"):
                 # 직전이 새 주차장 블록이면: 주차장 → end까지 도보 이동시간 반영
                 last_parking = result[-1]
                 walk_to_end = travel_min(
                     haversine(last_parking["place"]["lat"], last_parking["place"]["lng"],
-                              place.get("lat", 0), place.get("lng", 0)),
+                              end_lat, end_lng),
                     WALK_SPEED_KMH
                 )
                 new_arrive = to_str(to_dt(last_parking["leave_at"]) + timedelta(minutes=walk_to_end))
@@ -126,6 +191,7 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
                     "leave_at":        park_leave,
                     "enter_transport": None,
                     "exit_transport":  {"mode": "walk", "minutes": walk_min},
+                    "travel_to_next_minutes": walk_min,
                 })
 
         # ── 현재 장소 추가 ──
@@ -178,6 +244,7 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
                         "leave_at":        new_park_leave,
                         "enter_transport": {"mode": "walk", "minutes": walk_back_min},
                         "exit_transport":  {"mode": "car",  "minutes": car_min},
+                        "travel_to_next_minutes": car_min,
                     })
 
                     # 새 주차장 블록 (진입/출차 정보만)
@@ -188,6 +255,7 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
                         "leave_at":        None,
                         "enter_transport": {"mode": "car",  "minutes": car_min},
                         "exit_transport":  {"mode": "walk", "minutes": walk_to_next},
+                        "travel_to_next_minutes": walk_to_next,
                     })
 
                     current_parking = new_parking

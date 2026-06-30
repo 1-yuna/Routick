@@ -14,7 +14,8 @@
 #      각 장소의 도착~출발 시간이 영업시간(요일+시간대, 브레이크타임 포함)과
 #      겹치는지 확인. status 필드도 "현재 시점"이 아니라 이 검증 결과로 확정
 #      충돌 시 3-3(1차 필터링, day당 50개) 결과를 day 구분 없이 통합한 풀에서
-#      classify_bucket으로 분류한 같은 bucket의 대체 후보를 탐색해
+#      대체 후보를 탐색. food는 food끼리만 대체하고, 그 외(activity/cafe/browse/pop)는
+#      슬롯 구조상 서로 호환되므로 네 bucket 전체를 대상으로 폭넓게 탐색해
 #      5가지 조건을 만족하면 교체 (shortlist 보강 정보가 있으면 우선 사용)
 #      대체 적용 후에는 카카오 Directions로 최종 정밀 재계산 수행
 #   4. 저녁 food(동선상 마지막 food) 종료 시점이 21:00을 넘기면,
@@ -30,6 +31,7 @@ import httpx
 from datetime import datetime, timedelta
 
 from nodes.generate_candidates import classify_bucket
+from nodes.plan_itinerary import search_parking
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 KAKAO_API_KEY  = os.getenv("KAKAO_REST_API_KEY")
@@ -348,10 +350,17 @@ def _assign_travel_mode(itinerary: list[dict], is_car_day: bool) -> list[dict]:
     return result
 
 
-def _cutoff_after_evening_food(itinerary: list[dict], cutoff_time: str = "21:00") -> list[dict]:
+async def _cutoff_after_evening_food(
+    itinerary: list[dict],
+    transport_kr: str = "도보",
+    cutoff_time: str = "21:00",
+) -> list[dict]:
     """저녁 food(동선상 마지막 food) 종료 시점이 cutoff_time을 넘기면,
     그 이후의 일반 장소(activity/cafe/browse/pop 등)를 모두 잘라내고
-    end 블록만 이어붙인다. start/parking 블록은 그대로 유지."""
+    end 블록만 이어붙인다. start/parking 블록은 그대로 유지.
+    transport=자동차인 경우 단순 도보 직결이 아니라, 마지막 food 이전에
+    이미 확보된 주차장이 있으면 그 주차장을 복귀 후 end 근처 새 주차장을
+    검색해 자동차로 이동하도록 처리한다."""
     food_indices = [
         i for i, item in enumerate(itinerary)
         if item["place"].get("bucket") == "food"
@@ -364,23 +373,87 @@ def _cutoff_after_evening_food(itinerary: list[dict], cutoff_time: str = "21:00"
     if not last_food_leave or to_dt(last_food_leave) < to_dt(cutoff_time):
         return itinerary  # 21시 이전에 끝났으면 컷오프 불필요
 
+    # 마지막 food 이전(컷오프되지 않는 구간)에서 가장 마지막으로 등장한 주차장을
+    # "현재 보유 중인 주차 거점"으로 간주
+    current_parking = None
+    for item in itinerary[: last_food_idx + 1]:
+        if item["place"].get("bucket") == "parking":
+            current_parking = item["place"]
+
     # 마지막 food 이후의 일반 장소/주차장 블록을 모두 제거하고, end 블록만 유지
     result = itinerary[: last_food_idx + 1]
     end_block = next(
         (item for item in itinerary[last_food_idx + 1:] if item["place"].get("bucket") == "end"),
         None
     )
-    if end_block:
-        last_place = itinerary[last_food_idx]["place"]
-        if last_place.get("lat") is not None and end_block["place"].get("lat") is not None:
-            dist = _haversine(
-                last_place["lat"], last_place["lng"],
-                end_block["place"]["lat"], end_block["place"]["lng"]
-            )
-            walk_min = _distance_to_minutes(dist, "도보")
-        else:
-            walk_min = 0
 
+    if not end_block:
+        return result
+
+    last_place = itinerary[last_food_idx]["place"]
+    end_place  = end_block["place"]
+    is_car = transport_kr == "자동차"
+
+    if is_car and current_parking is not None and current_parking.get("lat") is not None:
+        dist_to_end = _haversine(current_parking["lat"], current_parking["lng"],
+                                  end_place["lat"], end_place["lng"])
+
+        if dist_to_end > 1.0:
+            # 보유 주차장에서 end까지 멀면, food → 주차장 복귀(도보) → end 근처 새 주차장(자동차) → end(도보)
+            walk_back = _distance_to_minutes(
+                _haversine(last_place["lat"], last_place["lng"],
+                           current_parking["lat"], current_parking["lng"]),
+                "도보"
+            )
+            park_back_arrive = to_str(to_dt(last_food_leave) + timedelta(minutes=walk_back))
+
+            new_parking = await search_parking(end_place["lat"], end_place["lng"])
+
+            if new_parking:
+                car_min = _distance_to_minutes(
+                    _haversine(current_parking["lat"], current_parking["lng"],
+                               new_parking["lat"], new_parking["lng"]),
+                    "자동차"
+                )
+                new_park_leave = to_str(to_dt(park_back_arrive) + timedelta(minutes=car_min + 1))
+                walk_to_end = _distance_to_minutes(
+                    _haversine(new_parking["lat"], new_parking["lng"],
+                               end_place["lat"], end_place["lng"]),
+                    "도보"
+                )
+
+                result[last_food_idx]["travel_to_next_minutes"] = walk_back
+                result.append({
+                    "type":            "parking",
+                    "place":           {**current_parking, "bucket": "parking"},
+                    "arrive_at":       park_back_arrive,
+                    "leave_at":        new_park_leave,
+                    "enter_transport": {"mode": "walk", "minutes": walk_back},
+                    "exit_transport":  {"mode": "car",  "minutes": car_min},
+                    "travel_to_next_minutes": car_min,
+                })
+                result.append({
+                    "type":            "parking",
+                    "place":           {**new_parking, "bucket": "parking"},
+                    "arrive_at":       None,
+                    "leave_at":        None,
+                    "enter_transport": {"mode": "car",  "minutes": car_min},
+                    "exit_transport":  {"mode": "walk", "minutes": walk_to_end},
+                    "travel_to_next_minutes": walk_to_end,
+                })
+                end_arrive = to_str(to_dt(new_park_leave) + timedelta(minutes=walk_to_end))
+                result.append({**end_block, "arrive_at": end_arrive})
+                return result
+
+        # 가깝거나 새 주차장을 못 찾았으면 그대로 도보로 연결
+        walk_min = _distance_to_minutes(dist_to_end, "도보")
+        new_arrive = to_str(to_dt(last_food_leave) + timedelta(minutes=walk_min))
+        result.append({**end_block, "arrive_at": new_arrive})
+        result[last_food_idx]["travel_to_next_minutes"] = walk_min
+    else:
+        # 도보 일정이거나 주차장 정보가 없으면 기존처럼 직선거리 기반 도보로 연결
+        dist = _haversine(last_place["lat"], last_place["lng"], end_place["lat"], end_place["lng"])
+        walk_min = _distance_to_minutes(dist, "도보")
         new_arrive = to_str(to_dt(last_food_leave) + timedelta(minutes=walk_min))
         result.append({**end_block, "arrive_at": new_arrive})
         result[last_food_idx]["travel_to_next_minutes"] = walk_min
@@ -449,9 +522,15 @@ async def _find_replacement(
     google_client: httpx.AsyncClient,
 ) -> dict | None:
     """충돌난 장소(idx)에 대해 조건을 만족하는 대체 후보를 탐색.
-    day 구분 없이 전체 shortlist에서 같은 bucket + 가까운 순으로 후보를 좁힌다."""
+    day 구분 없이 전체 shortlist에서 대체 후보를 찾는다.
+    food는 food끼리만 대체하고, 그 외(activity/cafe/browse/pop)는 서로 자유롭게
+    대체 가능하도록 범위를 넓혀 탐색한다 (슬롯 구조상 이 네 bucket은 상호 호환됨)."""
     target = itinerary[idx]["place"]
     target_bucket = target.get("bucket", "")
+    if target_bucket == "food":
+        target_buckets = ["food"]
+    else:
+        target_buckets = ["activity", "cafe", "browse", "pop"]
     prev_place = itinerary[idx - 1]["place"] if idx > 0 else None
     next_place = itinerary[idx + 1]["place"] if idx < len(itinerary) - 1 else None
     travel_limit = TRAVEL_TIME_LIMIT.get(transport_kr, 20)
@@ -459,11 +538,11 @@ async def _find_replacement(
     arrive_at = itinerary[idx]["arrive_at"]
     leave_at  = itinerary[idx]["leave_at"]
 
-    # 같은 분류(bucket)의, 아직 동선에 쓰이지 않은 전체 shortlist 후보를
+    # 대상 bucket 범위 내, 아직 동선에 쓰이지 않은 전체 shortlist 후보를
     # target과 가까운 순으로 정렬 (day 구분 없이 전체에서 탐색)
     candidates = [
         s["place"] for s in all_shortlist
-        if s["place"].get("bucket") == target_bucket
+        if s["place"].get("bucket") in target_buckets
         and s["place"]["id"] not in used_place_ids
         and s["place"]["id"] != target["id"]
     ]
@@ -504,7 +583,7 @@ async def _find_replacement(
             continue
 
         # ⑤ 이후 시간표가 endTime을 넘지 않는지는 호출부에서 재계산 후 검증
-        return c_enriched
+        return {**c_enriched, "slot_buckets": target_buckets}
 
     return None
 
@@ -533,7 +612,6 @@ async def fetch_details(state: dict) -> dict:
         }
 
     # 대체 후보 풀: 3-3(1차 필터링, day당 50개) 결과 기준 — day 구분 없이 전체 통합
-    # shortlist(2차 필터, day당 30개)보다 풀이 넓어 대체 성공률이 높음
     # bucket이 아직 없으므로 classify_bucket으로 그 자리에서 분류
     all_shortlist: list[dict] = []
     seen_ids: set[str] = set()
@@ -634,7 +712,8 @@ async def fetch_details(state: dict) -> dict:
                 enriched = await _recalculate_travel_times(kakao_client, enriched)
 
             # 저녁 food 이후 21:00을 넘기면 그 뒤 일정을 모두 잘라내고 바로 도착지로 연결
-            enriched = _cutoff_after_evening_food(enriched, cutoff_time="21:00")
+            # (transport=자동차면 보유 주차장 기준으로 주차장 재경유 처리)
+            enriched = await _cutoff_after_evening_food(enriched, transport_kr=transport_kr, cutoff_time="21:00")
 
             # 각 블록의 다음 구간 실제 이동수단(도보/자동차) 부여
             enriched = _assign_travel_mode(enriched, is_car_day=(transport_kr == "자동차"))

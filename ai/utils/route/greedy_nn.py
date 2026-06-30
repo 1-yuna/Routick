@@ -22,6 +22,10 @@
 #      1건까지는 통과시키므로 완전히 막히지 않음)
 #   category_name 중복 사전 차단: 이미 방문한 장소와 category_name 마지막 depth가
 #     같은 후보(food/cafe 제외)는 애초에 선택 대상에서 제외
+#   slot_buckets 기록: 각 장소가 선택된 슬롯이 허용했던 bucket 전체를 함께 저장
+#     (예: 슬롯1은 browse/cafe/pop 중 선택되므로 cafe가 뽑혀도 slot_buckets=[browse,cafe,pop])
+#     3-8에서 영업시간 충돌로 대체 후보를 찾을 때, 같은 bucket만이 아니라
+#     slot_buckets 전체 범위에서 탐색하기 위한 정보
 #   마지막 슬롯: end 좌표에 가까운 장소 우선 선택 (endpoint 케이스)
 #   점심 슬롯: 술집/고기류 제외
 #   excluded_place_ids: rollback 시 제외 목록
@@ -121,7 +125,10 @@ def greedy_nn(
     if first_id in excluded_place_ids:
         return [], float("inf")
 
-    visited.append(first)
+    visited.append({
+        **first,
+        "place": {**first["place"], "slot_buckets": ["browse", "cafe", "pop"]},
+    })
     visited_ids.add(first_id)
     visited_names.add(first["place"].get("name", ""))
     stay = STAY_MINUTES.get(first["place"].get("bucket", "cafe"), 60)
@@ -236,6 +243,12 @@ def greedy_nn(
 
         top5      = pool_sorted[:5]
         best_item = random.choice(top5)
+
+        # 이 슬롯에서 허용되던 bucket 목록을 장소에 기록 (3-8 대체 탐색 범위 결정용)
+        best_item = {
+            **best_item,
+            "place": {**best_item["place"], "slot_buckets": list(allowed_buckets)},
+        }
 
         travel_time = time_matrix[current_idx][id_to_matrix_idx[best_item["place"]["id"]]]
         next_bucket = best_item["place"].get("bucket", "activity")
