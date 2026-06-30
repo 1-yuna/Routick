@@ -13,8 +13,15 @@
 #   → 슬롯6: activity, browse, pop
 #   → 슬롯7~: 21:00 이전이면 계속 추가 (activity, browse, pop)
 #   각 슬롯에서 travel_limit 이내 가까운 5개 중 랜덤 선택
-#   endpoint 케이스: end 방향으로 진행하는(현재 위치보다 end에 더 가까운) 후보만 사용
+#   endpoint 케이스: 현재 목표(mid 통과 전엔 mid, 통과 후엔 end) 방향으로
+#     진행하는(현재 위치보다 목표에 더 가까운) 후보만 사용
 #     (역행 후보 완전 제외, 진행 방향 후보가 없을 때만 부득이하게 전체 후보 사용)
+#   교차 방지: 후보를 추가했을 때 새 구간이 지금까지의 경로(직전 구간 제외)와
+#     교차하는지 선택 단계에서 미리 검증해, 교차 안 나는 후보를 우선 사용
+#     (교차 안 나는 후보가 전혀 없을 때만 부득이하게 전체 허용 — 사후 검증에서
+#      1건까지는 통과시키므로 완전히 막히지 않음)
+#   category_name 중복 사전 차단: 이미 방문한 장소와 category_name 마지막 depth가
+#     같은 후보(food/cafe 제외)는 애초에 선택 대상에서 제외
 #   마지막 슬롯: end 좌표에 가까운 장소 우선 선택 (endpoint 케이스)
 #   점심 슬롯: 술집/고기류 제외
 #   excluded_place_ids: rollback 시 제외 목록
@@ -22,6 +29,7 @@
 
 import random
 import math
+from utils.route.route_check import segments_intersect
 
 
 # ─── bucket별 체류시간 (분) ───
@@ -125,10 +133,24 @@ def greedy_nn(
 
     def pick_slot(allowed_buckets: list[str], is_last: bool = False) -> bool:
         """슬롯 하나 채우기. 성공하면 True 반환."""
-        nonlocal current_time, current_idx, total_travel
+        nonlocal current_time, current_idx, total_travel, mid_passed
+
+        current_place = visited[-1]["place"]
 
         # 점심 슬롯 제외 키워드 적용
         is_food_slot = allowed_buckets == ["food"]
+
+        # 이미 방문한 장소들의 category_name 마지막 depth (food/cafe 제외) 집합
+        visited_category_lasts = set()
+        for v in visited:
+            v_bucket = v["place"].get("bucket", "")
+            if v_bucket in ("food", "cafe"):
+                continue
+            v_category = v["place"].get("category", "") or ""
+            v_parts = [p.strip() for p in v_category.split(">")]
+            v_last  = v_parts[-1] if v_parts else ""
+            if v_last:
+                visited_category_lasts.add(v_last)
 
         def is_selectable(item):
             if item["place"]["id"] in visited_ids:
@@ -143,7 +165,32 @@ def greedy_nn(
                 category = item["place"].get("category", "") or ""
                 if any(kw in category for kw in LUNCH_EXCLUDE_KEYWORDS):
                     return False
+            # category_name 마지막 depth 중복 사전 차단 (food/cafe 제외)
+            item_bucket = item["place"].get("bucket", "")
+            if item_bucket not in ("food", "cafe"):
+                item_category = item["place"].get("category", "") or ""
+                item_parts = [p.strip() for p in item_category.split(">")]
+                item_last  = item_parts[-1] if item_parts else ""
+                if item_last and item_last in visited_category_lasts:
+                    return False
             return True
+
+        # 후보를 추가했을 때 기존 경로(직전 구간 제외, 자기 자신과 인접한 구간은 교차 검사 의미 없음)와
+        # 교차하는지 미리 체크. 기존 구간 좌표쌍을 캐싱해두고 새 구간(current_place→후보)과 비교.
+        existing_segments = [
+            ((visited[i]["place"]["lat"], visited[i]["place"]["lng"]),
+             (visited[i+1]["place"]["lat"], visited[i+1]["place"]["lng"]))
+            for i in range(len(visited) - 1)
+        ]
+
+        def causes_intersection(item) -> bool:
+            new_p1 = (current_place["lat"], current_place["lng"])
+            new_p2 = (item["place"]["lat"], item["place"]["lng"])
+            # 마지막 구간(현재 위치로 이어지는 직전 구간)은 새 구간과 인접하므로 검사 제외
+            for seg_p1, seg_p2 in existing_segments[:-1] if existing_segments else []:
+                if segments_intersect(new_p1, new_p2, seg_p1, seg_p2):
+                    return True
+            return False
 
         selectable_all = [item for item in candidates if is_selectable(item)]
         if not selectable_all:
@@ -157,7 +204,6 @@ def greedy_nn(
         elif is_endpoint:
             # endpoint 케이스: 현재 목표(mid 또는 end) 방향으로 진행하는 후보만 사용
             target_lat, target_lng = current_target()
-            current_place = visited[-1]["place"]
             dist_to_target_from_current = haversine(
                 current_place["lat"], current_place["lng"], target_lat, target_lng
             )
@@ -167,6 +213,11 @@ def greedy_nn(
                    < dist_to_target_from_current
             ]
             pool = forward if forward else selectable_all
+
+            # 교차 사전 필터: 추가 시 기존 경로와 교차하지 않는 후보를 우선 사용
+            non_crossing = [item for item in pool if not causes_intersection(item)]
+            if non_crossing:
+                pool = non_crossing
 
             pool_sorted = sorted(pool, key=lambda item:
                 time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
@@ -201,7 +252,6 @@ def greedy_nn(
         current_idx   = id_to_matrix_idx[best_item["place"]["id"]]
 
         # mid 통과 여부 갱신: 새로 방문한 장소가 mid에 충분히 가까우면 통과 처리
-        nonlocal mid_passed
         if has_mid and not mid_passed:
             dist_to_mid = haversine(
                 best_item["place"]["lat"], best_item["place"]["lng"], mid_lat, mid_lng

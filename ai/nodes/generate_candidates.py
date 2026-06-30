@@ -34,7 +34,13 @@ TRAVEL_TIME_LIMIT = {
 SHORT_DISTANCE_THRESHOLD_KM = 1.0
 
 # ─── 출발-도착 거리가 짧을 때 허용하는 경로 교차 건수 ───
-MAX_INTERSECTIONS_SHORT_DISTANCE = 2
+MAX_INTERSECTIONS_SHORT_DISTANCE = 1
+
+# ─── 출발=도착(거의 동일 좌표, 왕복) 기준 거리 및 교차 허용 건수 ───
+# 왕복 동선은 마지막 구간이 구조적으로 이전 구간과 가까워질 수밖에 없어
+# 교차 0건 달성이 어려우므로 별도로 완화된 기준 적용
+ROUND_TRIP_THRESHOLD_KM   = 0.1
+MAX_INTERSECTIONS_ROUND_TRIP = 1
 
 # ─── 시작점당 반복 횟수 ───
 REPEAT_PER_START = 5
@@ -424,12 +430,19 @@ def generate_candidates(state: dict) -> dict:
                 end_lat   = day_raw.get("end_lat")
                 end_lng   = day_raw.get("end_lng")
 
-                # 출발-도착 직선거리가 짧으면 도보 기준 + 경로 교차 허용 (작은 원형 동선은 자연스러움)
+                # 출발-도착 직선거리가 짧으면 도보 기준 적용 (작은 원형 동선은 자연스러움)
                 if None not in (start_lat, start_lng, end_lat, end_lng):
                     start_end_dist = haversine(start_lat, start_lng, end_lat, end_lng)
                     if start_end_dist <= SHORT_DISTANCE_THRESHOLD_KM:
                         day_travel_limit = TRAVEL_TIME_LIMIT["도보"]
-                        day_max_intersections = MAX_INTERSECTIONS_SHORT_DISTANCE
+
+                        # 출발=도착(왕복) 케이스는 마지막 구간이 구조적으로 이전 구간과
+                        # 가까워질 수밖에 없어 교차 0건 달성이 어려우므로 1건 허용
+                        if start_end_dist <= ROUND_TRIP_THRESHOLD_KM:
+                            day_max_intersections = MAX_INTERSECTIONS_ROUND_TRIP
+                        else:
+                            day_max_intersections = MAX_INTERSECTIONS_SHORT_DISTANCE
+
                         warnings.append(
                             f"day{day_number} 출발-도착 거리 {start_end_dist:.1f}km → "
                             f"도보 기준 + 경로 교차 {day_max_intersections}건 허용"
