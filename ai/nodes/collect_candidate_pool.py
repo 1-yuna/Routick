@@ -4,20 +4,14 @@
 # Kakao Local API로 raw 후보군 수집 + PostgreSQL 영구 저장
 #
 # 흐름:
-#   1. 카테고리 코드 동적 구성
-#      - 카페(CE7), 음식점(FD6) 기본 포함
-#      - CE7은 category_name 깊이 2가 "카페"인 것만 수집
-#      - 자연/관광 선택 시 관광명소(AT4) 추가
-#      - 공연/문화 선택 시 문화시설(CT1) 추가
-#      - transport=car일 경우 주차장(PK6) 추가
-#   2. day별 독립 호출
+#   1. day별 독립 호출
 #      - 케이스 1 (only): radius 기반 원형 검색
 #      - 케이스 2 (endpoint): rect 기반 사각형 검색
-#      - category 검색(final_keywords) + name 검색(name_search_keywords) 따로 호출 후 합산
-#      - 수집 완료 후 name_search_keywords를 final_keywords에 합산
-#   3. 좌표 → 행정구역명 변환 (region/startRegion/endRegion)
+#   2. 좌표 → 행정구역명 변환
+#      - region/start_region/end_region: 행정구역명 (coord2regioncode)
+#      - start_name/end_name: 프론트에서 받은 값을 그대로 사용 (역지오코딩 불필요)
 #      → days_info에 채워넣음
-#   4. PostgreSQL upsert
+#   3. PostgreSQL upsert
 # ─────────────────────────────────────────────────────────────────────
 
 import asyncio
@@ -26,9 +20,7 @@ import os
 
 from utils.pool.kakao_search import (
     search_kakao_by_radius,
-    search_kakao_by_radius_name,
     search_kakao_by_rect,
-    search_kakao_by_rect_name,
     coord_to_region,
 )
 from utils.pool.db import upsert_places
@@ -42,25 +34,13 @@ async def collect_candidate_pool(state: dict) -> dict:
     warnings: list[str] = []
     errors:   list[str] = []
 
-    keywords        = ui.get("final_keywords") or []
-    name_keywords   = ui.get("name_search_keywords") or []
-    days_info       = ui.get("days_info") or []
-    route_type      = ui.get("route_type", "only")
-    activities_kr   = ui.get("activities_kr") or []
-    transport       = ui.get("transport", "walk")
-
-    # activities, transport 기반 카테고리 코드 동적 구성
-    category_codes: dict[str, str] = {"카페": "CE7", "음식점": "FD6"}
-    if "자연/관광" in activities_kr:
-        category_codes["관광명소"] = "AT4"
-    if "공연/문화" in activities_kr:
-        category_codes["문화시설"] = "CT1"
-    if transport == "car":
-        category_codes["주차장"] = "PK6"
+    keywords   = ui.get("final_keywords") or []
+    days_info  = ui.get("days_info") or []
+    route_type = ui.get("route_type", "only")
 
     if not keywords:
         warnings.append("final_keywords 비어있음 → 기본 키워드 사용")
-        keywords = ["카페", "음식점"]
+        keywords = ["맛집", "카페"]
 
     if not days_info:
         errors.append("days_info 없음 — preprocess_input 점검 필요")
@@ -94,25 +74,12 @@ async def collect_candidate_pool(state: dict) -> dict:
                     warnings.append(f"day{day_number} 좌표 없음 → 스킵")
                     continue
 
-                # category 키워드 검색
                 day_places, day_warnings = await search_kakao_by_radius(
                     keywords=keywords,
                     lat=lat,
                     lng=lng,
                     radius_km=radius_km,
-                    category_codes=category_codes,
                 )
-
-                # name 키워드 검색 후 합치기
-                if name_keywords:
-                    name_places, name_warnings = await search_kakao_by_radius_name(
-                        name_keywords=name_keywords,
-                        lat=lat,
-                        lng=lng,
-                        radius_km=radius_km,
-                    )
-                    day_places = day_places + name_places
-                    day_warnings = day_warnings + name_warnings
 
                 # ── 2. 좌표 → 지역명 변환 (only: region) ───────────
                 region = await coord_to_region(client, lat, lng)
@@ -129,30 +96,16 @@ async def collect_candidate_pool(state: dict) -> dict:
                     warnings.append(f"day{day_number} rect 좌표 없음 → 스킵")
                     continue
 
-                # category 키워드 검색
                 day_places, day_warnings = await search_kakao_by_rect(
                     keywords=keywords,
                     rect_min_lat=rect_min_lat,
                     rect_min_lng=rect_min_lng,
                     rect_max_lat=rect_max_lat,
                     rect_max_lng=rect_max_lng,
-                    category_codes=category_codes,
                 )
 
-                # name 키워드 검색 후 합치기
-                if name_keywords:
-                    name_places, name_warnings = await search_kakao_by_rect_name(
-                        name_keywords=name_keywords,
-                        rect_min_lat=rect_min_lat,
-                        rect_min_lng=rect_min_lng,
-                        rect_max_lat=rect_max_lat,
-                        rect_max_lng=rect_max_lng,
-                    )
-                    day_places = day_places + name_places
-                    day_warnings = day_warnings + name_warnings
-
                 # ── 2. 좌표 → 지역명 변환 (endpoint: start/end_region) ──
-                # 원본 days에서 start/end 좌표 추출
+                # start/end_name은 프론트에서 받은 값을 그대로 사용 (역지오코딩 불필요)
                 days_raw    = ui.get("days") or []
                 day_raw     = next((d for d in days_raw if d["day_number"] == day_number), None)
 
@@ -161,7 +114,13 @@ async def collect_candidate_pool(state: dict) -> dict:
                         coord_to_region(client, day_raw["start_lat"], day_raw["start_lng"]),
                         coord_to_region(client, day_raw["end_lat"],   day_raw["end_lng"]),
                     )
-                    day_info = {**day_info, "start_region": start_region, "end_region": end_region}
+                    day_info = {
+                        **day_info,
+                        "start_region": start_region,
+                        "end_region":   end_region,
+                        "start_name":   day_raw.get("start_name"),
+                        "end_name":     day_raw.get("end_name"),
+                    }
 
             warnings.extend(day_warnings)
 
@@ -188,13 +147,7 @@ async def collect_candidate_pool(state: dict) -> dict:
             warnings.append(f"DB upsert 실패: {type(e).__name__}: {e}")
 
     # days_info에 region 채워서 user_input 업데이트
-    # final_keywords에 name_search_keywords 합치기
-    merged_keywords = list(ui.get("final_keywords") or [])
-    for kw in (name_keywords or []):
-        if kw not in merged_keywords:
-            merged_keywords.append(kw)
-
-    updated_ui = {**ui, "days_info": updated_days_info, "final_keywords": merged_keywords}
+    updated_ui = {**ui, "days_info": updated_days_info}
 
     return {
         "user_input":        updated_ui,

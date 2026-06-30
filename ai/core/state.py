@@ -36,12 +36,14 @@ import operator
 # ─────────────────────────────────────────────────────────────────────
 
 class DayCoord(TypedDict):
-    """케이스 2(endpoint)의 day별 좌표"""
+    """케이스 2(endpoint)의 day별 좌표 + 장소명"""
     day_number: int
     start_lat: float
     start_lng: float
+    start_name: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소명
     end_lat: float
     end_lng: float
+    end_name: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소명
 
 
 class UserInput(TypedDict):

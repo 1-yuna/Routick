@@ -83,9 +83,16 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
     current_parking = None
 
     for idx, item in enumerate(itinerary):
-        place = item["place"]
-        lat   = place.get("lat", 0)
-        lng   = place.get("lng", 0)
+        place  = item["place"]
+        bucket = place.get("bucket", "")
+
+        # start/end 블록은 주차장 대상에서 제외, 그대로 추가
+        if bucket in ("start", "end"):
+            result.append(item)
+            continue
+
+        lat = place.get("lat", 0)
+        lng = place.get("lng", 0)
 
         # ── 첫 장소: 진입 전 주차장 검색 ──
         if current_parking is None:

@@ -212,12 +212,30 @@ def _generate_day_routes(
     travel_limit:       int,
     start_time:         str,
     excluded_place_ids: set[str],
+    start_lat:          float = None,
+    start_lng:          float = None,
     end_lat:            float = None,
     end_lng:            float = None,
+    start_name:         str = "출발지",
+    end_name:           str = "도착지",
 ) -> list[dict]:
     all_routes = []
+    has_start  = start_lat is not None and start_lng is not None
 
-    for i in range(len(candidates)):
+    # start 좌표가 있으면 슬롯1(browse/cafe/pop) 중 start에서 가까운 후보로 시작점 제한
+    if has_start:
+        slot1_candidates = [
+            (i, c) for i, c in enumerate(candidates)
+            if c["place"].get("bucket") in ["browse", "cafe", "pop"]
+        ]
+        slot1_candidates.sort(key=lambda x: haversine(
+            start_lat, start_lng, x[1]["place"]["lat"], x[1]["place"]["lng"]
+        ))
+        start_indices = [i for i, _ in slot1_candidates[:5]] or list(range(len(candidates)))
+    else:
+        start_indices = list(range(len(candidates)))
+
+    for i in start_indices:
         for _ in range(REPEAT_PER_START):
             route, total_travel = greedy_nn(
                 start_idx=i,
@@ -235,6 +253,59 @@ def _generate_day_routes(
                 continue
 
             itinerary = assign_times(route, start_time, time_matrix, place_index)
+
+            # start 블록을 맨 앞에 추가
+            if has_start:
+                first_place = itinerary[0]["place"]
+                walk_min = int(distance_to_minutes(
+                    haversine(start_lat, start_lng, first_place["lat"], first_place["lng"]),
+                    "도보"
+                ))
+                start_block = {
+                    "order":                  0,
+                    "place": {
+                        "id":       "start",
+                        "name":     start_name or "출발지",
+                        "lat":      start_lat,
+                        "lng":      start_lng,
+                        "bucket":   "start",
+                        "category": "",
+                    },
+                    "arrive_at":              None,
+                    "leave_at":               start_time,
+                    "travel_to_next_minutes": walk_min,
+                    "recommendation_reason":  "",
+                }
+                itinerary = [start_block] + itinerary
+
+            # end 블록을 맨 뒤에 추가
+            has_end = end_lat is not None and end_lng is not None
+            if has_end:
+                last_place = itinerary[-1]["place"]
+                walk_min_to_end = int(distance_to_minutes(
+                    haversine(last_place["lat"], last_place["lng"], end_lat, end_lng),
+                    "도보"
+                ))
+                # 마지막 장소의 travel_to_next_minutes를 end까지 이동시간으로 갱신
+                itinerary[-1]["travel_to_next_minutes"] = walk_min_to_end
+                end_arrive = to_str(to_dt(itinerary[-1]["leave_at"]) + timedelta(minutes=walk_min_to_end))
+                end_block = {
+                    "order":                  len(itinerary) + 1,
+                    "place": {
+                        "id":       "end",
+                        "name":     end_name or "도착지",
+                        "lat":      end_lat,
+                        "lng":      end_lng,
+                        "bucket":   "end",
+                        "category": "",
+                    },
+                    "arrive_at":              end_arrive,
+                    "leave_at":               None,
+                    "travel_to_next_minutes": 0,
+                    "recommendation_reason":  "",
+                }
+                itinerary = itinerary + [end_block]
+
             all_routes.append({
                 "itinerary":    itinerary,
                 "total_travel": total_travel,
@@ -294,13 +365,22 @@ def generate_candidates(state: dict) -> dict:
         distance_matrix_by_day[day_number] = distance_matrix
         time_matrix_by_day[day_number]     = time_matrix
 
-        # endpoint 케이스: day별 end 좌표 추출
-        end_lat = end_lng = None
+        # endpoint 케이스: day별 start/end 좌표 + 장소명 추출
+        start_lat = start_lng = end_lat = end_lng = None
+        start_name = end_name = None
         if route_type == "endpoint":
             day_raw = next((d for d in days_raw if d["day_number"] == day_number), None)
             if day_raw:
-                end_lat = day_raw.get("end_lat")
-                end_lng = day_raw.get("end_lng")
+                start_lat = day_raw.get("start_lat")
+                start_lng = day_raw.get("start_lng")
+                end_lat   = day_raw.get("end_lat")
+                end_lng   = day_raw.get("end_lng")
+
+            days_info_list = ui.get("days_info") or []
+            day_info = next((d for d in days_info_list if d.get("day_number") == day_number), None)
+            if day_info:
+                start_name = day_info.get("start_name")
+                end_name   = day_info.get("end_name")
 
         # 3. Greedy NN 동선 생성
         all_routes = _generate_day_routes(
@@ -310,8 +390,12 @@ def generate_candidates(state: dict) -> dict:
             travel_limit=travel_limit,
             start_time=start_time,
             excluded_place_ids=used_place_ids,
+            start_lat=start_lat,
+            start_lng=start_lng,
             end_lat=end_lat,
             end_lng=end_lng,
+            start_name=start_name,
+            end_name=end_name,
         )
 
         # 4. 유효성 검증
