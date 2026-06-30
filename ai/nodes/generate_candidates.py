@@ -187,9 +187,16 @@ def is_valid_route(
     max_intersections: int = 0,
 ) -> tuple[bool, str]:
 
-    # 이동시간 초과
-    if any(item["travel_to_next_minutes"] > travel_limit for item in itinerary[:-1]):
-        return False, "이동시간 초과"
+    # 이동시간 초과 (단, 출발지→첫 장소, 마지막 장소→도착지 구간은 제약 없음)
+    for idx, item in enumerate(itinerary[:-1]):
+        bucket = item["place"].get("bucket", "")
+        if bucket == "start":
+            continue  # 출발지 → 첫 장소: 이동시간 제약 없음
+        # 다음 블록이 도착지(end)면, 그 직전 구간도 이동시간 제약 없음
+        if itinerary[idx + 1]["place"].get("bucket") == "end":
+            continue
+        if item["travel_to_next_minutes"] > travel_limit:
+            return False, "이동시간 초과"
 
     # category_name 맨 마지막 depth 기준 중복 (food/cafe 제외)
     category_last_list = []

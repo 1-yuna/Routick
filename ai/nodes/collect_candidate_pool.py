@@ -5,14 +5,13 @@
 #
 # 흐름:
 #   1. day별 독립 호출
-#      - 케이스 1 (only): radius 기반 원형 검색
-#      - 케이스 2 (endpoint): start/mid/end 세 지점 radius 검색 합산
-#        rect 전체 영역을 한 번에 검색하면 카카오 API 페이지 제한(45개) 안에서
-#        결과가 한쪽으로 몰릴 수 있어, 경로상 세 지점(출발/중간/도착)에서
-#        각각 radius(margin_km) 검색해 합쳐서 균등하게 분포된 후보 확보
+#      - 케이스 1 (only): 목적지 좌표 기준 원형 반경(radius) 검색
+#      - 케이스 2 (endpoint): mid(경유지) 좌표 기준 원형 반경(radius) 검색
+#        (only 케이스와 동일 로직 — days_info.center_lat/lng가 preprocess_input에서
+#         이미 mid 좌표로 채워져 있음. start/end는 검색 대상 아님)
 #   2. 좌표 → 행정구역명 변환
 #      - region/start_region/end_region: 행정구역명 (coord2regioncode)
-#      - start_name/end_name: 프론트에서 받은 값을 그대로 사용 (역지오코딩 불필요)
+#      - start_name/mid_name/end_name: 프론트에서 받은 값을 그대로 사용 (역지오코딩 불필요)
 #      → days_info에 채워넣음
 #   3. PostgreSQL upsert
 # ─────────────────────────────────────────────────────────────────────
@@ -23,8 +22,6 @@ import os
 
 from utils.pool.kakao_search import (
     search_kakao_by_radius,
-    search_kakao_by_rect,
-    search_kakao_by_route_points,
     coord_to_region,
 )
 from utils.pool.db import upsert_places
@@ -61,76 +58,53 @@ async def collect_candidate_pool(state: dict) -> dict:
     candidates_by_day: dict[int, list]  = {}
     updated_days_info: list[dict]       = []
 
-    # ── 1. day별 독립 호출 ──────────────────────────────────────────
+    days_raw = ui.get("days") or []
+
+    # ── 1. day별 독립 호출 (only/endpoint 공통: center_lat/lng 기준 radius 검색) ──
     async with httpx.AsyncClient(timeout=10.0) as client:
         for day_info in days_info:
             day_number = day_info["day_number"]
-            day_places: list[dict] = []
-            day_warnings: list[str] = []
 
-            # 케이스 1: radius 검색
+            lat       = day_info.get("center_lat")
+            lng       = day_info.get("center_lng")
+            radius_km = day_info.get("radius_km", 2.0)
+
+            if lat is None or lng is None:
+                warnings.append(f"day{day_number} 좌표 없음 → 스킵")
+                continue
+
+            day_places, day_warnings = await search_kakao_by_radius(
+                keywords=keywords,
+                lat=lat,
+                lng=lng,
+                radius_km=radius_km,
+            )
+            warnings.extend(day_warnings)
+
+            # ── 2. 좌표 → 지역명 변환 ──────────────────────────────
             if route_type == "only":
-                lat       = day_info.get("center_lat")
-                lng       = day_info.get("center_lng")
-                radius_km = day_info.get("radius_km", 2.0)
-
-                if lat is None or lng is None:
-                    warnings.append(f"day{day_number} 좌표 없음 → 스킵")
-                    continue
-
-                day_places, day_warnings = await search_kakao_by_radius(
-                    keywords=keywords,
-                    lat=lat,
-                    lng=lng,
-                    radius_km=radius_km,
-                )
-
-                # ── 2. 좌표 → 지역명 변환 (only: region) ───────────
                 region = await coord_to_region(client, lat, lng)
                 day_info = {**day_info, "region": region}
 
-            # 케이스 2: start/mid/end 세 지점 radius 검색
-            # (rect 전체 검색은 카카오 페이지 제한으로 결과가 한쪽에 몰릴 수 있어
-            #  경로 전반에 균등 분포된 후보를 위해 세 지점에서 각각 검색)
             elif route_type == "endpoint":
-                days_raw = ui.get("days") or []
-                day_raw  = next((d for d in days_raw if d["day_number"] == day_number), None)
-
-                if not day_raw:
-                    warnings.append(f"day{day_number} day_raw 없음 → 스킵")
-                    continue
-
-                margin_km = day_info.get("margin_km", 1.0)
-
-                day_places, day_warnings = await search_kakao_by_route_points(
-                    keywords=keywords,
-                    start_lat=day_raw["start_lat"],
-                    start_lng=day_raw["start_lng"],
-                    end_lat=day_raw["end_lat"],
-                    end_lng=day_raw["end_lng"],
-                    mid_lat=day_raw.get("mid_lat"),
-                    mid_lng=day_raw.get("mid_lng"),
-                    point_radius_km=margin_km,
-                )
-
-                # ── 2. 좌표 → 지역명 변환 (endpoint: start/end_region) ──
-                # start/end_name은 프론트에서 받은 값을 그대로 사용 (역지오코딩 불필요)
-                start_region, end_region = await asyncio.gather(
-                    coord_to_region(client, day_raw["start_lat"], day_raw["start_lng"]),
-                    coord_to_region(client, day_raw["end_lat"],   day_raw["end_lng"]),
-                )
-                day_info = {
-                    **day_info,
-                    "start_region": start_region,
-                    "end_region":   end_region,
-                    "start_name":   day_raw.get("start_name"),
-                    "end_name":     day_raw.get("end_name"),
-                    "mid_name":     day_raw.get("mid_name"),
-                    "mid_lat":      day_raw.get("mid_lat"),
-                    "mid_lng":      day_raw.get("mid_lng"),
-                }
-
-            warnings.extend(day_warnings)
+                day_raw = next((d for d in days_raw if d["day_number"] == day_number), None)
+                if day_raw:
+                    start_region, end_region = await asyncio.gather(
+                        coord_to_region(client, day_raw["start_lat"], day_raw["start_lng"]),
+                        coord_to_region(client, day_raw["end_lat"],   day_raw["end_lng"]),
+                    )
+                    day_info = {
+                        **day_info,
+                        "start_region": start_region,
+                        "end_region":   end_region,
+                        "start_lat":    day_raw.get("start_lat"),
+                        "start_lng":    day_raw.get("start_lng"),
+                        "start_name":   day_raw.get("start_name"),
+                        "end_lat":      day_raw.get("end_lat"),
+                        "end_lng":      day_raw.get("end_lng"),
+                        "end_name":     day_raw.get("end_name"),
+                        "mid_name":     day_raw.get("mid_name"),
+                    }
 
             # day별 중복 제거 (같은 place_id)
             seen: set[str] = set()
