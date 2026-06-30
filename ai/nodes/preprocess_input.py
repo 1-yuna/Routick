@@ -17,6 +17,12 @@
 #   3. 반경/마진 설정
 #      - 케이스 1 (only): 원형 반경 (center_lat/lng + radius_km)
 #      - 케이스 2 (endpoint): 사각형 영역 (rect_min/max_lat/lng)
+#        mid(경유지) 입력 시 rect 영역에 mid 좌표도 포함
+#        마진은 구간 거리(mid 있으면 start~mid, mid~end 중 더 짧은 구간,
+#        없으면 start~end)에 비례 계산
+#        margin = clamp(거리 × MARGIN_RATIO, MIN_MARGIN_KM, transport별 MARGIN_MAP 최댓값)
+#        → 출발-도착이 가까우면(예: 400m) 마진도 그만큼 작게 적용해
+#          엉뚱하게 먼 장소가 rect 영역에 포함되는 것을 방지
 # ─────────────────────────────────────────────────────────────────────
 
 import math
@@ -34,6 +40,15 @@ from constants.mapping import (
 )
 from constants.place_keywords import KEYWORD_EXPANSIONS, NAME_SEARCH_KEYWORDS
 
+# ─── 마진 하한선 (transport별, km) ───
+MIN_MARGIN_KM = {
+    "walk": 0.3,
+    "car":  0.5,
+}
+
+# ─── 마진 = 출발-도착 거리 × 이 비율 ───
+MARGIN_RATIO = 1.0
+
 
 # ─── km → 위도 변환 (1도 ≈ 111km) ───
 def km_to_lat(km: float) -> float:
@@ -43,6 +58,18 @@ def km_to_lat(km: float) -> float:
 # ─── km → 경도 변환 (위도에 따라 달라짐) ───
 def km_to_lng(km: float, lat: float) -> float:
     return km / (111.0 * math.cos(math.radians(lat)))
+
+
+# ─── 두 좌표 간 직선거리 (Haversine, km) ───
+def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    R = 6371
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = (math.sin(d_lat / 2) ** 2
+         + math.cos(math.radians(lat1))
+         * math.cos(math.radians(lat2))
+         * math.sin(d_lng / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
 
 
 # ─── 키워드 동의어 확장 ───
@@ -122,8 +149,9 @@ def preprocess_input(state: dict) -> dict:
     radius_by_transport = RADIUS_MAP.get(transport, RADIUS_MAP["walk"])
     margin_by_transport = MARGIN_MAP.get(transport, MARGIN_MAP["walk"])
 
-    radius_km = radius_by_transport.get(travel_days, 2.0)
-    margin_km = margin_by_transport.get(travel_days, 0.5)
+    radius_km     = radius_by_transport.get(travel_days, 2.0)
+    max_margin_km = margin_by_transport.get(travel_days, 0.5)
+    min_margin_km = MIN_MARGIN_KM.get(transport, MIN_MARGIN_KM["walk"])
 
     days_info = []
 
@@ -162,32 +190,51 @@ def preprocess_input(state: dict) -> dict:
             start_lng = day.get("start_lng")
             end_lat   = day.get("end_lat")
             end_lng   = day.get("end_lng")
+            mid_lat   = day.get("mid_lat")
+            mid_lng   = day.get("mid_lng")
+            has_mid   = mid_lat is not None and mid_lng is not None
 
             if None in (start_lat, start_lng, end_lat, end_lng):
                 warnings.append(f"day{day.get('day_number')} 좌표 누락")
                 continue
 
-            center_lat_for_margin = (start_lat + end_lat) / 2
+            # 마진 기준 거리: mid가 있으면 start~mid, mid~end 중 더 짧은 구간 기준
+            # (구간별로 영역이 과도하게 넓어지지 않도록)
+            if has_mid:
+                seg1_dist = haversine_km(start_lat, start_lng, mid_lat, mid_lng)
+                seg2_dist = haversine_km(mid_lat, mid_lng, end_lat, end_lng)
+                margin_basis_dist = min(seg1_dist, seg2_dist)
+            else:
+                margin_basis_dist = haversine_km(start_lat, start_lng, end_lat, end_lng)
+
+            margin_km = max(min_margin_km, min(margin_basis_dist * MARGIN_RATIO, max_margin_km))
+
+            all_lats = [start_lat, end_lat] + ([mid_lat] if has_mid else [])
+            all_lngs = [start_lng, end_lng] + ([mid_lng] if has_mid else [])
+            center_lat_for_margin = sum(all_lats) / len(all_lats)
             lat_margin = km_to_lat(margin_km)
             lng_margin = km_to_lng(margin_km, center_lat_for_margin)
 
-            rect_min_lat = min(start_lat, end_lat) - lat_margin
-            rect_max_lat = max(start_lat, end_lat) + lat_margin
-            rect_min_lng = min(start_lng, end_lng) - lng_margin
-            rect_max_lng = max(start_lng, end_lng) + lng_margin
+            rect_min_lat = min(all_lats) - lat_margin
+            rect_max_lat = max(all_lats) + lat_margin
+            rect_min_lng = min(all_lngs) - lng_margin
+            rect_max_lng = max(all_lngs) + lng_margin
 
             days_info.append({
-                "day_number":   day.get("day_number"),
-                "center_lat":   None,
-                "center_lng":   None,
-                "radius_km":    None,
-                "rect_min_lat": round(rect_min_lat, 6),
-                "rect_min_lng": round(rect_min_lng, 6),
-                "rect_max_lat": round(rect_max_lat, 6),
-                "rect_max_lng": round(rect_max_lng, 6),
-                "region":       None,
-                "start_region": None,
-                "end_region":   None,
+                "day_number":        day.get("day_number"),
+                "center_lat":        None,
+                "center_lng":        None,
+                "radius_km":         None,
+                "rect_min_lat":      round(rect_min_lat, 6),
+                "rect_min_lng":      round(rect_min_lng, 6),
+                "rect_max_lat":      round(rect_max_lat, 6),
+                "rect_max_lng":      round(rect_max_lng, 6),
+                "margin_km":         round(margin_km, 3),
+                "margin_basis_dist_km": round(margin_basis_dist, 3),
+                "has_mid":           has_mid,
+                "region":            None,
+                "start_region":      None,
+                "end_region":        None,
             })
 
     else:

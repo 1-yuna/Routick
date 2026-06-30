@@ -53,9 +53,11 @@ mock_user_input_endpoint: UserInput = {
     "lng":              None,
     "days": [
         {"day_number": 1, "start_lat": 35.1631, "start_lng": 129.1637, "start_name": "해운대역",
+         "mid_lat": 35.1587, "mid_lng": 129.1604, "mid_name": "해운대",
          "end_lat": 35.1602, "end_lng": 129.1607, "end_name": "코오롱씨클라우드호텔"},
         {"day_number": 2, "start_lat": 35.1602, "start_lng": 129.1607, "start_name": "코오롱씨클라우드호텔",
-         "end_lat": 35.1531, "end_lng": 129.1186, "end_name": "광안리해수욕장"},
+         "mid_lat": 35.1531, "mid_lng": 129.1186, "mid_name": "광안리",
+         "end_lat": 35.1602, "end_lng": 129.1607, "end_name": "코오롱씨클라우드호텔"},
     ],
     "start_time":       "09:00",
     "end_time":         "22:00",

@@ -11,6 +11,8 @@
 #      - rollback 시 excluded_place_ids 제외
 #   4. 조건에 따라 동선 제외
 #      - 경로 교차 (X자 동선) 제외
+#        단, 출발-도착 거리가 짧으면(SHORT_DISTANCE_THRESHOLD_KM 이하)
+#        작은 원형 동선이 자연스러우므로 일정 건수(MAX_INTERSECTIONS_SHORT_DISTANCE) 허용
 #      - 이동시간 초과 제외
 #      - 동선 내 동일 category_name (맨 마지막 depth 기준) 2개 이상 제외 (food/cafe 제외)
 #      - 점심 슬롯 술집/고기류 제외
@@ -27,6 +29,12 @@ TRAVEL_TIME_LIMIT = {
     "도보":   20,
     "자동차": 30,
 }
+
+# ─── 출발-도착 거리가 이 값 이하면 transport=car여도 도보 기준 적용 ───
+SHORT_DISTANCE_THRESHOLD_KM = 1.0
+
+# ─── 출발-도착 거리가 짧을 때 허용하는 경로 교차 건수 ───
+MAX_INTERSECTIONS_SHORT_DISTANCE = 2
 
 # ─── 시작점당 반복 횟수 ───
 REPEAT_PER_START = 5
@@ -176,6 +184,7 @@ def is_valid_route(
     itinerary:         list[dict],
     travel_limit:      int,
     max_same_category: int = 1,
+    max_intersections: int = 0,
 ) -> tuple[bool, str]:
 
     # 이동시간 초과
@@ -197,9 +206,10 @@ def is_valid_route(
             return False, f"category_name 중복: {last}"
         category_last_list.append(last)
 
-    # 경로 교차
-    if check_route_intersections(itinerary):
-        return False, "경로 교차"
+    # 경로 교차 (출발-도착 거리가 짧으면 max_intersections만큼 허용)
+    intersections = check_route_intersections(itinerary)
+    if len(intersections) > max_intersections:
+        return False, f"경로 교차 {len(intersections)}건"
 
     return True, ""
 
@@ -214,6 +224,8 @@ def _generate_day_routes(
     excluded_place_ids: set[str],
     start_lat:          float = None,
     start_lng:          float = None,
+    mid_lat:            float = None,
+    mid_lng:            float = None,
     end_lat:            float = None,
     end_lng:            float = None,
     start_name:         str = "출발지",
@@ -221,17 +233,39 @@ def _generate_day_routes(
 ) -> list[dict]:
     all_routes = []
     has_start  = start_lat is not None and start_lng is not None
+    has_mid    = mid_lat is not None and mid_lng is not None
 
-    # start 좌표가 있으면 슬롯1(browse/cafe/pop) 중 start에서 가까운 후보로 시작점 제한
+    # start 좌표가 있으면 슬롯1(browse/cafe/pop) 중 1단계 목표(mid 있으면 mid, 없으면 end)
+    # 방향으로 진행하는 후보만 시작점으로 사용
     if has_start:
         slot1_candidates = [
             (i, c) for i, c in enumerate(candidates)
             if c["place"].get("bucket") in ["browse", "cafe", "pop"]
         ]
-        slot1_candidates.sort(key=lambda x: haversine(
-            start_lat, start_lng, x[1]["place"]["lat"], x[1]["place"]["lng"]
-        ))
-        start_indices = [i for i, _ in slot1_candidates[:5]] or list(range(len(candidates)))
+
+        target_lat = mid_lat if has_mid else end_lat
+        target_lng = mid_lng if has_mid else end_lng
+        has_target = target_lat is not None and target_lng is not None
+
+        if has_target:
+            dist_to_target_from_start = haversine(start_lat, start_lng, target_lat, target_lng)
+
+            # 목표 방향으로 진행하는(= start보다 목표에 더 가까운) 후보만 남김
+            forward_candidates = [
+                (i, c) for i, c in slot1_candidates
+                if haversine(c["place"]["lat"], c["place"]["lng"], target_lat, target_lng) < dist_to_target_from_start
+            ]
+            # 역행 후보만 있으면 부득이하게 전체 후보 사용
+            pool = forward_candidates if forward_candidates else slot1_candidates
+
+            pool.sort(key=lambda x: haversine(start_lat, start_lng, x[1]["place"]["lat"], x[1]["place"]["lng"]))
+        else:
+            pool = sorted(
+                slot1_candidates,
+                key=lambda x: haversine(start_lat, start_lng, x[1]["place"]["lat"], x[1]["place"]["lng"])
+            )
+
+        start_indices = [i for i, _ in pool[:5]] or list(range(len(candidates)))
     else:
         start_indices = list(range(len(candidates)))
 
@@ -245,6 +279,8 @@ def _generate_day_routes(
                 total_minutes=0,  # greedy_nn에서 시간 기반으로 처리
                 travel_limit=travel_limit,
                 excluded_place_ids=excluded_place_ids,
+                mid_lat=mid_lat,
+                mid_lng=mid_lng,
                 end_lat=end_lat,
                 end_lng=end_lng,
                 start_time=start_time,
@@ -365,16 +401,32 @@ def generate_candidates(state: dict) -> dict:
         distance_matrix_by_day[day_number] = distance_matrix
         time_matrix_by_day[day_number]     = time_matrix
 
-        # endpoint 케이스: day별 start/end 좌표 + 장소명 추출
-        start_lat = start_lng = end_lat = end_lng = None
+        # endpoint 케이스: day별 start/mid/end 좌표 + 장소명 추출
+        start_lat = start_lng = mid_lat = mid_lng = end_lat = end_lng = None
         start_name = end_name = None
+        day_travel_limit   = travel_limit  # 기본값: 전체 transport 기준
+        day_max_intersections = 0          # 기본값: 교차 허용 안 함
+
         if route_type == "endpoint":
             day_raw = next((d for d in days_raw if d["day_number"] == day_number), None)
             if day_raw:
                 start_lat = day_raw.get("start_lat")
                 start_lng = day_raw.get("start_lng")
+                mid_lat   = day_raw.get("mid_lat")
+                mid_lng   = day_raw.get("mid_lng")
                 end_lat   = day_raw.get("end_lat")
                 end_lng   = day_raw.get("end_lng")
+
+                # 출발-도착 직선거리가 짧으면 도보 기준 + 경로 교차 허용 (작은 원형 동선은 자연스러움)
+                if None not in (start_lat, start_lng, end_lat, end_lng):
+                    start_end_dist = haversine(start_lat, start_lng, end_lat, end_lng)
+                    if start_end_dist <= SHORT_DISTANCE_THRESHOLD_KM:
+                        day_travel_limit = TRAVEL_TIME_LIMIT["도보"]
+                        day_max_intersections = MAX_INTERSECTIONS_SHORT_DISTANCE
+                        warnings.append(
+                            f"day{day_number} 출발-도착 거리 {start_end_dist:.1f}km → "
+                            f"도보 기준 + 경로 교차 {day_max_intersections}건 허용"
+                        )
 
             days_info_list = ui.get("days_info") or []
             day_info = next((d for d in days_info_list if d.get("day_number") == day_number), None)
@@ -387,11 +439,13 @@ def generate_candidates(state: dict) -> dict:
             candidates=candidates,
             place_index=place_index,
             time_matrix=time_matrix,
-            travel_limit=travel_limit,
+            travel_limit=day_travel_limit,
             start_time=start_time,
             excluded_place_ids=used_place_ids,
             start_lat=start_lat,
             start_lng=start_lng,
+            mid_lat=mid_lat,
+            mid_lng=mid_lng,
             end_lat=end_lat,
             end_lng=end_lng,
             start_name=start_name,
@@ -402,7 +456,7 @@ def generate_candidates(state: dict) -> dict:
         valid_routes = []
         invalid_routes = []
         for r in all_routes:
-            ok, reason = is_valid_route(r["itinerary"], travel_limit)
+            ok, reason = is_valid_route(r["itinerary"], day_travel_limit, max_intersections=day_max_intersections)
             if ok:
                 valid_routes.append(r)
             else:

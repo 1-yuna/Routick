@@ -86,8 +86,21 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
         place  = item["place"]
         bucket = place.get("bucket", "")
 
-        # start/end 블록은 주차장 대상에서 제외, 그대로 추가
-        if bucket in ("start", "end"):
+        # start/end 블록은 주차장 대상에서 제외하되, end는 주차장 경유 시 arrive_at 재계산
+        if bucket == "start":
+            result.append(item)
+            continue
+        if bucket == "end":
+            if result and result[-1].get("type") == "parking" and result[-1].get("leave_at"):
+                # 직전이 새 주차장 블록이면: 주차장 → end까지 도보 이동시간 반영
+                last_parking = result[-1]
+                walk_to_end = travel_min(
+                    haversine(last_parking["place"]["lat"], last_parking["place"]["lng"],
+                              place.get("lat", 0), place.get("lng", 0)),
+                    WALK_SPEED_KMH
+                )
+                new_arrive = to_str(to_dt(last_parking["leave_at"]) + timedelta(minutes=walk_to_end))
+                item = {**item, "arrive_at": new_arrive}
             result.append(item)
             continue
 

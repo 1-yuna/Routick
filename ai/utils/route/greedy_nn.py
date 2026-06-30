@@ -13,6 +13,8 @@
 #   → 슬롯6: activity, browse, pop
 #   → 슬롯7~: 21:00 이전이면 계속 추가 (activity, browse, pop)
 #   각 슬롯에서 travel_limit 이내 가까운 5개 중 랜덤 선택
+#   endpoint 케이스: end 방향으로 진행하는(현재 위치보다 end에 더 가까운) 후보만 사용
+#     (역행 후보 완전 제외, 진행 방향 후보가 없을 때만 부득이하게 전체 후보 사용)
 #   마지막 슬롯: end 좌표에 가까운 장소 우선 선택 (endpoint 케이스)
 #   점심 슬롯: 술집/고기류 제외
 #   excluded_place_ids: rollback 시 제외 목록
@@ -67,6 +69,8 @@ def greedy_nn(
     total_minutes:      int,
     travel_limit:       int = 20,
     excluded_place_ids: set[str] = None,
+    mid_lat:            float = None,
+    mid_lng:            float = None,
     end_lat:            float = None,
     end_lng:            float = None,
     start_time:         str = "09:00",
@@ -89,6 +93,16 @@ def greedy_nn(
     current_time  = to_dt(start_time)
 
     is_endpoint = end_lat is not None and end_lng is not None
+    has_mid     = mid_lat is not None and mid_lng is not None
+    mid_passed  = False  # mid 경유지에 충분히 가까워졌는지 여부
+
+    # mid가 있으면 1단계 목표는 mid, 통과 후엔 end로 전환
+    def current_target():
+        if has_mid and not mid_passed:
+            return mid_lat, mid_lng
+        return end_lat, end_lng
+
+    MID_PASS_THRESHOLD_KM = 0.8  # 이 거리 이내로 접근하면 mid를 "통과"한 것으로 간주
 
     # 시작 장소 (슬롯1: browse, cafe, pop)
     first    = candidates[start_idx]
@@ -131,23 +145,43 @@ def greedy_nn(
                     return False
             return True
 
-        selectable = [
-            item for item in candidates
-            if is_selectable(item)
-            and time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]] <= travel_limit
-        ]
-        if not selectable:
-            selectable = [item for item in candidates if is_selectable(item)]
-        if not selectable:
+        selectable_all = [item for item in candidates if is_selectable(item)]
+        if not selectable_all:
             return False
 
         if is_last and is_endpoint:
-            pool_sorted = sorted(selectable, key=lambda item: haversine(
+            # 마지막 슬롯: 항상 end 좌표에 가까운 순 (mid 통과 여부 무관)
+            pool_sorted = sorted(selectable_all, key=lambda item: haversine(
                 item["place"]["lat"], item["place"]["lng"], end_lat, end_lng
             ))
-        else:
-            pool_sorted = sorted(selectable, key=lambda item:
+        elif is_endpoint:
+            # endpoint 케이스: 현재 목표(mid 또는 end) 방향으로 진행하는 후보만 사용
+            target_lat, target_lng = current_target()
+            current_place = visited[-1]["place"]
+            dist_to_target_from_current = haversine(
+                current_place["lat"], current_place["lng"], target_lat, target_lng
+            )
+            forward = [
+                item for item in selectable_all
+                if haversine(item["place"]["lat"], item["place"]["lng"], target_lat, target_lng)
+                   < dist_to_target_from_current
+            ]
+            pool = forward if forward else selectable_all
+
+            pool_sorted = sorted(pool, key=lambda item:
                 time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
+        else:
+            pool_sorted = sorted(selectable_all, key=lambda item:
+                time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
+
+        # 방향성 정렬된 순서를 유지한 채, travel_limit 이내 후보를 우선 사용
+        # (이내 후보가 없으면 부득이하게 전체 후보로 fallback)
+        within_limit = [
+            item for item in pool_sorted
+            if time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]] <= travel_limit
+        ]
+        if within_limit:
+            pool_sorted = within_limit
 
         top5      = pool_sorted[:5]
         best_item = random.choice(top5)
@@ -165,6 +199,15 @@ def greedy_nn(
         total_travel += travel_time
         current_time += timedelta(minutes=travel_time + next_stay)
         current_idx   = id_to_matrix_idx[best_item["place"]["id"]]
+
+        # mid 통과 여부 갱신: 새로 방문한 장소가 mid에 충분히 가까우면 통과 처리
+        nonlocal mid_passed
+        if has_mid and not mid_passed:
+            dist_to_mid = haversine(
+                best_item["place"]["lat"], best_item["place"]["lng"], mid_lat, mid_lng
+            )
+            if dist_to_mid <= MID_PASS_THRESHOLD_KM:
+                mid_passed = True
         return True
 
     # ── 슬롯2: 점심 (시간 안 맞으면 activity/browse/pop 먼저, 그 다음 food) ──

@@ -313,6 +313,57 @@ async def search_kakao_by_rect_name(
     return _merge_results(results, labels, warnings), warnings
 
 
+# ─── [메인] 단일 day 검색 - start/mid/end 세 지점 radius 검색 (endpoint 전용) ───
+# rect 전체 영역 키워드 검색은 카카오 API 페이지 제한(45개) 안에서 결과가
+# 한쪽으로 몰릴 수 있어, start/mid/end 세 지점에서 각각 radius 검색해
+# 경로 전반에 걸쳐 균등하게 후보를 확보한다.
+# mid는 사용자가 입력한 경유지 좌표를 우선 사용하고, 없으면 직선 중간점으로 fallback.
+# 호출량이 3배로 늘어나는 구조라, 카카오 API rate limit에 걸리지 않도록
+# pages를 낮추고 지점별 호출을 순차적으로 처리한다.
+async def search_kakao_by_route_points(
+    keywords:        list[str],
+    start_lat:       float,
+    start_lng:       float,
+    end_lat:         float,
+    end_lng:         float,
+    mid_lat:         float = None,
+    mid_lng:         float = None,
+    point_radius_km: float = 1.0,
+    category_codes:  dict[str, str] = None,
+    pages:           int = 1,
+) -> tuple[list[dict], list[str]]:
+    if mid_lat is None or mid_lng is None:
+        mid_lat = (start_lat + end_lat) / 2
+        mid_lng = (start_lng + end_lng) / 2
+
+    points = [
+        (start_lat, start_lng),
+        (mid_lat, mid_lng),
+        (end_lat, end_lng),
+    ]
+
+    all_warnings: list[str] = []
+    merged: list[dict] = []
+    seen: set[str] = set()
+
+    # 지점별로 순차 처리 (동시 호출 폭주로 인한 rate limit 방지)
+    for lat, lng in points:
+        places, warns = await search_kakao_by_radius(
+            keywords=keywords,
+            lat=lat, lng=lng,
+            radius_km=point_radius_km,
+            category_codes=category_codes,
+            pages=pages,
+        )
+        all_warnings.extend(warns)
+        for p in places:
+            if p["id"] not in seen:
+                seen.add(p["id"])
+                merged.append(p)
+
+    return merged, all_warnings
+
+
 # ─── 결과 합치기 + dedup ───
 def _merge_results(
     results: list,

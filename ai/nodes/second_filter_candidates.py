@@ -17,6 +17,7 @@
 #   7. shortlist 선별 (category_group_code 기반 quota)
 #      - 케이스 1 (only): travel_days별 전체 quota
 #      - 케이스 2 (endpoint): day별 독립, day당 30개 고정
+#        + start~end 직선 경로에서 멀리 벗어난 장소는 패널티 적용 (경로 인접성)
 # ─────────────────────────────────────────────────────────────────────
 
 import time
@@ -81,8 +82,15 @@ async def second_filter_candidates(state: dict) -> dict:
         all_scored:    list[dict]      = []
         all_shortlist: list[dict]      = []
         shortlist_by_day: dict[int, list] = {}
+        days_raw = ui.get("days") or []
 
         for day_number, day_filtered in filtered_by_day.items():
+            day_raw = next((d for d in days_raw if d.get("day_number") == day_number), None)
+            start_lat = day_raw.get("start_lat") if day_raw else None
+            start_lng = day_raw.get("start_lng") if day_raw else None
+            end_lat   = day_raw.get("end_lat") if day_raw else None
+            end_lng   = day_raw.get("end_lng") if day_raw else None
+
             scored, shortlist = await _enrich_and_score(
                 places=day_filtered,
                 moods_kr=moods_kr,
@@ -92,6 +100,10 @@ async def second_filter_candidates(state: dict) -> dict:
                 travel_days=travel_days,
                 warnings=warnings,
                 label=f"day{day_number}",
+                start_lat=start_lat,
+                start_lng=start_lng,
+                end_lat=end_lat,
+                end_lng=end_lng,
             )
             shortlist_by_day[day_number] = shortlist
             all_scored.extend(scored)
@@ -109,14 +121,18 @@ async def second_filter_candidates(state: dict) -> dict:
 
 # ─── 보강 + 점수 계산 공통 함수 ───
 async def _enrich_and_score(
-    places:       list[dict],
-    moods_kr:     list[str],
-    companion_kr: str,
+    places:        list[dict],
+    moods_kr:      list[str],
+    companion_kr:  str,
     activities_kr: list[str],
-    route_type:   str,
-    travel_days:  int,
-    warnings:     list[str],
-    label:        str,
+    route_type:    str,
+    travel_days:   int,
+    warnings:      list[str],
+    label:         str,
+    start_lat:     float = None,
+    start_lng:     float = None,
+    end_lat:       float = None,
+    end_lng:       float = None,
 ) -> tuple[list[dict], list[dict]]:
 
     if not places:
@@ -236,7 +252,15 @@ async def _enrich_and_score(
     scored.sort(key=lambda x: x["total_score"], reverse=True)
 
     # ── 6. shortlist 선별 ────────────────────────────────────────────
-    shortlist = select_shortlist(scored, route_type=route_type, travel_days=travel_days)
+    shortlist = select_shortlist(
+        scored,
+        route_type=route_type,
+        travel_days=travel_days,
+        start_lat=start_lat,
+        start_lng=start_lng,
+        end_lat=end_lat,
+        end_lng=end_lng,
+    )
 
     if not shortlist:
         warnings.append(f"[{label}] shortlist 비어있음")

@@ -14,7 +14,10 @@
 #      - final_keywords category 매칭 → 최우선
 #      - name_search_keywords name 매칭 → 다음
 #      - 프랜차이즈 → 뒤로
-#   3. 카테고리별 cap + 전체 cap 적용
+#   3. 경로 인접성 정렬 (endpoint 전용)
+#      - start~end 직선 경로에서 수직 거리가 먼 activity/browse/pop 장소를 뒤로 정렬
+#      - food/cafe(FD6/CE7)는 거리와 무관하게 우선순위 유지
+#   4. 카테고리별 cap + 전체 cap 적용
 #      - 케이스 1 (only): travel_days별 단계적 확장
 #      - 케이스 2 (endpoint): day별 독립 적용 (day당 50개), 이전 day 장소 제외
 # ─────────────────────────────────────────────────────────────────────
@@ -28,6 +31,7 @@ from utils.first_filter.place_filter_pipeline import (
     filter_by_bucket_and_activity,
     boost_by_priority,
     sort_by_priority,
+    sort_by_route_proximity,
     filter_by_category_cap,
     get_activity_keywords,
     DAY_FILTER_CAP,
@@ -75,6 +79,10 @@ def _filter_one_day(
     travel_days: int = 1,
     debug: bool = False,
     day_label: str = "",
+    start_lat: float = None,
+    start_lng: float = None,
+    end_lat: float = None,
+    end_lng: float = None,
 ) -> list[dict]:
     activity_keywords = get_activity_keywords(activities_kr)
 
@@ -122,10 +130,20 @@ def _filter_one_day(
     if debug:
         _debug_print(f"5️⃣  [{day_label}] 정렬", filtered, 0)
 
-    # 6. cap 적용
+    # 6. 경로 인접성 정렬 (endpoint 전용, cap에서 살아남을 확률 ↑)
+    if route_type == "endpoint" and None not in (start_lat, start_lng, end_lat, end_lng):
+        # 음식점/카페(FD6/CE7)는 거리와 무관하게 우선순위 유지, 나머지만 경로 인접성으로 재정렬
+        food_cafe   = [p for p in filtered if p.get("category_group_code") in ("FD6", "CE7")]
+        other       = [p for p in filtered if p.get("category_group_code") not in ("FD6", "CE7")]
+        other       = sort_by_route_proximity(other, start_lat, start_lng, end_lat, end_lng)
+        filtered    = food_cafe + other
+        if debug:
+            _debug_print(f"6️⃣  [{day_label}] 경로 인접성 정렬", filtered, 0)
+
+    # 7. cap 적용
     filtered, removed = filter_by_category_cap(filtered, travel_days=travel_days, route_type=route_type)
     if debug:
-        _debug_print(f"6️⃣  [{day_label}] 카테고리 cap", filtered, removed)
+        _debug_print(f"7️⃣  [{day_label}] 카테고리 cap", filtered, removed)
         _debug_summary(f"최종 [{day_label}]", filtered)
 
     return filtered
@@ -177,6 +195,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
 
     elif route_type == "endpoint":
         used_place_ids: set[str] = set()  # 이전 day에 포함된 place_id 누적
+        days_raw = ui.get("days") or []
 
         for day_number in sorted(candidates_by_day.keys()):
             day_candidates = candidates_by_day[day_number]
@@ -186,6 +205,12 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 p for p in day_candidates
                 if p["id"] not in used_place_ids
             ]
+
+            day_raw   = next((d for d in days_raw if d.get("day_number") == day_number), None)
+            start_lat = day_raw.get("start_lat") if day_raw else None
+            start_lng = day_raw.get("start_lng") if day_raw else None
+            end_lat   = day_raw.get("end_lat") if day_raw else None
+            end_lng   = day_raw.get("end_lng") if day_raw else None
 
             filtered = _filter_one_day(
                 places=day_candidates,
@@ -199,6 +224,10 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 travel_days=travel_days,
                 debug=debug,
                 day_label=f"day{day_number}",
+                start_lat=start_lat,
+                start_lng=start_lng,
+                end_lat=end_lat,
+                end_lng=end_lng,
             )
 
             # 이번 day 장소를 누적 제외 목록에 추가

@@ -9,14 +9,17 @@
 #      - 여행과 무관한 키워드 제거 (category: EXCLUDE_KEYWORDS, name: EXCLUDE_KEYWORDS_NAME)
 #      - activities 선택 여부 기반 제거 (category: ACTIVITY_EXCLUDE_KEYWORDS)
 #      - 세부 카테고리별 중복 제한 (동일 카테고리 최대 2개)
-#   2. 정렬
+#   2. 경로 인접성 정렬 (endpoint 전용)
+#      - start~end 직선 경로에서 수직 거리가 먼 장소를 뒤로 정렬
+#   3. 정렬
 #      - 활동/동행자별 장소 우선 정렬 (PRIORITY_KEYWORDS)
 #      - final_keywords category 매칭 → 최우선
 #      - name_search_keywords name 매칭 → 다음
 #      - 프랜차이즈 → 뒤로
-#   3. cap 적용
+#   4. cap 적용
 # ─────────────────────────────────────────────────────────────────────
 
+import math
 from constants.place_keywords import (
     EXCLUDE_KEYWORDS,
     EXCLUDE_KEYWORDS_NAME,
@@ -24,6 +27,57 @@ from constants.place_keywords import (
     KEYWORD_EXPANSIONS,
     PRIORITY_KEYWORDS,
 )
+
+
+# ─── Haversine ───
+def _haversine(lat1, lng1, lat2, lng2):
+    R = 6371
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = math.sin(d_lat/2)**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(d_lng/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+# ─── 점 → 직선(start-end) 수직 거리 ───
+def _perpendicular_distance(lat, lng, start_lat, start_lng, end_lat, end_lng):
+    def to_xy(la, ln):
+        x = ln * math.cos(math.radians(start_lat))
+        y = la
+        return x, y
+
+    px, py = to_xy(lat, lng)
+    sx, sy = to_xy(start_lat, start_lng)
+    ex, ey = to_xy(end_lat, end_lng)
+
+    line_len_sq = (ex - sx) ** 2 + (ey - sy) ** 2
+    if line_len_sq == 0:
+        return _haversine(lat, lng, start_lat, start_lng)
+
+    t = max(0, min(1, ((px - sx) * (ex - sx) + (py - sy) * (ey - sy)) / line_len_sq))
+    closest_x = sx + t * (ex - sx)
+    closest_y = sy + t * (ey - sy)
+    closest_lat = closest_y
+    closest_lng = closest_x / math.cos(math.radians(start_lat))
+    return _haversine(lat, lng, closest_lat, closest_lng)
+
+
+# ─── 경로 인접성 기준 정렬 (endpoint 전용) ───
+# start~end 직선에서 수직거리가 가까운 장소를 우선 배치 (cap에서 살아남을 확률 ↑)
+def sort_by_route_proximity(
+    places:    list[dict],
+    start_lat: float,
+    start_lng: float,
+    end_lat:   float,
+    end_lng:   float,
+) -> list[dict]:
+    def distance_key(p):
+        lat = p.get("lat")
+        lng = p.get("lng")
+        if lat is None or lng is None:
+            return float("inf")
+        return _perpendicular_distance(lat, lng, start_lat, start_lng, end_lat, end_lng)
+
+    return sorted(places, key=distance_key)
 
 # ─── day 1개 기준 카테고리별 cap (endpoint 케이스) ───
 DAY_FILTER_CAP = 50

@@ -36,11 +36,16 @@ import operator
 # ─────────────────────────────────────────────────────────────────────
 
 class DayCoord(TypedDict):
-    """케이스 2(endpoint)의 day별 좌표 + 장소명"""
+    """케이스 2(endpoint)의 day별 좌표 + 장소명
+    mid(경유지)는 선택 입력. 입력 시 출발지~경유지~도착지 순으로 동선 구성,
+    미입력 시 직선 중간점으로 fallback."""
     day_number: int
     start_lat: float
     start_lng: float
     start_name: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소명
+    mid_lat: Optional[float]    # 경유지 (선택)
+    mid_lng: Optional[float]
+    mid_name: Optional[str]
     end_lat: float
     end_lng: float
     end_name: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소명
