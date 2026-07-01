@@ -266,15 +266,65 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
     return result
 
 
+# ─── only 케이스 총 후보 수 ───
+ONLY_TOTAL_CANDIDATES = {1: 3, 2: 6, 3: 10, 4: 15}
+
+
 # ─── [노드] 일정 계획 리스트 작성 ───
 async def plan_itinerary(state: dict) -> dict:
     valid_routes_by_day = state.get("valid_routes_by_day", {})
     all_routes_by_day   = state.get("all_routes_by_day", {})
     transport_kr        = state["user_input"].get("transport_kr", "도보")
+    route_type          = state["user_input"].get("route_type", "only")
+    travel_days         = state["user_input"].get("travel_days", 1)
     warnings: list[str] = []
 
     itineraries_by_day: dict[int, list[list[dict]]] = {}
 
+    # ── 케이스 1 (only): 전체 동선 → day별 균등 배분 ─────────────────
+    if route_type == "only":
+        valid_routes = valid_routes_by_day.get(1, [])
+        if not valid_routes:
+            valid_routes = all_routes_by_day.get(1, [])
+        if not valid_routes:
+            warnings.append("only 케이스 동선 없음 → 실패")
+            return {"itineraries_by_day": {}, "warnings": warnings, "step": "failed"}
+
+        total_needed  = ONLY_TOTAL_CANDIDATES.get(travel_days, 3)
+        sorted_routes = sorted(valid_routes, key=lambda x: x["total_score"], reverse=True)
+        top_routes    = sorted_routes[:total_needed]
+
+        # 주차장 추가
+        final_itineraries = []
+        for r in top_routes:
+            if transport_kr == "자동차":
+                itinerary = await add_parking_to_itinerary(r["itinerary"])
+            else:
+                itinerary = r["itinerary"]
+            final_itineraries.append(itinerary)
+
+        # day당 3개씩 배분
+        for day_number in range(1, travel_days + 1):
+            day_slice = final_itineraries[(day_number - 1) * 3 : day_number * 3]
+            if not day_slice:
+                warnings.append(f"[only] day{day_number} 동선 없음 → 실패")
+                return {"itineraries_by_day": {}, "warnings": warnings, "step": "failed"}
+            itineraries_by_day[day_number] = day_slice
+            warnings.append(f"[only] day{day_number} 동선 후보: {len(day_slice)}개")
+
+        return {
+            "itineraries_by_day": itineraries_by_day,
+            "warnings":           warnings,
+            "step":               "itinerary_planned",
+        }
+
+        return {
+            "itineraries_by_day": itineraries_by_day,
+            "warnings":           warnings,
+            "step":               "itinerary_planned",
+        }
+
+    # ── 케이스 2 (endpoint): day별 상위 5개 추출 ─────────────────────
     for day_number in sorted(valid_routes_by_day.keys()):
         valid_routes = valid_routes_by_day[day_number]
 
