@@ -11,13 +11,13 @@ export default function ActivityPage() {
   const navigate = useNavigate();
 
   const ACTIVITY_OPTIONS = [
-    { label: '관광/전시', value: 'sightseeing' },
-    { label: '공연/문화', value: 'performance' },
-    { label: '스릴/체험', value: 'thrill' },
-    { label: '스포츠', value: 'sports' },
-    { label: '자연/산책', value: 'nature' },
+    { label: '전시/예술', value: 'exhibition/art' },
+    { label: '공연/문화', value: 'performance/culture' },
+    { label: '액티비티', value: 'activity' },
+    { label: '실내오락', value: 'indoor' },
     { label: '쇼핑', value: 'shopping' },
-    { label: '오락', value: 'entertainment' },
+    { label: '공방/소품', value: 'workshop' },
+    { label: '자연/관광', value: 'nature' },
     { label: '술/바', value: 'bar' },
   ];
 
