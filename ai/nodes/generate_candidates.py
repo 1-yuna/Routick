@@ -396,40 +396,19 @@ def generate_candidates(state: dict) -> dict:
     # ── 케이스 1 (only): travel_days 배치로 나눠 생성 ─────────────────
     if route_type == "only":
         travel_days = ui.get("travel_days", 1)
-        shortlist   = shortlist_by_day.get(1, [])
-        if not shortlist:
-            warnings.append("only 케이스 shortlist 없음")
-            return {
-                "all_routes_by_day": {}, "valid_routes_by_day": {},
-                "invalid_routes_by_day": {}, "time_matrix_by_day": {},
-                "distance_matrix_by_day": {}, "place_index_by_day": {},
-                "warnings": warnings, "step": "failed",
-            }
 
-        # 전체 candidates 구성
-        base_candidates = []
-        for s in shortlist:
-            place = dict(s["place"])
-            place["bucket"] = classify_bucket(place)
-            base_candidates.append({**s, "place": {**place, "total_score": s["total_score"]}})
-
-        if not base_candidates:
-            warnings.append("only 케이스 후보 없음")
-            return {
-                "all_routes_by_day": {}, "valid_routes_by_day": {},
-                "invalid_routes_by_day": {}, "time_matrix_by_day": {},
-                "distance_matrix_by_day": {}, "place_index_by_day": {},
-                "warnings": warnings, "step": "failed",
-            }
-
-        # travel_days 배치: 각 배치마다 이전 최고 동선의 장소를 제외
-        batch_excluded: set[str] = set(excluded_place_ids)
-
+        # travel_days 배치: day별 shortlist 사용 (first_filter에서 이미 day별로 분리됨)
         for day_number in range(1, travel_days + 1):
-            candidates = [c for c in base_candidates if c["place"]["id"] not in batch_excluded]
-            if not candidates:
-                warnings.append(f"[only] day{day_number} 후보 없음 → 스킵")
+            day_shortlist = shortlist_by_day.get(day_number, [])
+            if not day_shortlist:
+                warnings.append(f"[only] day{day_number} shortlist 없음 → 스킵")
                 break
+
+            candidates = []
+            for s in day_shortlist:
+                place = dict(s["place"])
+                place["bucket"] = classify_bucket(place)
+                candidates.append({**s, "place": {**place, "total_score": s["total_score"]}})
 
             p_idx, d_mat, t_mat = build_matrix(candidates, transport_kr)
             place_index_by_day[day_number]     = p_idx
@@ -439,7 +418,7 @@ def generate_candidates(state: dict) -> dict:
             batch_routes = _generate_day_routes(
                 candidates=candidates, place_index=p_idx, time_matrix=t_mat,
                 travel_limit=travel_limit, start_time=start_time, stop_time=stop_time,
-                excluded_place_ids=batch_excluded,
+                excluded_place_ids=set(excluded_place_ids),
             )
 
             valid_routes, invalid_routes = [], []
@@ -454,13 +433,6 @@ def generate_candidates(state: dict) -> dict:
             valid_routes_by_day[day_number]   = valid_routes
             invalid_routes_by_day[day_number] = invalid_routes
             warnings.append(f"[only] day{day_number} 전체: {len(batch_routes)}개, 유효: {len(valid_routes)}개")
-
-            # 최고 동선의 장소를 다음 배치 제외 목록에 추가
-            if valid_routes:
-                best = max(valid_routes, key=lambda x: x["total_score"])
-                for item in best["itinerary"]:
-                    if item["place"].get("bucket") not in ("start", "end", "parking"):
-                        batch_excluded.add(item["place"]["id"])
 
         return {
             "all_routes_by_day":      all_routes_by_day,

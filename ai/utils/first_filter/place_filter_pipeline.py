@@ -95,6 +95,14 @@ ONLY_FILTER_CAP = {
     4: {"total": 120, "CE7": 19, "FD6": 29, "others": 72},
 }
 
+# ─── only 케이스: K-means 분할 후 day당 cap (전체 cap ÷ travel_days 기준) ───
+ONLY_DAY_FILTER_CAP = {
+    1: {"total": 50, "CE7": 8, "FD6": 12, "others": 30},
+    2: {"total": 40, "CE7": 6, "FD6": 9,  "others": 25},
+    3: {"total": 33, "CE7": 5, "FD6": 8,  "others": 20},
+    4: {"total": 30, "CE7": 5, "FD6": 7,  "others": 18},
+}
+
 # ─── 체험형 카페 키워드 (CE7이지만 activity로 분류) ───
 ACTIVITY_CAFE_KEYWORDS = [
     "보드카페", "만화카페", "만화방", "방탈출", "방탈출카페",
@@ -354,6 +362,11 @@ def filter_by_category_cap(
 
     if route_type == "only":
         cap        = ONLY_FILTER_CAP.get(travel_days, ONLY_FILTER_CAP[1])
+        cafe_cap   = cap["CE7"]
+        food_cap   = cap["FD6"]
+        others_cap = cap["others"]
+    elif route_type == "only_day":
+        cap        = ONLY_DAY_FILTER_CAP.get(travel_days, ONLY_DAY_FILTER_CAP[1])
         cafe_cap   = cap["CE7"]
         food_cap   = cap["FD6"]
         others_cap = cap["others"]

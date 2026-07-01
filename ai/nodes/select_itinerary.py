@@ -42,7 +42,7 @@ async def _call_llm(itineraries_by_day: dict, user_input: dict) -> dict:
             json={
                 "model": "gpt-4o-mini",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 4000,
+                "max_tokens": 8000,
                 "temperature": 0.3,
             },
         )
@@ -87,16 +87,14 @@ def _find_non_duplicate_combo(
 
 # ─── 중복 장소를 동선에 추천 이유 등 LLM 결과 머지 ───
 def _apply_recommendations(itinerary: list[dict], reasons: list[dict]) -> list[dict]:
-    reason_map = {str(r["place_id"]): r["reason"] for r in reasons}
+    reason_map = {r["place_id"]: r["reason"] for r in reasons}
     result = []
     for item in itinerary:
-        place_id = str(item["place"].get("id", ""))
-        if place_id in reason_map and reason_map[place_id]:
+        place_id = item["place"].get("id")
+        if place_id in reason_map:
             result.append({**item, "recommendation_reason": reason_map[place_id]})
         else:
-            # LLM이 해당 장소를 빠뜨린 경우 summary로 fallback
-            fallback = item["place"].get("summary", "") or item.get("recommendation_reason", "")
-            result.append({**item, "recommendation_reason": fallback})
+            result.append(item)
     return result
 
 
@@ -178,9 +176,18 @@ async def select_itinerary(state: dict) -> dict:
     # ── 중복 없는 조합 재탐색 ──
     combo = _find_non_duplicate_combo(itineraries_by_day)
     if combo:
-        warnings.append("중복 없는 조합 발견 → 해당 조합 사용 (추천 이유는 LLM 결과 재매핑 불가, 기본값 유지)")
+        warnings.append("중복 없는 조합 발견 → 해당 조합 사용")
+        # LLM 결과로 추천이유 재매핑
+        result_combo = {}
+        for d, itinerary in combo.items():
+            reasons = []
+            for day_result in llm_result.get("days", []):
+                if int(day_result.get("day_number", 0)) == d:
+                    reasons = day_result.get("recommendation_reasons", [])
+                    break
+            result_combo[d] = _apply_recommendations(itinerary, reasons)
         return {
-            "final_itineraries": combo,
+            "final_itineraries": result_combo,
             "day_meta":          day_meta,
             "warnings":          warnings,
             "step":              "itinerary_selected",

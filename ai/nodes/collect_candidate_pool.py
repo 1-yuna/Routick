@@ -60,33 +60,58 @@ async def collect_candidate_pool(state: dict) -> dict:
 
     days_raw = ui.get("days") or []
 
-    # ── 1. day별 독립 호출 (only/endpoint 공통: center_lat/lng 기준 radius 검색) ──
     async with httpx.AsyncClient(timeout=10.0) as client:
-        for day_info in days_info:
-            day_number = day_info["day_number"]
 
-            lat       = day_info.get("center_lat")
-            lng       = day_info.get("center_lng")
-            radius_km = day_info.get("radius_km", 2.0)
+        # ── only 케이스: 목적지 좌표 동일하므로 카카오 API 1회만 호출 ──
+        if route_type == "only":
+            first_day_info = days_info[0]
+            lat       = first_day_info.get("center_lat")
+            lng       = first_day_info.get("center_lng")
+            radius_km = first_day_info.get("radius_km", 2.0)
 
             if lat is None or lng is None:
-                warnings.append(f"day{day_number} 좌표 없음 → 스킵")
-                continue
+                warnings.append("only 케이스 좌표 없음")
+            else:
+                day_places, day_warnings = await search_kakao_by_radius(
+                    keywords=keywords, lat=lat, lng=lng, radius_km=radius_km,
+                )
+                warnings.extend(day_warnings)
 
-            day_places, day_warnings = await search_kakao_by_radius(
-                keywords=keywords,
-                lat=lat,
-                lng=lng,
-                radius_km=radius_km,
-            )
-            warnings.extend(day_warnings)
-
-            # ── 2. 좌표 → 지역명 변환 ──────────────────────────────
-            if route_type == "only":
                 region = await coord_to_region(client, lat, lng)
-                day_info = {**day_info, "region": region}
 
-            elif route_type == "endpoint":
+                seen: set[str] = set()
+                unique_places: list[dict] = []
+                for p in day_places:
+                    if p["id"] not in seen:
+                        seen.add(p["id"])
+                        unique_places.append(p)
+
+                # candidates_by_day[1]에만 저장 (K-means 분할은 first_filter에서 처리)
+                candidates_by_day[1] = unique_places
+                all_places.extend(unique_places)
+                updated_days_info.append({**first_day_info, "region": region})
+
+                if not unique_places:
+                    warnings.append("only 케이스 후보 0개")
+
+        # ── endpoint 케이스: day별 독립 호출 (mid 좌표 기준) ──────────
+        else:
+            for day_info in days_info:
+                day_number = day_info["day_number"]
+
+                lat       = day_info.get("center_lat")
+                lng       = day_info.get("center_lng")
+                radius_km = day_info.get("radius_km", 2.0)
+
+                if lat is None or lng is None:
+                    warnings.append(f"day{day_number} 좌표 없음 → 스킵")
+                    continue
+
+                day_places, day_warnings = await search_kakao_by_radius(
+                    keywords=keywords, lat=lat, lng=lng, radius_km=radius_km,
+                )
+                warnings.extend(day_warnings)
+
                 day_raw = next((d for d in days_raw if d["day_number"] == day_number), None)
                 if day_raw:
                     start_region, end_region = await asyncio.gather(
@@ -110,20 +135,19 @@ async def collect_candidate_pool(state: dict) -> dict:
                         "mid_name":        day_raw.get("mid_name"),
                     }
 
-            # day별 중복 제거 (같은 place_id)
-            seen: set[str] = set()
-            unique_places: list[dict] = []
-            for p in day_places:
-                if p["id"] not in seen:
-                    seen.add(p["id"])
-                    unique_places.append(p)
+                seen: set[str] = set()
+                unique_places: list[dict] = []
+                for p in day_places:
+                    if p["id"] not in seen:
+                        seen.add(p["id"])
+                        unique_places.append(p)
 
-            candidates_by_day[day_number] = unique_places
-            all_places.extend(unique_places)
-            updated_days_info.append(day_info)
+                candidates_by_day[day_number] = unique_places
+                all_places.extend(unique_places)
+                updated_days_info.append(day_info)
 
-            if not unique_places:
-                warnings.append(f"day{day_number} 후보 0개")
+                if not unique_places:
+                    warnings.append(f"day{day_number} 후보 0개")
 
     # ── 3. PostgreSQL upsert (전체 합산) ────────────────────────────
     if all_places:

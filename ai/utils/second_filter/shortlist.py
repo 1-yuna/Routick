@@ -24,11 +24,16 @@ ONLY_SHORTLIST_QUOTA = {
     4: {"CE7": 13, "FD6": 21, "other": 46, "total": 80},
 }
 
+# ─── 케이스 1 (only): K-means 분할 후 day당 quota ───
+ONLY_DAY_SHORTLIST_QUOTA = {
+    1: {"CE7": 5, "FD6": 8, "other": 17, "total": 30},
+    2: {"CE7": 4, "FD6": 6, "other": 15, "total": 25},
+    3: {"CE7": 4, "FD6": 6, "other": 13, "total": 23},
+    4: {"CE7": 3, "FD6": 5, "other": 12, "total": 20},
+}
+
 # ─── 케이스 2 (endpoint): day당 고정 quota ───
 DAY_SHORTLIST_QUOTA = {"CE7": 5, "FD6": 8, "other": 17, "total": 30}
-
-# ─── 경로 인접성 패널티 기준 (km당 감점) ───
-DETOUR_PENALTY_PER_KM = 15
 
 
 # ─── Haversine ───
@@ -66,32 +71,6 @@ def _perpendicular_distance(lat, lng, start_lat, start_lng, end_lat, end_lng):
     return _haversine(lat, lng, closest_lat, closest_lng)
 
 
-# ─── 경로 인접성 보정 (endpoint 전용) ───
-def apply_detour_penalty(
-    scored:    list[dict],
-    start_lat: float,
-    start_lng: float,
-    end_lat:   float,
-    end_lng:   float,
-) -> list[dict]:
-    adjusted = []
-    for item in scored:
-        place = item["place"]
-        lat   = place.get("lat")
-        lng   = place.get("lng")
-        if lat is None or lng is None:
-            adjusted.append(item)
-            continue
-
-        dist = _perpendicular_distance(lat, lng, start_lat, start_lng, end_lat, end_lng)
-        penalty = dist * DETOUR_PENALTY_PER_KM
-        adjusted.append({
-            **item,
-            "total_score": item["total_score"] - penalty,
-        })
-    return adjusted
-
-
 # ─── shortlist 선별 ───
 def select_shortlist(
     scored:      list[dict],
@@ -103,13 +82,10 @@ def select_shortlist(
     end_lng:     float = None,
 ) -> list[dict]:
 
-    # endpoint + 좌표 있으면 경로 인접성 패널티 적용
-    if route_type == "endpoint" and None not in (start_lat, start_lng, end_lat, end_lng):
-        scored = apply_detour_penalty(scored, start_lat, start_lng, end_lat, end_lng)
-        scored = sorted(scored, key=lambda x: x["total_score"], reverse=True)
-
     if route_type == "only":
         quotas = ONLY_SHORTLIST_QUOTA.get(travel_days, ONLY_SHORTLIST_QUOTA[1])
+    elif route_type == "only_day":
+        quotas = ONLY_DAY_SHORTLIST_QUOTA.get(travel_days, ONLY_DAY_SHORTLIST_QUOTA[1])
     else:
         quotas = DAY_SHORTLIST_QUOTA
 

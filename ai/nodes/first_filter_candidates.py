@@ -18,7 +18,7 @@
 #      - start~end 직선 경로에서 수직 거리가 먼 activity/browse/pop 장소를 뒤로 정렬
 #      - food/cafe(FD6/CE7)는 거리와 무관하게 우선순위 유지
 #   4. 카테고리별 cap + 전체 cap 적용
-#      - 케이스 1 (only): travel_days별 단계적 확장
+#      - 케이스 1 (only): K-means 지리 분할 후 day당 50개
 #      - 케이스 2 (endpoint): day별 독립 적용 (day당 50개), 이전 day 장소 제외
 # ─────────────────────────────────────────────────────────────────────
 
@@ -99,58 +99,41 @@ def _filter_one_day(
     if debug:
         _debug_print(f"📦 [{day_label}] 시작", places)
 
-    # 1. avoid_activities 제거
     filtered, removed = filter_by_avoid(places, avoid_activities)
     if debug:
         _debug_print(f"1️⃣  [{day_label}] avoid_activities 필터", filtered, removed)
 
-    # 2. 여행과 무관한 키워드 제거
     filtered, removed = filter_by_irrelevant(filtered)
     if debug:
         _debug_print(f"2️⃣  [{day_label}] 여행 무관 키워드 제거", filtered, removed)
 
-    # 3. activities 선택 여부 기반 제거
     filtered, removed = filter_by_activity_exclude(filtered, activities_kr)
     if debug:
         _debug_print(f"3️⃣  [{day_label}] activity 기반 제거 필터", filtered, removed)
 
-    # 4. 세부 카테고리별 중복 제한 (동일 목적 장소 최대 2개)
     filtered, removed = filter_by_subcategory_cap(filtered, max_per_subcategory=2)
     if debug:
         _debug_print(f"4️⃣  [{day_label}] 세부 카테고리 중복 제한", filtered, removed)
 
-    # 5. bucket 예비 분류 + activity 필터링
-    #    - CE7 + 체험형 카페 키워드 → activity로 분류
-    #    - FD6 + 베이커리/제과/디저트 → cafe로 분류
-    #    - 유저가 선택한 활동에 해당하지 않는 activity 장소 제거
-    #    - 음식점/카페는 항상 유지
     filtered, removed = filter_by_bucket_and_activity(filtered, activity_keywords)
     if removed > 0:
         warnings.append(f"[{day_label}] activity 필터로 {removed}개 제거")
     if debug:
         _debug_print(f"5️⃣  [{day_label}] bucket 분류 + activity 필터", filtered, removed)
 
-    # 5. 정렬
-    #    - 활동/동행자별 우선순위 정렬
-    #    - final_keywords category 매칭 → 최우선
-    #    - name_search_keywords name 매칭 → 다음
-    #    - 프랜차이즈 → 뒤로
     filtered = boost_by_priority(filtered, companion_kr=companion_kr, activities_kr=activities_kr)
     filtered = sort_by_priority(filtered, final_keywords=final_keywords, name_search_keywords=name_search_keywords)
     if debug:
         _debug_print(f"5️⃣  [{day_label}] 정렬", filtered, 0)
 
-    # 6. 경로 인접성 정렬 (endpoint 전용, cap에서 살아남을 확률 ↑)
     if route_type == "endpoint" and None not in (start_lat, start_lng, end_lat, end_lng):
-        # 음식점/카페(FD6/CE7)는 거리와 무관하게 우선순위 유지, 나머지만 경로 인접성으로 재정렬
-        food_cafe   = [p for p in filtered if p.get("category_group_code") in ("FD6", "CE7")]
-        other       = [p for p in filtered if p.get("category_group_code") not in ("FD6", "CE7")]
-        other       = sort_by_route_proximity(other, start_lat, start_lng, end_lat, end_lng)
-        filtered    = food_cafe + other
+        food_cafe = [p for p in filtered if p.get("category_group_code") in ("FD6", "CE7")]
+        other     = [p for p in filtered if p.get("category_group_code") not in ("FD6", "CE7")]
+        other     = sort_by_route_proximity(other, start_lat, start_lng, end_lat, end_lng)
+        filtered  = food_cafe + other
         if debug:
             _debug_print(f"6️⃣  [{day_label}] 경로 인접성 정렬", filtered, 0)
 
-    # 7. cap 적용
     filtered, removed = filter_by_category_cap(filtered, travel_days=travel_days, route_type=route_type)
     if debug:
         _debug_print(f"7️⃣  [{day_label}] 카테고리 cap", filtered, removed)
@@ -161,7 +144,7 @@ def _filter_one_day(
 
 # ─── [노드] 1차 필터링 ───
 def first_filter_candidates(state: dict, debug: bool = False) -> dict:
-    ui               = state["user_input"]
+    ui                = state["user_input"]
     candidates_by_day = state.get("candidates_by_day", {})
     warnings: list[str] = []
 
@@ -173,23 +156,38 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     final_keywords       = ui.get("final_keywords") or []
     name_search_keywords = ui.get("name_search_keywords") or []
 
-    filtered_by_day:    dict[int, list] = {}
-    all_filtered:       list[dict]      = []
+    filtered_by_day: dict[int, list] = {}
+    all_filtered:    list[dict]      = []
 
-    # 케이스 1 (only): endpoint와 동일하게 day별 독립 처리 (used_place_ids로 중복 제외)
+    # ── 케이스 1 (only): 정렬 후 라운드로빈으로 day별 균등 배분 ──────────
     if route_type == "only":
-        used_place_ids: set[str] = set()
-        used_brand_names: set[str] = set()
+        all_candidates = candidates_by_day.get(1, [])
+
+        # 우선순위 정렬 (활동/동행자 우선 + 프랜차이즈 뒤로)
+        sorted_candidates = boost_by_priority(all_candidates, companion_kr=companion_kr, activities_kr=activities_kr)
+        sorted_candidates = sort_by_priority(sorted_candidates, final_keywords=final_keywords, name_search_keywords=name_search_keywords)
+
+        # category_group_code 기준 분류 (food/cafe/others)
+        food_list   = [p for p in sorted_candidates if p.get("category_group_code") == "FD6"]
+        cafe_list   = [p for p in sorted_candidates if p.get("category_group_code") == "CE7"]
+        others_list = [p for p in sorted_candidates if p.get("category_group_code") not in ("FD6", "CE7")]
+
+        # 라운드로빈: 정렬된 순서대로 day1, day2, ..., day1, day2... 순환 배분
+        def _round_robin(items: list, n: int) -> dict[int, list]:
+            groups: dict[int, list] = {i: [] for i in range(n)}
+            for idx, item in enumerate(items):
+                groups[idx % n].append(item)
+            return groups
+
+        food_groups   = _round_robin(food_list, travel_days)
+        cafe_groups   = _round_robin(cafe_list, travel_days)
+        others_groups = _round_robin(others_list, travel_days)
 
         for day_number in range(1, travel_days + 1):
-            day_candidates = candidates_by_day.get(day_number, [])
-
-            # 이전 day에 포함된 장소 제외 (place_id + 브랜드명)
-            day_candidates = [
-                p for p in day_candidates
-                if p["id"] not in used_place_ids
-                and _brand_name(p["name"]) not in used_brand_names
-            ]
+            day_idx = day_number - 1
+            day_candidates = (
+                food_groups[day_idx] + cafe_groups[day_idx] + others_groups[day_idx]
+            )
 
             filtered = _filter_one_day(
                 places=day_candidates,
@@ -199,31 +197,29 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 final_keywords=final_keywords,
                 name_search_keywords=name_search_keywords,
                 warnings=warnings,
-                route_type="endpoint",  # cap 로직은 endpoint(day당 50개) 기준
+                route_type="only_day",
                 travel_days=travel_days,
                 debug=debug,
                 day_label=f"only-day{day_number}",
             )
 
-            for p in filtered:
-                used_place_ids.add(p["id"])
-                used_brand_names.add(_brand_name(p["name"]))
-
             filtered_by_day[day_number] = filtered
             all_filtered.extend(filtered)
-            warnings.append(f"[only] day{day_number} filtered_candidates: {len(filtered)}개")
+            warnings.append(f"[only] day{day_number} filtered_candidates: {len(filtered)}개 (cluster{day_number-1})")
 
+    # ── 케이스 2 (endpoint): day별 독립 처리, 이전 day 장소 제외 ────────
     elif route_type == "endpoint":
-        used_place_ids: set[str] = set()  # 이전 day에 포함된 place_id 누적
+        used_place_ids: set[str] = set()
+        used_brand_names: set[str] = set()
         days_raw = ui.get("days") or []
 
         for day_number in sorted(candidates_by_day.keys()):
             day_candidates = candidates_by_day[day_number]
 
-            # 이전 day에 포함된 장소 제외
             day_candidates = [
                 p for p in day_candidates
                 if p["id"] not in used_place_ids
+                and _brand_name(p["name"]) not in used_brand_names
             ]
 
             day_raw   = next((d for d in days_raw if d.get("day_number") == day_number), None)
@@ -250,9 +246,9 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 end_lng=end_lng,
             )
 
-            # 이번 day 장소를 누적 제외 목록에 추가
             for p in filtered:
                 used_place_ids.add(p["id"])
+                used_brand_names.add(_brand_name(p["name"]))
 
             filtered_by_day[day_number] = filtered
             all_filtered.extend(filtered)

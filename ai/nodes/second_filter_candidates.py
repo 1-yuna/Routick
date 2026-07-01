@@ -56,32 +56,23 @@ async def second_filter_candidates(state: dict) -> dict:
             "step":               "enriched",
         }
 
-    # only/endpoint 모두 day별 독립 처리
+    # only/endpoint 모두 day별 독립 처리 (only는 K-means로 이미 day별 분할됨)
     all_scored:    list[dict]      = []
     all_shortlist: list[dict]      = []
     shortlist_by_day: dict[int, list] = {}
-    days_raw = ui.get("days") or []
+
+    shortlist_route_type = "only_day" if route_type == "only" else "endpoint"
 
     for day_number, day_filtered in filtered_by_day.items():
-        day_raw   = next((d for d in days_raw if d.get("day_number") == day_number), None)
-        start_lat = day_raw.get("start_lat") if day_raw else None
-        start_lng = day_raw.get("start_lng") if day_raw else None
-        end_lat   = day_raw.get("end_lat") if day_raw else None
-        end_lng   = day_raw.get("end_lng") if day_raw else None
-
         scored, shortlist = await _enrich_and_score(
             places=day_filtered,
             moods_kr=moods_kr,
             companion_kr=companion_kr,
             activities_kr=activities_kr,
-            route_type="endpoint",  # day별 quota(30개) 적용
+            route_type=shortlist_route_type,
             travel_days=travel_days,
             warnings=warnings,
             label=f"day{day_number}",
-            start_lat=start_lat,
-            start_lng=start_lng,
-            end_lat=end_lat,
-            end_lng=end_lng,
         )
         shortlist_by_day[day_number] = shortlist
         all_scored.extend(scored)
