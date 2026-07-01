@@ -22,9 +22,19 @@ TRANSPORT_MAP = {"도보": "walk", "자동차": "car"}
 
 # ─── [노드] 응답 생성 ───
 def generate_response(state: dict) -> dict:
-    selected_itinerary = state["selected_itinerary"]
-    ui                 = state["user_input"]
-    warnings           = []
+    # LangGraph 흐름에서는 fetch_details가 "final_itineraries"(dict[int, list])로 반환하고
+    # generate_response는 "selected_itinerary"(list[{day_number, itinerary}])를 기대하므로 여기서 변환
+    if "selected_itinerary" in state and state["selected_itinerary"]:
+        selected_itinerary = state["selected_itinerary"]
+    else:
+        final_itineraries = state.get("final_itineraries", {})
+        selected_itinerary = [
+            {"day_number": day_number, "itinerary": itinerary}
+            for day_number, itinerary in final_itineraries.items()
+        ]
+
+    ui       = state["user_input"]
+    warnings = []
 
     transport_kr = ui.get("transport_kr", "도보")
     transport    = TRANSPORT_MAP.get(transport_kr, "walk")
@@ -42,19 +52,15 @@ def generate_response(state: dict) -> dict:
     }
 
     # ── region (days 밖, 전체 여행 기준) ────────────────────────────
-    days_raw = ui.get("days") or []
     if route_type == "only":
         first_day_info = next((d for d in days_info if d.get("day_number") == 1), {})
         region_fields  = {"region": first_day_info.get("region", "")}
     else:
-        # start/end name을 그대로 사용 (좌표 역지오코딩보다 정확)
-        first_day_raw = next((d for d in days_raw if d.get("day_number") == 1), {})
-        last_day_raw  = days_raw[-1] if days_raw else {}
-        start_region  = first_day_raw.get("start_name", "") or ""
-        end_region    = last_day_raw.get("end_name", "") or ""
-        region_fields = {
-            "startRegion": start_region,
-            "endRegion":   end_region,
+        first_day_info = next((d for d in days_info if d.get("day_number") == 1), {})
+        last_day_info  = next((d for d in reversed(days_info)), {})
+        region_fields  = {
+            "startRegion": first_day_info.get("start_region", ""),
+            "endRegion":   last_day_info.get("end_region", ""),
         }
 
     days = []

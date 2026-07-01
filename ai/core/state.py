@@ -42,17 +42,13 @@ class DayCoord(TypedDict):
     day_number: int
     start_lat: float
     start_lng: float
-    start_name: Optional[str]       # 프론트 카카오 자동완성에서 받은 장소명
-    start_address: Optional[str]    # 프론트 카카오 자동완성에서 받은 주소
-    start_place_id: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소 ID
-    mid_lat: Optional[float]        # 경유지 (선택)
+    start_name: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소명
+    mid_lat: Optional[float]    # 경유지 (선택)
     mid_lng: Optional[float]
     mid_name: Optional[str]
     end_lat: float
     end_lng: float
-    end_name: Optional[str]         # 프론트 카카오 자동완성에서 받은 장소명
-    end_address: Optional[str]      # 프론트 카카오 자동완성에서 받은 주소
-    end_place_id: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소 ID
+    end_name: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소명
 
 
 class UserInput(TypedDict):
@@ -240,12 +236,17 @@ class TravelState(TypedDict):
     # 일정 후보 (plan_itinerary에서 상위 5개 추출)
     itineraries_by_day: dict[int, list[list[ItineraryItem]]]    # day별 후보 동선들
 
-    # 최종 선택된 동선 (day별)
+    # 최종 선택된 동선 (select_itinerary에서 day별 1개씩 확정)
+    final_itineraries: dict[int, list[ItineraryItem]]           # day_number → itinerary
+    day_meta: dict[int, dict]                                   # day_number → {select_reason, compare_reason}
+
+    # 최종 선택된 동선 (day별) — 레거시, generate_response fallback용
     selected_itinerary: list[DayItinerary]
 
     # rollback 제어
     excluded_place_ids: list[str]                               # select_itinerary rollback 시 전달
     retry_count: int
+    rollback_count: int                                         # select_itinerary 내부 rollback 횟수
 
     # 메타·제어
     errors: list[str]
@@ -284,10 +285,14 @@ def make_initial_state(user_input: UserInput) -> TravelState:
 
         "itineraries_by_day": {},
 
+        "final_itineraries": {},
+        "day_meta": {},
+
         "selected_itinerary": [],
 
         "excluded_place_ids": [],
         "retry_count": 0,
+        "rollback_count": 0,
 
         "errors": [],
         "warnings": [],
