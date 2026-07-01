@@ -39,6 +39,16 @@ from utils.first_filter.place_filter_pipeline import (
 )
 
 
+# ─── 브랜드명 정규화 (지점 suffix 제거) ───
+def _brand_name(name: str) -> str:
+    """'수변최고돼지국밥 광안리점' → '수변최고돼지국밥'
+    마지막 토큰이 지점 suffix로 끝나면 제거."""
+    import re
+    name = name.strip()
+    name = re.sub(r'\s+\S*(점|지점|호점|본점|직영점|분점)$', '', name)
+    return name.strip()
+
+
 # ─── 디버깅 헬퍼 ───
 def _debug_print(label: str, places: list[dict], removed: int = 0) -> None:
     print(f"\n{label}")
@@ -194,16 +204,18 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
         warnings.append(f"[only] filtered_candidates: {len(filtered)}개 (전 day 공유, cap={total_cap})")
 
     elif route_type == "endpoint":
-        used_place_ids: set[str] = set()  # 이전 day에 포함된 place_id 누적
+        used_place_ids: set[str] = set()   # 이전 day에 포함된 place_id 누적
+        used_brand_names: set[str] = set() # 이전 day에 포함된 브랜드명 누적
         days_raw = ui.get("days") or []
 
         for day_number in sorted(candidates_by_day.keys()):
             day_candidates = candidates_by_day[day_number]
 
-            # 이전 day에 포함된 장소 제외
+            # 이전 day에 포함된 장소 제외 (place_id + 브랜드명 둘 다 체크)
             day_candidates = [
                 p for p in day_candidates
                 if p["id"] not in used_place_ids
+                and _brand_name(p["name"]) not in used_brand_names
             ]
 
             day_raw   = next((d for d in days_raw if d.get("day_number") == day_number), None)
@@ -233,6 +245,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
             # 이번 day 장소를 누적 제외 목록에 추가
             for p in filtered:
                 used_place_ids.add(p["id"])
+                used_brand_names.add(_brand_name(p["name"]))
 
             filtered_by_day[day_number] = filtered
             all_filtered.extend(filtered)
