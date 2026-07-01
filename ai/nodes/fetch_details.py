@@ -252,6 +252,41 @@ async def _recalculate_travel_times(client: httpx.AsyncClient, itinerary: list[d
 
 # ─── 3. 영업시간 충돌 검증 + 대체 로직 ──────────────────────────────
 
+def _parse_weekday_text(text: str, arrive_at: str, leave_at: str) -> bool:
+    """weekday_text 한 줄 파싱해서 영업 중 여부 판단.
+    예) "Monday: Open 24 hours" / "Tuesday: 12:00 AM – 10:00 PM" / "Wednesday: Closed"
+    """
+    import re
+    if not text:
+        return False
+    lower = text.lower()
+    if "open 24 hours" in lower:
+        return True
+    if "closed" in lower:
+        return False
+    match = re.search(r":\s*(.+)", text)
+    if not match:
+        return False
+    time_part = match.group(1).strip()
+    parts = re.split(r"[–\-]", time_part)
+    if len(parts) != 2:
+        return False
+    try:
+        open_t  = datetime.strptime(parts[0].strip(), "%I:%M %p")
+        close_t = datetime.strptime(parts[1].strip(), "%I:%M %p")
+        open_min  = open_t.hour * 60 + open_t.minute
+        close_min = close_t.hour * 60 + close_t.minute
+        arrive_min = to_dt(arrive_at).hour * 60 + to_dt(arrive_at).minute
+        leave_min  = to_dt(leave_at).hour * 60 + to_dt(leave_at).minute
+        if close_min == 0:
+            close_min = 24 * 60
+        if close_min < open_min:
+            close_min += 24 * 60
+        return open_min <= arrive_min and leave_min <= close_min
+    except Exception:
+        return False
+
+
 def _is_open(opening_hours: dict | None, weekday: int, arrive_at: str, leave_at: str) -> bool:
     """opening_hours.periods 기준으로 도착~출발 시간이 영업시간 내인지 확인.
     정보가 없으면 충돌 없는 것으로 간주(보수적으로 통과)."""
@@ -259,6 +294,13 @@ def _is_open(opening_hours: dict | None, weekday: int, arrive_at: str, leave_at:
         return True
     periods = opening_hours.get("periods")
     if not periods:
+        return True
+
+    # 구글 24/7: open.day=0, time="0000", close 없음 → 단일 period
+    if (len(periods) == 1
+            and periods[0].get("open", {}).get("day") == 0
+            and periods[0].get("open", {}).get("time") == "0000"
+            and not periods[0].get("close")):
         return True
 
     google_day = WEEKDAY_TO_GOOGLE_DAY.get(weekday)
@@ -272,12 +314,21 @@ def _is_open(opening_hours: dict | None, weekday: int, arrive_at: str, leave_at:
             continue
         open_min = int(open_info.get("time", "0000")[:2]) * 60 + int(open_info.get("time", "0000")[2:])
         if close_info:
-            close_min = int(close_info.get("time", "2359")[:2]) * 60 + int(close_info.get("time", "2359")[2:])
+            close_time = close_info.get("time", "2359")
+            close_min  = int(close_time[:2]) * 60 + int(close_time[2:])
+            # close.day != open.day → 다음날로 넘어가는 영업 (새벽 포함)
+            if close_info.get("day") != open_info.get("day"):
+                close_min += 24 * 60
         else:
-            close_min = 24 * 60  # 24시간 영업
+            close_min = 24 * 60
 
         if open_min <= arrive_min and leave_min <= close_min:
             return True
+
+    # periods에서 해당 요일 매칭 없음 → weekday_text fallback
+    weekday_text_list = opening_hours.get("weekday_text", [])
+    if len(weekday_text_list) == 7:
+        return _parse_weekday_text(weekday_text_list[weekday], arrive_at, leave_at)
 
     return False
 
