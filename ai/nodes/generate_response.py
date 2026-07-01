@@ -42,15 +42,19 @@ def generate_response(state: dict) -> dict:
     }
 
     # ── region (days 밖, 전체 여행 기준) ────────────────────────────
+    days_raw = ui.get("days") or []
     if route_type == "only":
         first_day_info = next((d for d in days_info if d.get("day_number") == 1), {})
         region_fields  = {"region": first_day_info.get("region", "")}
     else:
-        first_day_info = next((d for d in days_info if d.get("day_number") == 1), {})
-        last_day_info  = next((d for d in reversed(days_info)), {})
-        region_fields  = {
-            "startRegion": first_day_info.get("start_region", ""),
-            "endRegion":   last_day_info.get("end_region", ""),
+        # start/end name을 그대로 사용 (좌표 역지오코딩보다 정확)
+        first_day_raw = next((d for d in days_raw if d.get("day_number") == 1), {})
+        last_day_raw  = days_raw[-1] if days_raw else {}
+        start_region  = first_day_raw.get("start_name", "") or ""
+        end_region    = last_day_raw.get("end_name", "") or ""
+        region_fields = {
+            "startRegion": start_region,
+            "endRegion":   end_region,
         }
 
     days = []
@@ -222,6 +226,24 @@ def generate_response(state: dict) -> dict:
                     if next_block["type"] == "place":
                         block["leaveTime"] = next_block["arriveTime"]
                         break
+                # arriveTime > leaveTime 역전 방지
+                # (plan_itinerary에서 start_time 이전으로 계산된 경우)
+                if block.get("arriveTime") and block.get("leaveTime"):
+                    from datetime import datetime as _dt2
+                    arr = _dt2.strptime(block["arriveTime"], "%H:%M")
+                    lev = _dt2.strptime(block["leaveTime"], "%H:%M")
+                    if arr > lev:
+                        # arriveTime 기준으로 enter+exit 시간 합산해서 leaveTime 재계산
+                        enter_min = (block.get("enterTransport") or {}).get("minutes", 0)
+                        exit_min  = (block.get("exitTransport") or {}).get("minutes", 0)
+                        from datetime import timedelta as _td2
+                        new_leave = arr + _td2(minutes=enter_min + exit_min)
+                        block["leaveTime"] = new_leave.strftime("%H:%M")
+                        # 다음 place arriveTime도 맞춰서 업데이트
+                        for next_block in blocks[idx + 1:]:
+                            if next_block["type"] == "place":
+                                next_block["arriveTime"] = block["leaveTime"]
+                                break
 
         day_obj["blocks"] = blocks
         days.append(day_obj)

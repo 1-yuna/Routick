@@ -176,46 +176,54 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     filtered_by_day:    dict[int, list] = {}
     all_filtered:       list[dict]      = []
 
-    # 케이스 1 (only): 전체 candidates를 한 번 필터링
+    # 케이스 1 (only): endpoint와 동일하게 day별 독립 처리 (used_place_ids로 중복 제외)
     if route_type == "only":
-        all_candidates = state.get("candidates", [])
-        total_cap = ONLY_FILTER_CAP.get(travel_days, ONLY_FILTER_CAP[1])["total"]
-
-        filtered = _filter_one_day(
-            places=all_candidates,
-            avoid_activities=avoid_activities,
-            companion_kr=companion_kr,
-            activities_kr=activities_kr,
-            final_keywords=final_keywords,
-            name_search_keywords=name_search_keywords,
-            warnings=warnings,
-            route_type=route_type,
-            travel_days=travel_days,
-            debug=debug,
-            day_label="only",
-        )
-
-        filtered = filtered[:total_cap]
+        used_place_ids: set[str] = set()
+        used_brand_names: set[str] = set()
 
         for day_number in range(1, travel_days + 1):
-            filtered_by_day[day_number] = filtered
+            day_candidates = candidates_by_day.get(day_number, [])
 
-        all_filtered = filtered
-        warnings.append(f"[only] filtered_candidates: {len(filtered)}개 (전 day 공유, cap={total_cap})")
+            # 이전 day에 포함된 장소 제외 (place_id + 브랜드명)
+            day_candidates = [
+                p for p in day_candidates
+                if p["id"] not in used_place_ids
+                and _brand_name(p["name"]) not in used_brand_names
+            ]
+
+            filtered = _filter_one_day(
+                places=day_candidates,
+                avoid_activities=avoid_activities,
+                companion_kr=companion_kr,
+                activities_kr=activities_kr,
+                final_keywords=final_keywords,
+                name_search_keywords=name_search_keywords,
+                warnings=warnings,
+                route_type="endpoint",  # cap 로직은 endpoint(day당 50개) 기준
+                travel_days=travel_days,
+                debug=debug,
+                day_label=f"only-day{day_number}",
+            )
+
+            for p in filtered:
+                used_place_ids.add(p["id"])
+                used_brand_names.add(_brand_name(p["name"]))
+
+            filtered_by_day[day_number] = filtered
+            all_filtered.extend(filtered)
+            warnings.append(f"[only] day{day_number} filtered_candidates: {len(filtered)}개")
 
     elif route_type == "endpoint":
-        used_place_ids: set[str] = set()   # 이전 day에 포함된 place_id 누적
-        used_brand_names: set[str] = set() # 이전 day에 포함된 브랜드명 누적
+        used_place_ids: set[str] = set()  # 이전 day에 포함된 place_id 누적
         days_raw = ui.get("days") or []
 
         for day_number in sorted(candidates_by_day.keys()):
             day_candidates = candidates_by_day[day_number]
 
-            # 이전 day에 포함된 장소 제외 (place_id + 브랜드명 둘 다 체크)
+            # 이전 day에 포함된 장소 제외
             day_candidates = [
                 p for p in day_candidates
                 if p["id"] not in used_place_ids
-                and _brand_name(p["name"]) not in used_brand_names
             ]
 
             day_raw   = next((d for d in days_raw if d.get("day_number") == day_number), None)
@@ -245,7 +253,6 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
             # 이번 day 장소를 누적 제외 목록에 추가
             for p in filtered:
                 used_place_ids.add(p["id"])
-                used_brand_names.add(_brand_name(p["name"]))
 
             filtered_by_day[day_number] = filtered
             all_filtered.extend(filtered)

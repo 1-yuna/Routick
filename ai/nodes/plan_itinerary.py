@@ -270,6 +270,24 @@ async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
 ONLY_TOTAL_CANDIDATES = {1: 3, 2: 6, 3: 10, 4: 15}
 
 
+# ─── 브랜드명 정규화 ───
+def _brand_name(name: str) -> str:
+    import re
+    return re.sub(r'\s+\S*(점|지점|호점|본점|직영점|분점)$', '', name.strip()).strip()
+
+
+# ─── 동선에서 장소 id + 브랜드명 추출 (start/end/parking 제외) ───
+def _route_keys(itinerary: list[dict]) -> tuple[set[str], set[str]]:
+    ids, brands = set(), set()
+    for item in itinerary:
+        bucket = item["place"].get("bucket", "")
+        if bucket in ("start", "end", "parking"):
+            continue
+        ids.add(item["place"]["id"])
+        brands.add(_brand_name(item["place"].get("name", "")))
+    return ids, brands
+
+
 # ─── [노드] 일정 계획 리스트 작성 ───
 async def plan_itinerary(state: dict) -> dict:
     valid_routes_by_day = state.get("valid_routes_by_day", {})
@@ -281,42 +299,27 @@ async def plan_itinerary(state: dict) -> dict:
 
     itineraries_by_day: dict[int, list[list[dict]]] = {}
 
-    # ── 케이스 1 (only): 전체 동선 → day별 균등 배분 ─────────────────
+    # ── 케이스 1 (only): day별 독립 배치 → 상위 N개 추출 ──────────────
     if route_type == "only":
-        valid_routes = valid_routes_by_day.get(1, [])
-        if not valid_routes:
-            valid_routes = all_routes_by_day.get(1, [])
-        if not valid_routes:
-            warnings.append("only 케이스 동선 없음 → 실패")
-            return {"itineraries_by_day": {}, "warnings": warnings, "step": "failed"}
-
-        total_needed  = ONLY_TOTAL_CANDIDATES.get(travel_days, 3)
-        sorted_routes = sorted(valid_routes, key=lambda x: x["total_score"], reverse=True)
-        top_routes    = sorted_routes[:total_needed]
-
-        # 주차장 추가
-        final_itineraries = []
-        for r in top_routes:
-            if transport_kr == "자동차":
-                itinerary = await add_parking_to_itinerary(r["itinerary"])
-            else:
-                itinerary = r["itinerary"]
-            final_itineraries.append(itinerary)
-
-        # day당 3개씩 배분
         for day_number in range(1, travel_days + 1):
-            day_slice = final_itineraries[(day_number - 1) * 3 : day_number * 3]
-            if not day_slice:
+            valid_routes = valid_routes_by_day.get(day_number, [])
+            if not valid_routes:
+                valid_routes = all_routes_by_day.get(day_number, [])
+            if not valid_routes:
                 warnings.append(f"[only] day{day_number} 동선 없음 → 실패")
                 return {"itineraries_by_day": {}, "warnings": warnings, "step": "failed"}
-            itineraries_by_day[day_number] = day_slice
-            warnings.append(f"[only] day{day_number} 동선 후보: {len(day_slice)}개")
 
-        return {
-            "itineraries_by_day": itineraries_by_day,
-            "warnings":           warnings,
-            "step":               "itinerary_planned",
-        }
+            top_routes = sorted(valid_routes, key=lambda x: x["total_score"], reverse=True)[:3]
+            final = []
+            for r in top_routes:
+                if transport_kr == "자동차":
+                    itinerary = await add_parking_to_itinerary(r["itinerary"])
+                else:
+                    itinerary = r["itinerary"]
+                final.append(itinerary)
+
+            itineraries_by_day[day_number] = final
+            warnings.append(f"[only] day{day_number} 동선 후보: {len(final)}개")
 
         return {
             "itineraries_by_day": itineraries_by_day,

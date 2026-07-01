@@ -56,58 +56,36 @@ async def second_filter_candidates(state: dict) -> dict:
             "step":               "enriched",
         }
 
-    # only 케이스: 전체 풀을 한 번만 보강
-    # endpoint 케이스: day별 독립 보강
-    if route_type == "only":
-        # day1 후보가 전체 공유 풀
-        all_filtered = filtered_by_day.get(1, [])
+    # only/endpoint 모두 day별 독립 처리
+    all_scored:    list[dict]      = []
+    all_shortlist: list[dict]      = []
+    shortlist_by_day: dict[int, list] = {}
+    days_raw = ui.get("days") or []
+
+    for day_number, day_filtered in filtered_by_day.items():
+        day_raw   = next((d for d in days_raw if d.get("day_number") == day_number), None)
+        start_lat = day_raw.get("start_lat") if day_raw else None
+        start_lng = day_raw.get("start_lng") if day_raw else None
+        end_lat   = day_raw.get("end_lat") if day_raw else None
+        end_lng   = day_raw.get("end_lng") if day_raw else None
+
         scored, shortlist = await _enrich_and_score(
-            places=all_filtered,
+            places=day_filtered,
             moods_kr=moods_kr,
             companion_kr=companion_kr,
             activities_kr=activities_kr,
-            route_type=route_type,
+            route_type="endpoint",  # day별 quota(30개) 적용
             travel_days=travel_days,
             warnings=warnings,
-            label="only",
+            label=f"day{day_number}",
+            start_lat=start_lat,
+            start_lng=start_lng,
+            end_lat=end_lat,
+            end_lng=end_lng,
         )
-        shortlist_by_day = {
-            day_number: shortlist
-            for day_number in range(1, travel_days + 1)
-        }
-        all_scored   = scored
-        all_shortlist = shortlist
-
-    else:
-        all_scored:    list[dict]      = []
-        all_shortlist: list[dict]      = []
-        shortlist_by_day: dict[int, list] = {}
-        days_raw = ui.get("days") or []
-
-        for day_number, day_filtered in filtered_by_day.items():
-            day_raw = next((d for d in days_raw if d.get("day_number") == day_number), None)
-            start_lat = day_raw.get("start_lat") if day_raw else None
-            start_lng = day_raw.get("start_lng") if day_raw else None
-            end_lat   = day_raw.get("end_lat") if day_raw else None
-            end_lng   = day_raw.get("end_lng") if day_raw else None
-
-            scored, shortlist = await _enrich_and_score(
-                places=day_filtered,
-                moods_kr=moods_kr,
-                companion_kr=companion_kr,
-                activities_kr=activities_kr,
-                route_type=route_type,
-                travel_days=travel_days,
-                warnings=warnings,
-                label=f"day{day_number}",
-                start_lat=start_lat,
-                start_lng=start_lng,
-                end_lat=end_lat,
-                end_lng=end_lng,
-            )
-            shortlist_by_day[day_number] = shortlist
-            all_scored.extend(scored)
-            all_shortlist.extend(shortlist)
+        shortlist_by_day[day_number] = shortlist
+        all_scored.extend(scored)
+        all_shortlist.extend(shortlist)
 
     return {
         "user_input":       ui,
