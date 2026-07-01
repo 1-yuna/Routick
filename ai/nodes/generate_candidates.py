@@ -244,10 +244,13 @@ def _generate_day_routes(
     end_lng:            float = None,
     start_name:         str = "출발지",
     end_name:           str = "도착지",
+    day_info:           dict = None,
 ) -> list[dict]:
     all_routes = []
     has_start  = start_lat is not None and start_lng is not None
     has_mid    = mid_lat is not None and mid_lng is not None
+    if day_info is None:
+        day_info = {}
 
     # start 좌표가 있으면 슬롯1(browse/cafe/pop) 중 1단계 목표(mid 있으면 mid, 없으면 end)
     # 방향으로 진행하는 후보만 시작점으로 사용
@@ -290,7 +293,7 @@ def _generate_day_routes(
                 candidates=candidates,
                 place_index=place_index,
                 time_matrix=time_matrix,
-                total_minutes=0,
+                total_minutes=0,  # greedy_nn에서 시간 기반으로 처리
                 travel_limit=travel_limit,
                 excluded_place_ids=excluded_place_ids,
                 mid_lat=mid_lat,
@@ -315,8 +318,9 @@ def _generate_day_routes(
                 start_block = {
                     "order":                  0,
                     "place": {
-                        "id":       "start",
+                        "id":       day_info.get("start_place_id") or "start",
                         "name":     start_name or "출발지",
+                        "address":  day_info.get("start_address", ""),
                         "lat":      start_lat,
                         "lng":      start_lng,
                         "bucket":   "start",
@@ -329,7 +333,6 @@ def _generate_day_routes(
                 }
                 itinerary = [start_block] + itinerary
 
-            # end 블록을 맨 뒤에 추가
             has_end = end_lat is not None and end_lng is not None
             if has_end:
                 last_place = itinerary[-1]["place"]
@@ -337,14 +340,14 @@ def _generate_day_routes(
                     haversine(last_place["lat"], last_place["lng"], end_lat, end_lng),
                     "도보"
                 ))
-                # 마지막 장소의 travel_to_next_minutes를 end까지 이동시간으로 갱신
                 itinerary[-1]["travel_to_next_minutes"] = walk_min_to_end
                 end_arrive = to_str(to_dt(itinerary[-1]["leave_at"]) + timedelta(minutes=walk_min_to_end))
                 end_block = {
                     "order":                  len(itinerary) + 1,
                     "place": {
-                        "id":       "end",
+                        "id":       day_info.get("end_place_id") or "end",
                         "name":     end_name or "도착지",
+                        "address":  day_info.get("end_address", ""),
                         "lat":      end_lat,
                         "lng":      end_lng,
                         "bucket":   "end",
@@ -419,8 +422,9 @@ def generate_candidates(state: dict) -> dict:
         # endpoint 케이스: day별 start/mid/end 좌표 + 장소명 추출
         start_lat = start_lng = mid_lat = mid_lng = end_lat = end_lng = None
         start_name = end_name = None
-        day_travel_limit   = travel_limit  # 기본값: 전체 transport 기준
-        day_max_intersections = 0          # 기본값: 교차 허용 안 함
+        day_info = {}
+        day_travel_limit   = travel_limit
+        day_max_intersections = 0
 
         if route_type == "endpoint":
             day_raw = next((d for d in days_raw if d["day_number"] == day_number), None)
@@ -451,19 +455,16 @@ def generate_candidates(state: dict) -> dict:
                         )
 
             days_info_list = ui.get("days_info") or []
-            day_info = next((d for d in days_info_list if d.get("day_number") == day_number), None)
-            if day_info:
-                start_name = day_info.get("start_name")
-                end_name   = day_info.get("end_name")
+            day_info = next((d for d in days_info_list if d.get("day_number") == day_number), {})
+            start_name = day_info.get("start_name")
+            end_name   = day_info.get("end_name")
 
         # 3. Greedy NN 동선 생성
         # transport=car인 경우 주차장 이동 오버헤드를 미리 확보
-        # plan_itinerary에서 주차장 블록이 추가되면 총 시간이 늘어나므로
-        # 동선 생성 시점부터 stop_time을 앞당겨 여유를 확보
         PARKING_OVERHEAD_MINUTES = 60
         if transport_kr == "자동차":
-            from datetime import datetime, timedelta as _td
-            _stop_dt = datetime.strptime("21:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)
+            from datetime import datetime as _dt, timedelta as _td
+            _stop_dt = _dt.strptime("21:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)
             effective_stop_time = _stop_dt.strftime("%H:%M")
         else:
             effective_stop_time = "21:00"
@@ -484,6 +485,7 @@ def generate_candidates(state: dict) -> dict:
             end_lng=end_lng,
             start_name=start_name,
             end_name=end_name,
+            day_info=day_info,
         )
 
         # 4. 유효성 검증

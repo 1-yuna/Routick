@@ -181,15 +181,15 @@ async def coord_to_region(
         # H(법정동) 타입 우선, 없으면 B(행정동)
         for doc in docs:
             if doc.get("region_type") == "H":
-                # 구+동 조합 반환 (예: "마포구 합정동")
                 region_2 = doc.get("region_2depth_name", "")
-                region_3 = doc.get("region_3depth_name", "")
-                return f"{region_2} {region_3}".strip() if region_3 else region_2
+                # "해운대구" → "해운대", "마포구" → "마포"
+                region_2 = region_2.rstrip("구시군")
+                return region_2
         # fallback: 첫 번째 결과
         if docs:
             region_2 = docs[0].get("region_2depth_name", "")
-            region_3 = docs[0].get("region_3depth_name", "")
-            return f"{region_2} {region_3}".strip() if region_3 else region_2
+            region_2 = region_2.rstrip("구시군")
+            return region_2
     except Exception:
         pass
     return ""

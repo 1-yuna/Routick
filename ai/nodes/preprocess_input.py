@@ -123,6 +123,30 @@ def preprocess_input(state: dict) -> dict:
     # ── 3. 반경 설정 ────────────────────────────────────────────────
     route_type = ui.get("route_type", "only")
 
+    # days 배열 camelCase → snake_case 변환
+    # Spring에서 dayNumber, startLat, startPlaceId 등 camelCase로 전달됨
+    days_raw = ui.get("days") or []
+    converted_days = []
+    for day in days_raw:
+        converted_days.append({
+            "day_number":      day.get("day_number")      or day.get("dayNumber"),
+            "start_lat":       day.get("start_lat")       or day.get("startLat"),
+            "start_lng":       day.get("start_lng")       or day.get("startLng"),
+            "start_name":      day.get("start_name")      or day.get("startName"),
+            "start_address":   day.get("start_address")   or day.get("startAddress"),
+            "start_place_id":  day.get("start_place_id")  or day.get("startPlaceId"),
+            "mid_lat":         day.get("mid_lat")         or day.get("midLat"),
+            "mid_lng":         day.get("mid_lng")         or day.get("midLng"),
+            "mid_name":        day.get("mid_name")        or day.get("midName"),
+            "end_lat":         day.get("end_lat")         or day.get("endLat"),
+            "end_lng":         day.get("end_lng")         or day.get("endLng"),
+            "end_name":        day.get("end_name")        or day.get("endName"),
+            "end_address":     day.get("end_address")     or day.get("endAddress"),
+            "end_place_id":    day.get("end_place_id")    or day.get("endPlaceId"),
+        })
+    if converted_days:
+        ui["days"] = converted_days
+
     radius_by_transport = RADIUS_MAP.get(transport, RADIUS_MAP["walk"])
     radius_km = radius_by_transport.get(travel_days, 2.0)
 

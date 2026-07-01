@@ -95,15 +95,19 @@ async def collect_candidate_pool(state: dict) -> dict:
                     )
                     day_info = {
                         **day_info,
-                        "start_region": start_region,
-                        "end_region":   end_region,
-                        "start_lat":    day_raw.get("start_lat"),
-                        "start_lng":    day_raw.get("start_lng"),
-                        "start_name":   day_raw.get("start_name"),
-                        "end_lat":      day_raw.get("end_lat"),
-                        "end_lng":      day_raw.get("end_lng"),
-                        "end_name":     day_raw.get("end_name"),
-                        "mid_name":     day_raw.get("mid_name"),
+                        "start_region":    start_region,
+                        "end_region":      end_region,
+                        "start_lat":       day_raw.get("start_lat"),
+                        "start_lng":       day_raw.get("start_lng"),
+                        "start_name":      day_raw.get("start_name"),
+                        "start_address":   day_raw.get("start_address"),
+                        "start_place_id":  day_raw.get("start_place_id"),
+                        "end_lat":         day_raw.get("end_lat"),
+                        "end_lng":         day_raw.get("end_lng"),
+                        "end_name":        day_raw.get("end_name"),
+                        "end_address":     day_raw.get("end_address"),
+                        "end_place_id":    day_raw.get("end_place_id"),
+                        "mid_name":        day_raw.get("mid_name"),
                     }
 
             # day별 중복 제거 (같은 place_id)

@@ -87,14 +87,16 @@ def _find_non_duplicate_combo(
 
 # ─── 중복 장소를 동선에 추천 이유 등 LLM 결과 머지 ───
 def _apply_recommendations(itinerary: list[dict], reasons: list[dict]) -> list[dict]:
-    reason_map = {r["place_id"]: r["reason"] for r in reasons}
+    reason_map = {str(r["place_id"]): r["reason"] for r in reasons}
     result = []
     for item in itinerary:
-        place_id = item["place"].get("id")
-        if place_id in reason_map:
+        place_id = str(item["place"].get("id", ""))
+        if place_id in reason_map and reason_map[place_id]:
             result.append({**item, "recommendation_reason": reason_map[place_id]})
         else:
-            result.append(item)
+            # LLM이 해당 장소를 빠뜨린 경우 summary로 fallback
+            fallback = item["place"].get("summary", "") or item.get("recommendation_reason", "")
+            result.append({**item, "recommendation_reason": fallback})
     return result
 
 

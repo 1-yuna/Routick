@@ -42,13 +42,17 @@ class DayCoord(TypedDict):
     day_number: int
     start_lat: float
     start_lng: float
-    start_name: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소명
-    mid_lat: Optional[float]    # 경유지 (선택)
+    start_name: Optional[str]       # 프론트 카카오 자동완성에서 받은 장소명
+    start_address: Optional[str]    # 프론트 카카오 자동완성에서 받은 주소
+    start_place_id: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소 ID
+    mid_lat: Optional[float]        # 경유지 (선택)
     mid_lng: Optional[float]
     mid_name: Optional[str]
     end_lat: float
     end_lng: float
-    end_name: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소명
+    end_name: Optional[str]         # 프론트 카카오 자동완성에서 받은 장소명
+    end_address: Optional[str]      # 프론트 카카오 자동완성에서 받은 주소
+    end_place_id: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소 ID
 
 
 class UserInput(TypedDict):
