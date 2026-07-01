@@ -234,6 +234,7 @@ def _generate_day_routes(
     time_matrix:        list[list[float]],
     travel_limit:       int,
     start_time:         str,
+    stop_time:          str,
     excluded_place_ids: set[str],
     start_lat:          float = None,
     start_lng:          float = None,
@@ -289,7 +290,7 @@ def _generate_day_routes(
                 candidates=candidates,
                 place_index=place_index,
                 time_matrix=time_matrix,
-                total_minutes=0,  # greedy_nn에서 시간 기반으로 처리
+                total_minutes=0,
                 travel_limit=travel_limit,
                 excluded_place_ids=excluded_place_ids,
                 mid_lat=mid_lat,
@@ -297,6 +298,7 @@ def _generate_day_routes(
                 end_lat=end_lat,
                 end_lng=end_lng,
                 start_time=start_time,
+                stop_time=stop_time,
             )
             if not route:
                 continue
@@ -455,12 +457,24 @@ def generate_candidates(state: dict) -> dict:
                 end_name   = day_info.get("end_name")
 
         # 3. Greedy NN 동선 생성
+        # transport=car인 경우 주차장 이동 오버헤드를 미리 확보
+        # plan_itinerary에서 주차장 블록이 추가되면 총 시간이 늘어나므로
+        # 동선 생성 시점부터 stop_time을 앞당겨 여유를 확보
+        PARKING_OVERHEAD_MINUTES = 60
+        if transport_kr == "자동차":
+            from datetime import datetime, timedelta as _td
+            _stop_dt = datetime.strptime("21:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)
+            effective_stop_time = _stop_dt.strftime("%H:%M")
+        else:
+            effective_stop_time = "21:00"
+
         all_routes = _generate_day_routes(
             candidates=candidates,
             place_index=place_index,
             time_matrix=time_matrix,
             travel_limit=day_travel_limit,
             start_time=start_time,
+            stop_time=effective_stop_time,
             excluded_place_ids=used_place_ids,
             start_lat=start_lat,
             start_lng=start_lng,

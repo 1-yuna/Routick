@@ -54,7 +54,7 @@ STAY_MINUTES = {
 # 슬롯5: 17:30 이후면 food / 아니면 activity,browse,pop 먼저 → food (food는 무조건)
 # 슬롯6: activity, browse, pop
 # 슬롯7~: 21:00 이전이면 계속 추가 (activity, cafe, browse, pop)
-STOP_TIME = "21:00"
+STOP_TIME = "21:00"  # 기본값 (도보 케이스)
 
 # ─── 점심 슬롯 제외 category_name 키워드 ───
 LUNCH_EXCLUDE_KEYWORDS = ["술집", "호프", "요리주점", "칵테일바", "와인바", "육류", "고기"]
@@ -85,7 +85,8 @@ def greedy_nn(
     mid_lng:            float = None,
     end_lat:            float = None,
     end_lng:            float = None,
-    start_time:         str = "09:00",
+    start_time:         str = "11:00",
+    stop_time:          str = "21:00",
 ) -> tuple[list[dict], float]:
 
     if excluded_place_ids is None:
@@ -254,7 +255,7 @@ def greedy_nn(
         next_bucket = best_item["place"].get("bucket", "activity")
         next_stay   = STAY_MINUTES.get(next_bucket, 90)
 
-        if current_time + timedelta(minutes=travel_time + next_stay) > to_dt(STOP_TIME):
+        if current_time + timedelta(minutes=travel_time + next_stay) > to_dt(stop_time):
             return False
 
         visited.append(best_item)
@@ -296,7 +297,7 @@ def greedy_nn(
     # ── 슬롯7~: 21:00 이전이면 계속 추가 ──
     extra_count = 0
     while extra_count < 5:
-        if to_str(current_time) >= STOP_TIME:
+        if to_str(current_time) >= stop_time:
             break
         is_last = extra_count == 4
         if not pick_slot(["activity", "cafe", "browse", "pop"], is_last=is_last):
