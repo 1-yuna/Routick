@@ -4,7 +4,7 @@ const MARKER_COLOR = {
   parking: '#FFB705',
   mark: '#FF8A5C', // 출발지(S) / 도착지(E)
 };
-// - place: 모두 primary(#4B5FDC)
+// - place: 모두 primary(#4B5FDC), 번호는 blocks 내 위치 기준으로 매번 새로 계산
 // - parking: 주황(#FFB705), 연속 그룹의 마지막만 표시
 // - start(S) / end(E): mark(#FF8A5C)
 export function extractMarkers(blocks, dayData = null) {
@@ -21,16 +21,18 @@ export function extractMarkers(blocks, dayData = null) {
     });
   }
 
+  let placeCount = 0;
   let i = 0;
   while (i < blocks.length) {
     const block = blocks[i];
 
     if (block.type === 'place') {
+      placeCount++;
       markers.push({
         lat: block.lat,
         lng: block.lng,
         color: MARKER_COLOR.place,
-        label: String(block.placeOrder),
+        label: String(placeCount),
         type: 'place',
       });
     } else if (block.type === 'parking') {

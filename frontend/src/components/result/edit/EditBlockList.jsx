@@ -26,13 +26,13 @@ function assignUniqueIds(days) {
         return {
           ...b,
           blockOrder,
-          // courseStore.deleteBlocks가 기대하는 형식
+          // courseStore.deleteBlocks / updateBlock이 기대하는 형식
           // place: place-{placeId}-{dayNumber}
-          // parking: parking-{name}-{dayNumber}-{blockOrder}
+          // parking: parking-{placeId}-{dayNumber}
           _uid:
             b.type === 'place'
               ? `place-${b.placeId}-${day.dayNumber}`
-              : `parking-${b.name}-${day.dayNumber}-${blockOrder}`,
+              : `parking-${b.placeId}-${day.dayNumber}`,
         };
       }),
   }));

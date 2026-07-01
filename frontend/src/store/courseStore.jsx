@@ -55,16 +55,14 @@ const useCourseStore = create((set) => ({
     }),
 
   // 블록 삭제
-  // uids: _uid 형식 배열 (place-{placeId}-{dayNumber} 또는 parking-{name}-{dayNumber}-{blockOrder})
+  // uids: _uid 형식 배열 (place-{placeId}-{dayNumber} 또는 parking-{placeId}-{dayNumber})
   // 삭제 후 첫 블록이 walk면 자동 제거, parking이면 유지
   deleteBlocks: (uids) =>
     set((state) => {
       const days = state.course.days.map((day) => {
         const toDeleteUids = uids.filter((uid) => {
           const parts = uid.split('-');
-          const dayNum = uid.startsWith('place-')
-            ? Number(parts[parts.length - 1])
-            : Number(parts[parts.length - 2]);
+          const dayNum = Number(parts[parts.length - 1]);
           return dayNum === day.dayNumber;
         });
 
@@ -79,7 +77,7 @@ const useCourseStore = create((set) => ({
           }
           if (b.type === 'parking') {
             return !toDeleteUids.includes(
-              `parking-${b.name}-${day.dayNumber}-${b.blockOrder}`
+              `parking-${b.placeId}-${day.dayNumber}`
             );
           }
           return true;
@@ -132,11 +130,16 @@ const useCourseStore = create((set) => ({
           }
         }
 
-        // blockOrder 재정렬
-        const reordered = merged.map((block, idx) => ({
-          ...block,
-          blockOrder: idx + 1,
-        }));
+        // blockOrder + placeOrder 재정렬
+        let placeCount = 0;
+        const reordered = merged.map((block, idx) => {
+          const base = { ...block, blockOrder: idx + 1 };
+          if (block.type === 'place') {
+            placeCount++;
+            return { ...base, placeOrder: placeCount };
+          }
+          return base;
+        });
 
         return { ...day, blocks: reordered };
       });
@@ -165,12 +168,11 @@ const useCourseStore = create((set) => ({
       const days = state.course.days.map((day) => {
         if (day.dayNumber !== dayNumber) return day;
         const blocks = day.blocks.map((b) => {
-          // 해당 블록 식별
           const bUid =
             b.type === 'place'
               ? `place-${b.placeId}-${day.dayNumber}`
               : b.type === 'parking'
-                ? `parking-${b.name}-${day.dayNumber}-${b.blockOrder}`
+                ? `parking-${b.placeId}-${day.dayNumber}`
                 : null;
           if (bUid !== uid) return b;
 

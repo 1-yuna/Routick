@@ -7,24 +7,50 @@ export default function KakaoMap({
   padding = [50, 50, 50, 50],
   onMarkerClick,
 }) {
-  const mapRef = useRef(null);
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const overlaysRef = useRef([]);
+  const polylineRef = useRef(null);
+
   const placesKey = JSON.stringify(places);
 
+  // 기존 마커/폴리라인 정리
+  const clearOverlays = () => {
+    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    overlaysRef.current = [];
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
+    }
+  };
+
   useEffect(() => {
-    // 지도 렌더링 전에 콜백 먼저 등록
     window.__kakaoMarkerClick = (idx) => {
       if (places?.[idx]) onMarkerClick?.(places[idx]);
     };
 
     window.kakao.maps.load(() => {
-      const container = mapRef.current;
+      const container = mapContainerRef.current;
+
+      // 지도 인스턴스는 최초 1회만 생성
+      if (!mapInstanceRef.current) {
+        const initCenter =
+          places && places.length > 0
+            ? new window.kakao.maps.LatLng(places[0].lat, places[0].lng)
+            : new window.kakao.maps.LatLng(lat ?? 37.5665, lng ?? 126.978);
+
+        mapInstanceRef.current = new window.kakao.maps.Map(container, {
+          center: initCenter,
+          level: places && places.length > 0 ? 4 : 3,
+        });
+      }
+
+      const map = mapInstanceRef.current;
+
+      // 매번 기존 마커/폴리라인 제거 후 다시 그리기
+      clearOverlays();
 
       if (places && places.length > 0) {
-        const map = new window.kakao.maps.Map(container, {
-          center: new window.kakao.maps.LatLng(places[0].lat, places[0].lng),
-          level: 4,
-        });
-
         const bounds = new window.kakao.maps.LatLngBounds();
         const linePath = [];
 
@@ -53,15 +79,16 @@ export default function KakaoMap({
               ">${place.label ?? ''}</div>
           `;
 
-          new window.kakao.maps.CustomOverlay({
+          const overlay = new window.kakao.maps.CustomOverlay({
             position,
             content,
             map,
             yAnchor: 0.5,
           });
+          overlaysRef.current.push(overlay);
         });
 
-        new window.kakao.maps.Polyline({
+        const polyline = new window.kakao.maps.Polyline({
           path: linePath,
           strokeWeight: 3,
           strokeColor: '#4B5FDC',
@@ -69,15 +96,14 @@ export default function KakaoMap({
           strokeStyle: 'solid',
           map,
         });
+        polylineRef.current = polyline;
 
         map.setBounds(bounds, padding[0], padding[1], padding[2], padding[3]);
-      } else {
+      } else if (lat && lng) {
         const position = new window.kakao.maps.LatLng(lat, lng);
-        const map = new window.kakao.maps.Map(container, {
-          center: new window.kakao.maps.LatLng(lat - 0.001, lng),
-          level: 3,
-        });
-        new window.kakao.maps.Marker({ position, map });
+        const marker = new window.kakao.maps.Marker({ position, map });
+        overlaysRef.current.push(marker);
+        map.setCenter(new window.kakao.maps.LatLng(lat - 0.001, lng));
       }
     });
 
@@ -86,5 +112,5 @@ export default function KakaoMap({
     };
   }, [placesKey, lat, lng]);
 
-  return <div ref={mapRef} className="absolute w-full h-full z-0" />;
+  return <div ref={mapContainerRef} className="absolute w-full h-full z-0" />;
 }

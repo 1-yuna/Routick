@@ -55,11 +55,12 @@ export default function ResultPage() {
   );
 
   const handleSave = (title) => {
-    const days = course.days ?? [];
-    const startRegion = days[0]?.start?.name ?? '';
-    const endRegion = days[days.length - 1]?.end?.name ?? '';
-    const region =
-      startRegion === endRegion ? startRegion : `${startRegion} → ${endRegion}`;
+    // only 케이스: course.region / endpoint 케이스: startRegion·endRegion
+    const region = course.region
+      ? course.region
+      : course.startRegion === course.endRegion
+        ? course.startRegion
+        : `${course.startRegion} → ${course.endRegion}`;
 
     const meta = course.meta ?? {};
 
@@ -67,11 +68,9 @@ export default function ResultPage() {
       title: title?.trim() || '나의 여행',
       region,
       transport: course.transport === 'car' ? '자동차' : '도보',
-      // 카드 태그: 분위기 + 활동
       tags: [...(meta.mood ?? []), ...(meta.activity ?? [])],
-      // 해시태그: 동행자, 기간
       hashtags: [meta.companion, meta.period].filter(Boolean),
-      course, // 코스 전체 저장
+      course,
     });
     setShowTitleModal(false);
     setShowSaveModal(true);
@@ -131,8 +130,11 @@ export default function ResultPage() {
         course.transport
       );
 
-      // anchor 블록 제거 후 store 반영
-      const withoutAnchors = recalculated.filter((b) => !b._isAnchor);
+      // anchor 블록 제거 후 blockOrder 재정렬 (anchor가 차지했던 순번 메꾸기)
+      const withoutAnchors = recalculated
+        .filter((b) => !b._isAnchor)
+        .map((block, idx) => ({ ...block, blockOrder: idx + 1 }));
+
       updateBlocks(localDay.dayNumber, withoutAnchors);
     }
 
@@ -231,7 +233,7 @@ export default function ResultPage() {
           } else if (marker.type === 'parking') {
             const block = selectedBlocks.find((b) => b.type === 'parking');
             if (block) {
-              navigate(`/place/${encodeURIComponent(block.name)}`, {
+              navigate(`/place/${block.placeId}`, {
                 state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
               });
             }

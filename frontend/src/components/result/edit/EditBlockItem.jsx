@@ -26,8 +26,7 @@ export default function EditBlockItem({
   const isParking = block.type === 'parking' || block.bucket === 'parking';
 
   const handleCardClick = () => {
-    const id = isParking ? encodeURIComponent(block.name) : block.placeId;
-    navigate(`/place/edit/${id}`, {
+    navigate(`/place/edit/${block.placeId}`, {
       state: { ...block, dayNumber },
     });
   };

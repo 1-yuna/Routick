@@ -144,13 +144,17 @@ export async function recalcTransportUtils(blocks, transport) {
       return { ...base, arriveTime, leaveTime };
     }
 
-    // place
-    placeCount++;
+    // place (anchor는 placeCount에서 제외 - 실제 장소가 아님)
     const stay = Number(block.stayMinutes) || 0;
     const arriveTime = toTime(current);
     current += stay;
     const leaveTime = toTime(current);
 
+    if (block._isAnchor) {
+      return { ...base, arriveTime, leaveTime };
+    }
+
+    placeCount++;
     return { ...base, placeOrder: placeCount, arriveTime, leaveTime };
   });
 }
