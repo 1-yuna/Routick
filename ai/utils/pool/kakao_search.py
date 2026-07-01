@@ -178,18 +178,11 @@ async def coord_to_region(
         resp = await client.get(KAKAO_GEO, headers=headers, params=params)
         resp.raise_for_status()
         docs = resp.json().get("documents", [])
-        # H(법정동) 타입 우선, 없으면 B(행정동)
         for doc in docs:
             if doc.get("region_type") == "H":
-                region_2 = doc.get("region_2depth_name", "")
-                # "해운대구" → "해운대", "마포구" → "마포"
-                region_2 = region_2.rstrip("구시군")
-                return region_2
-        # fallback: 첫 번째 결과
+                return doc.get("region_2depth_name", "")
         if docs:
-            region_2 = docs[0].get("region_2depth_name", "")
-            region_2 = region_2.rstrip("구시군")
-            return region_2
+            return docs[0].get("region_2depth_name", "")
     except Exception:
         pass
     return ""

@@ -119,7 +119,7 @@ def generate_response(state: dict) -> dict:
         blocks        = []
         block_order   = 1
         place_order   = 1
-        prev_leave_at = start_item.get("leave_at") if start_item else None  # 직전 블록 출발 시간 추적
+        prev_leave_at = start_item.get("leave_at") if start_item else ui.get("start_time", "11:00")
 
         for i, item in enumerate(main_items):
             place  = item["place"]

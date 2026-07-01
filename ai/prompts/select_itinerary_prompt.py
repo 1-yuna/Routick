@@ -31,9 +31,11 @@ def _format_itinerary(itinerary: list[dict]) -> str:
         best_for   = ", ".join(p.get("best_for", [])) or "정보없음"
         tags       = ", ".join(p.get("place_tags", [])) or "정보없음"
         summary    = p.get("summary", "")
+        category   = p.get("category", "") or ""
+        cat_last   = category.split(">")[-1].strip() if ">" in category else category.strip()
         lines.append(
             f"    - {p.get('name')} (id: {p.get('id')}) "
-            f"| 분위기: {atmosphere} | 추천대상: {best_for} | 활동: {tags} | {summary}"
+            f"| 카테고리: {cat_last} | 분위기: {atmosphere} | 추천대상: {best_for} | 활동: {tags} | {summary}"
         )
     return "\n".join(lines)
 
@@ -102,8 +104,6 @@ def build_prompt(
     {single_note}
 
     [장소별 추천 이유 작성 기준]
-    - 동선 내 모든 일반 장소(food/cafe/activity/browse/pop)에 대해 빠짐없이 작성하세요.
-      장소를 하나라도 빠뜨리면 안 됩니다.
     - 유저가 선택한 분위기(moods) 또는 활동(activities) 중 매칭되는 항목을 반드시 포함하세요.
     - 30자 이내, 명사형으로 작성하세요. "~입니다", "~해요" 등 종결어미 금지.
     - 형식 예시: "로맨틱한 분위기의 오션뷰 카페", "활기찬 분위기의 현지 인기 맛집"

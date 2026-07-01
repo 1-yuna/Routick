@@ -37,13 +37,14 @@ SHORT_DISTANCE_THRESHOLD_KM = 1.0
 MAX_INTERSECTIONS_SHORT_DISTANCE = 1
 
 # ─── 출발=도착(거의 동일 좌표, 왕복) 기준 거리 및 교차 허용 건수 ───
-# 왕복 동선은 마지막 구간이 구조적으로 이전 구간과 가까워질 수밖에 없어
-# 교차 0건 달성이 어려우므로 별도로 완화된 기준 적용
-ROUND_TRIP_THRESHOLD_KM   = 0.1
+ROUND_TRIP_THRESHOLD_KM      = 0.1
 MAX_INTERSECTIONS_ROUND_TRIP = 1
 
 # ─── 시작점당 반복 횟수 ───
 REPEAT_PER_START = 5
+
+# ─── 주차장 오버헤드 (분) ───
+PARKING_OVERHEAD_MINUTES = 60
 
 # ─── 버킷 분류 키워드 ───
 BUCKET_KEYWORDS = {
@@ -110,9 +111,9 @@ def build_matrix(
     shortlist:    list[dict],
     transport_kr: str,
 ) -> tuple[list[str], list[list[float]], list[list[float]]]:
-    place_index      = [item["place"]["id"] for item in shortlist]
-    distance_matrix  = []
-    time_matrix      = []
+    place_index     = [item["place"]["id"] for item in shortlist]
+    distance_matrix = []
+    time_matrix     = []
 
     for i, item_a in enumerate(shortlist):
         dist_row = []
@@ -161,7 +162,9 @@ def assign_times(
         bucket = place.get("bucket", "activity")
         stay   = STAY_MINUTES.get(bucket, 90)
 
-        travel_min = 0 if order == 0 else max(1, int(time_matrix[id_to_idx.get(route[order-1]["place"]["id"], 0)][id_to_idx.get(pid, 0)]))
+        travel_min = 0 if order == 0 else max(1, int(
+            time_matrix[id_to_idx.get(route[order-1]["place"]["id"], 0)][id_to_idx.get(pid, 0)]
+        ))
 
         arrive_dt = current_time + timedelta(minutes=travel_min)
         leave_dt  = arrive_dt + timedelta(minutes=stay)
@@ -193,18 +196,15 @@ def is_valid_route(
     max_intersections: int = 0,
 ) -> tuple[bool, str]:
 
-    # 이동시간 초과 (단, 출발지→첫 장소, 마지막 장소→도착지 구간은 제약 없음)
     for idx, item in enumerate(itinerary[:-1]):
         bucket = item["place"].get("bucket", "")
         if bucket == "start":
-            continue  # 출발지 → 첫 장소: 이동시간 제약 없음
-        # 다음 블록이 도착지(end)면, 그 직전 구간도 이동시간 제약 없음
+            continue
         if itinerary[idx + 1]["place"].get("bucket") == "end":
             continue
         if item["travel_to_next_minutes"] > travel_limit:
             return False, "이동시간 초과"
 
-    # category_name 맨 마지막 depth 기준 중복 (food/cafe 제외)
     category_last_list = []
     for item in itinerary:
         bucket = item["place"].get("bucket", "")
@@ -219,12 +219,19 @@ def is_valid_route(
             return False, f"category_name 중복: {last}"
         category_last_list.append(last)
 
-    # 경로 교차 (출발-도착 거리가 짧으면 max_intersections만큼 허용)
     intersections = check_route_intersections(itinerary)
     if len(intersections) > max_intersections:
         return False, f"경로 교차 {len(intersections)}건"
 
     return True, ""
+
+
+# ─── stop_time 계산 ───
+def _effective_stop_time(transport_kr: str) -> str:
+    if transport_kr == "자동차":
+        from datetime import datetime as _dt, timedelta as _td
+        return (_dt.strptime("21:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)).strftime("%H:%M")
+    return "21:00"
 
 
 # ─── 단일 day 동선 생성 ───
@@ -234,6 +241,7 @@ def _generate_day_routes(
     time_matrix:        list[list[float]],
     travel_limit:       int,
     start_time:         str,
+    stop_time:          str,
     excluded_place_ids: set[str],
     start_lat:          float = None,
     start_lng:          float = None,
@@ -243,13 +251,14 @@ def _generate_day_routes(
     end_lng:            float = None,
     start_name:         str = "출발지",
     end_name:           str = "도착지",
+    day_info:           dict = None,
 ) -> list[dict]:
     all_routes = []
     has_start  = start_lat is not None and start_lng is not None
     has_mid    = mid_lat is not None and mid_lng is not None
+    if day_info is None:
+        day_info = {}
 
-    # start 좌표가 있으면 슬롯1(browse/cafe/pop) 중 1단계 목표(mid 있으면 mid, 없으면 end)
-    # 방향으로 진행하는 후보만 시작점으로 사용
     if has_start:
         slot1_candidates = [
             (i, c) for i, c in enumerate(candidates)
@@ -262,15 +271,11 @@ def _generate_day_routes(
 
         if has_target:
             dist_to_target_from_start = haversine(start_lat, start_lng, target_lat, target_lng)
-
-            # 목표 방향으로 진행하는(= start보다 목표에 더 가까운) 후보만 남김
             forward_candidates = [
                 (i, c) for i, c in slot1_candidates
                 if haversine(c["place"]["lat"], c["place"]["lng"], target_lat, target_lng) < dist_to_target_from_start
             ]
-            # 역행 후보만 있으면 부득이하게 전체 후보 사용
             pool = forward_candidates if forward_candidates else slot1_candidates
-
             pool.sort(key=lambda x: haversine(start_lat, start_lng, x[1]["place"]["lat"], x[1]["place"]["lng"]))
         else:
             pool = sorted(
@@ -289,7 +294,7 @@ def _generate_day_routes(
                 candidates=candidates,
                 place_index=place_index,
                 time_matrix=time_matrix,
-                total_minutes=0,  # greedy_nn에서 시간 기반으로 처리
+                total_minutes=0,
                 travel_limit=travel_limit,
                 excluded_place_ids=excluded_place_ids,
                 mid_lat=mid_lat,
@@ -297,24 +302,26 @@ def _generate_day_routes(
                 end_lat=end_lat,
                 end_lng=end_lng,
                 start_time=start_time,
+                stop_time=stop_time,
             )
             if not route:
                 continue
 
             itinerary = assign_times(route, start_time, time_matrix, place_index)
 
-            # start 블록을 맨 앞에 추가
+            # start 블록 추가
             if has_start:
                 first_place = itinerary[0]["place"]
                 walk_min = int(distance_to_minutes(
                     haversine(start_lat, start_lng, first_place["lat"], first_place["lng"]),
                     "도보"
                 ))
-                start_block = {
+                itinerary = [{
                     "order":                  0,
                     "place": {
-                        "id":       "start",
+                        "id":       day_info.get("start_place_id") or "start",
                         "name":     start_name or "출발지",
+                        "address":  day_info.get("start_address", ""),
                         "lat":      start_lat,
                         "lng":      start_lng,
                         "bucket":   "start",
@@ -324,25 +331,23 @@ def _generate_day_routes(
                     "leave_at":               start_time,
                     "travel_to_next_minutes": walk_min,
                     "recommendation_reason":  "",
-                }
-                itinerary = [start_block] + itinerary
+                }] + itinerary
 
-            # end 블록을 맨 뒤에 추가
-            has_end = end_lat is not None and end_lng is not None
-            if has_end:
-                last_place = itinerary[-1]["place"]
+            # end 블록 추가
+            if end_lat is not None and end_lng is not None:
+                last_place      = itinerary[-1]["place"]
                 walk_min_to_end = int(distance_to_minutes(
                     haversine(last_place["lat"], last_place["lng"], end_lat, end_lng),
                     "도보"
                 ))
-                # 마지막 장소의 travel_to_next_minutes를 end까지 이동시간으로 갱신
                 itinerary[-1]["travel_to_next_minutes"] = walk_min_to_end
                 end_arrive = to_str(to_dt(itinerary[-1]["leave_at"]) + timedelta(minutes=walk_min_to_end))
-                end_block = {
+                itinerary = itinerary + [{
                     "order":                  len(itinerary) + 1,
                     "place": {
-                        "id":       "end",
+                        "id":       day_info.get("end_place_id") or "end",
                         "name":     end_name or "도착지",
+                        "address":  day_info.get("end_address", ""),
                         "lat":      end_lat,
                         "lng":      end_lng,
                         "bucket":   "end",
@@ -352,8 +357,7 @@ def _generate_day_routes(
                     "leave_at":               None,
                     "travel_to_next_minutes": 0,
                     "recommendation_reason":  "",
-                }
-                itinerary = itinerary + [end_block]
+                }]
 
             all_routes.append({
                 "itinerary":    itinerary,
@@ -366,13 +370,13 @@ def _generate_day_routes(
 
 # ─── [노드] 동선 후보 생성 ───
 def generate_candidates(state: dict) -> dict:
-    ui                  = state["user_input"]
-    shortlist_by_day    = state.get("shortlist_by_day", {})
-    excluded_place_ids  = set(state.get("excluded_place_ids", []))
+    ui                 = state["user_input"]
+    shortlist_by_day   = state.get("shortlist_by_day", {})
+    excluded_place_ids = set(state.get("excluded_place_ids", []))
 
     route_type   = ui.get("route_type", "only")
     transport_kr = ui.get("transport_kr", "도보")
-    start_time   = ui.get("start_time", "09:00")
+    start_time   = ui.get("start_time", "11:00")
     days_raw     = ui.get("days") or []
 
     warnings: list[str] = []
@@ -386,7 +390,69 @@ def generate_candidates(state: dict) -> dict:
     place_index_by_day:     dict[int, list[str]] = {}
 
     used_place_ids: set[str] = set(excluded_place_ids)
+    stop_time = _effective_stop_time(transport_kr)
 
+    # ── 케이스 1 (only): 전체 shortlist를 단일 풀로 처리 ──────────────
+    if route_type == "only":
+        shortlist = shortlist_by_day.get(1, [])
+        if not shortlist:
+            warnings.append("only 케이스 shortlist 없음")
+            return {
+                "all_routes_by_day": {}, "valid_routes_by_day": {},
+                "invalid_routes_by_day": {}, "time_matrix_by_day": {},
+                "distance_matrix_by_day": {}, "place_index_by_day": {},
+                "warnings": warnings, "step": "failed",
+            }
+
+        candidates = []
+        for s in shortlist:
+            if s["place"]["id"] in used_place_ids:
+                continue
+            place  = dict(s["place"])
+            place["bucket"] = classify_bucket(place)
+            candidates.append({**s, "place": {**place, "total_score": s["total_score"]}})
+
+        if not candidates:
+            warnings.append("only 케이스 후보 없음")
+            return {
+                "all_routes_by_day": {}, "valid_routes_by_day": {},
+                "invalid_routes_by_day": {}, "time_matrix_by_day": {},
+                "distance_matrix_by_day": {}, "place_index_by_day": {},
+                "warnings": warnings, "step": "failed",
+            }
+
+        place_index, distance_matrix, time_matrix = build_matrix(candidates, transport_kr)
+        place_index_by_day[1]     = place_index
+        distance_matrix_by_day[1] = distance_matrix
+        time_matrix_by_day[1]     = time_matrix
+
+        all_routes = _generate_day_routes(
+            candidates=candidates, place_index=place_index, time_matrix=time_matrix,
+            travel_limit=travel_limit, start_time=start_time, stop_time=stop_time,
+            excluded_place_ids=used_place_ids,
+        )
+
+        valid_routes, invalid_routes = [], []
+        for r in all_routes:
+            ok, reason = is_valid_route(r["itinerary"], travel_limit)
+            if ok:
+                valid_routes.append(r)
+            else:
+                invalid_routes.append({**r, "invalid_reason": reason})
+
+        all_routes_by_day[1]     = all_routes
+        valid_routes_by_day[1]   = valid_routes
+        invalid_routes_by_day[1] = invalid_routes
+        warnings.append(f"[only] 전체 동선: {len(all_routes)}개, 유효: {len(valid_routes)}개")
+
+        return {
+            "all_routes_by_day": all_routes_by_day, "valid_routes_by_day": valid_routes_by_day,
+            "invalid_routes_by_day": invalid_routes_by_day, "time_matrix_by_day": time_matrix_by_day,
+            "distance_matrix_by_day": distance_matrix_by_day, "place_index_by_day": place_index_by_day,
+            "warnings": warnings, "step": "candidates_generated",
+        }
+
+    # ── 케이스 2 (endpoint): day별 독립 처리 ──────────────────────────
     for day_number in sorted(shortlist_by_day.keys()):
         shortlist = shortlist_by_day[day_number]
 
@@ -394,87 +460,73 @@ def generate_candidates(state: dict) -> dict:
             warnings.append(f"day{day_number} shortlist 없음 → 스킵")
             continue
 
-        # 1. 버킷 분류 + candidates 구성
         candidates = []
         for s in shortlist:
             if s["place"]["id"] in used_place_ids:
                 continue
             place  = dict(s["place"])
-            bucket = classify_bucket(place)
-            place["bucket"] = bucket
+            place["bucket"] = classify_bucket(place)
             candidates.append({**s, "place": {**place, "total_score": s["total_score"]}})
 
         if not candidates:
             warnings.append(f"day{day_number} 후보 없음 (전부 제외됨)")
             continue
 
-        # 2. 이동시간 행렬 계산
         place_index, distance_matrix, time_matrix = build_matrix(candidates, transport_kr)
         place_index_by_day[day_number]     = place_index
         distance_matrix_by_day[day_number] = distance_matrix
         time_matrix_by_day[day_number]     = time_matrix
 
-        # endpoint 케이스: day별 start/mid/end 좌표 + 장소명 추출
         start_lat = start_lng = mid_lat = mid_lng = end_lat = end_lng = None
-        start_name = end_name = None
-        day_travel_limit   = travel_limit  # 기본값: 전체 transport 기준
-        day_max_intersections = 0          # 기본값: 교차 허용 안 함
+        day_info  = {}
+        day_travel_limit      = travel_limit
+        day_max_intersections = 0
 
-        if route_type == "endpoint":
-            day_raw = next((d for d in days_raw if d["day_number"] == day_number), None)
-            if day_raw:
-                start_lat = day_raw.get("start_lat")
-                start_lng = day_raw.get("start_lng")
-                mid_lat   = day_raw.get("mid_lat")
-                mid_lng   = day_raw.get("mid_lng")
-                end_lat   = day_raw.get("end_lat")
-                end_lng   = day_raw.get("end_lng")
+        day_raw = next((d for d in days_raw if d["day_number"] == day_number), None)
+        if day_raw:
+            start_lat = day_raw.get("start_lat")
+            start_lng = day_raw.get("start_lng")
+            mid_lat   = day_raw.get("mid_lat")
+            mid_lng   = day_raw.get("mid_lng")
+            end_lat   = day_raw.get("end_lat")
+            end_lng   = day_raw.get("end_lng")
 
-                # 출발-도착 직선거리가 짧으면 도보 기준 적용 (작은 원형 동선은 자연스러움)
-                if None not in (start_lat, start_lng, end_lat, end_lng):
-                    start_end_dist = haversine(start_lat, start_lng, end_lat, end_lng)
-                    if start_end_dist <= SHORT_DISTANCE_THRESHOLD_KM:
-                        day_travel_limit = TRAVEL_TIME_LIMIT["도보"]
+            # start/end 장소 정보를 days_raw에서 직접 읽기
+            day_info = {
+                "start_name":     day_raw.get("start_name"),
+                "start_address":  day_raw.get("start_address"),
+                "start_place_id": day_raw.get("start_place_id"),
+                "end_name":       day_raw.get("end_name"),
+                "end_address":    day_raw.get("end_address"),
+                "end_place_id":   day_raw.get("end_place_id"),
+            }
 
-                        # 출발=도착(왕복) 케이스는 마지막 구간이 구조적으로 이전 구간과
-                        # 가까워질 수밖에 없어 교차 0건 달성이 어려우므로 1건 허용
-                        if start_end_dist <= ROUND_TRIP_THRESHOLD_KM:
-                            day_max_intersections = MAX_INTERSECTIONS_ROUND_TRIP
-                        else:
-                            day_max_intersections = MAX_INTERSECTIONS_SHORT_DISTANCE
+            if None not in (start_lat, start_lng, end_lat, end_lng):
+                start_end_dist = haversine(start_lat, start_lng, end_lat, end_lng)
+                if start_end_dist <= SHORT_DISTANCE_THRESHOLD_KM:
+                    day_travel_limit = TRAVEL_TIME_LIMIT["도보"]
+                    if start_end_dist <= ROUND_TRIP_THRESHOLD_KM:
+                        day_max_intersections = MAX_INTERSECTIONS_ROUND_TRIP
+                    else:
+                        day_max_intersections = MAX_INTERSECTIONS_SHORT_DISTANCE
+                    warnings.append(
+                        f"day{day_number} 출발-도착 거리 {start_end_dist:.1f}km → "
+                        f"도보 기준 + 경로 교차 {day_max_intersections}건 허용"
+                    )
 
-                        warnings.append(
-                            f"day{day_number} 출발-도착 거리 {start_end_dist:.1f}km → "
-                            f"도보 기준 + 경로 교차 {day_max_intersections}건 허용"
-                        )
-
-            days_info_list = ui.get("days_info") or []
-            day_info = next((d for d in days_info_list if d.get("day_number") == day_number), None)
-            if day_info:
-                start_name = day_info.get("start_name")
-                end_name   = day_info.get("end_name")
-
-        # 3. Greedy NN 동선 생성
         all_routes = _generate_day_routes(
-            candidates=candidates,
-            place_index=place_index,
-            time_matrix=time_matrix,
-            travel_limit=day_travel_limit,
-            start_time=start_time,
+            candidates=candidates, place_index=place_index, time_matrix=time_matrix,
+            travel_limit=day_travel_limit, start_time=start_time, stop_time=stop_time,
             excluded_place_ids=used_place_ids,
-            start_lat=start_lat,
-            start_lng=start_lng,
-            mid_lat=mid_lat,
-            mid_lng=mid_lng,
-            end_lat=end_lat,
-            end_lng=end_lng,
-            start_name=start_name,
-            end_name=end_name,
+            start_lat=start_lat, start_lng=start_lng,
+            mid_lat=mid_lat, mid_lng=mid_lng,
+            end_lat=end_lat, end_lng=end_lng,
+            start_name=day_info.get("start_name"),
+            end_name=day_info.get("end_name"),
+            day_info=day_info,
         )
 
-        # 4. 유효성 검증
-        valid_routes = []
-        invalid_routes = []
+        valid_routes, invalid_routes = [], []
         for r in all_routes:
             ok, reason = is_valid_route(r["itinerary"], day_travel_limit, max_intersections=day_max_intersections)
             if ok:
@@ -485,7 +537,6 @@ def generate_candidates(state: dict) -> dict:
         all_routes_by_day[day_number]     = all_routes
         valid_routes_by_day[day_number]   = valid_routes
         invalid_routes_by_day[day_number] = invalid_routes
-
         warnings.append(f"day{day_number} 전체 동선: {len(all_routes)}개, 유효: {len(valid_routes)}개, 제외: {len(invalid_routes)}개")
 
     return {
