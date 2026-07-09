@@ -31,7 +31,10 @@ public class AgentApiClient {
     @Value("${agent.mock:false}")
     private boolean mock;
 
-    // AI 서버에 코스 생성 요청 (타임아웃 60초)
+    @Value("${agent.timeout-seconds:60}")
+    private int timeoutSeconds;
+
+    // AI 서버에 코스 생성 요청
     public CourseGenerateResponse generate(AgentRequest request) {
         if (mock) {
             return loadMockResponse();
@@ -39,7 +42,7 @@ public class AgentApiClient {
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(3));
-        factory.setReadTimeout(Duration.ofSeconds(60));
+        factory.setReadTimeout(Duration.ofSeconds(timeoutSeconds));
 
         try {
             String body = RestClient.builder()
