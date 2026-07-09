@@ -61,6 +61,11 @@ public class TripPlace {
 
     private Integer travelMinutesToNext;     // 다음 블록까지 이동 시간
 
+    @Enumerated(EnumType.STRING)
+    private Transport enterTransportMode;    // 이전 블록 → 이 블록 이동 수단 (parking/end)
+
+    private Integer enterTransportMinutes;   // 이전 블록 → 이 블록 이동 시간
+
     private LocalTime arriveTime;
     private LocalTime leaveTime;
 }
