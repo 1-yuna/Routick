@@ -3,18 +3,9 @@
 # ─────────────────────────────────────────────────────────────────────
 # LangGraph AI Agent 파이프라인
 #
-# 실행: 파이참에서 main.py 우클릭 → Run 'main'
-#
-# 흐름:
-#   1. preprocess_input
-#   2. collect_candidate_pool
-#   3. first_filter_candidates
-#   4. second_filter_candidates
-#   5. generate_candidates
-#   6. plan_itinerary
-#   7. select_itinerary
-#   8. fetch_details
-#   9. generate_response
+# 실행:
+#   - 서버 모드: uvicorn main:app --port 8000  (Spring 연동용)
+#   - 테스트 모드: 파이참에서 main.py 우클릭 → Run 'main'
 # ─────────────────────────────────────────────────────────────────────
 
 import asyncio
@@ -22,6 +13,7 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 
+from fastapi import FastAPI, HTTPException
 from langgraph.graph import StateGraph, START, END
 from core.state import TravelState, make_initial_state
 from nodes.preprocess_input import preprocess_input
@@ -60,6 +52,40 @@ graph_builder.add_edge("fetch_details",            "generate_response")
 graph_builder.add_edge("generate_response",        END)
 
 graph = graph_builder.compile()
+
+
+# ─── FastAPI 서버 (Spring 연동용) ───
+app = FastAPI()
+
+# preprocess_input에서 채워지는 내부 키 (요청에 없으면 None으로 초기화)
+INTERNAL_KEYS = [
+    "companion_kr", "moods_kr", "activities_kr", "transport_kr",
+    "duration_kr", "travel_weekday", "final_keywords",
+    "name_search_keywords", "days_info",
+]
+
+
+@app.post("/api/generate")
+async def generate(request: dict):
+    try:
+        for key in INTERNAL_KEYS:
+            request.setdefault(key, None)
+        request.setdefault("lat", None)
+        request.setdefault("lng", None)
+        request.setdefault("days", None)
+
+        initial_state = make_initial_state(request)
+        final_state = await graph.ainvoke(initial_state)
+
+        response = final_state.get("response")
+        if not response:
+            raise HTTPException(status_code=500, detail="일정 생성에 실패했습니다")
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── 테스트 입력 (케이스 2: 출발/도착, 1박2일, 자동차) ───
