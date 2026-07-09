@@ -11,6 +11,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -62,4 +63,8 @@ public class Preference extends BaseTimeEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private List<String> avoidActivities;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "preference", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PreferenceDay> days = new ArrayList<>();
 }
