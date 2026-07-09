@@ -49,14 +49,18 @@ export default function ResultPage() {
   const pendingBlocks = pendingDayData
     ? pendingDayData.blocks.map(({ _uid, ...rest }) => rest)
     : null;
-  const mapMarkers = extractMarkers(pendingBlocks ?? selectedBlocks);
+  const mapMarkers = extractMarkers(
+    pendingBlocks ?? selectedBlocks,
+    selectedDayData
+  );
 
   const handleSave = (title) => {
-    const days = course.days ?? [];
-    const startRegion = days[0]?.startRegion ?? '';
-    const endRegion = days[days.length - 1]?.endRegion ?? '';
-    const region =
-      startRegion === endRegion ? startRegion : `${startRegion} → ${endRegion}`;
+    // only 케이스: course.region / endpoint 케이스: startRegion·endRegion
+    const region = course.region
+      ? course.region
+      : course.startRegion === course.endRegion
+        ? course.startRegion
+        : `${course.startRegion} → ${course.endRegion}`;
 
     const meta = course.meta ?? {};
 
@@ -64,11 +68,9 @@ export default function ResultPage() {
       title: title?.trim() || '나의 여행',
       region,
       transport: course.transport === 'car' ? '자동차' : '도보',
-      // 카드 태그: 분위기 + 활동
       tags: [...(meta.mood ?? []), ...(meta.activity ?? [])],
-      // 해시태그: 동행자, 기간
       hashtags: [meta.companion, meta.period].filter(Boolean),
-      course, // 코스 전체 저장
+      course,
     });
     setShowTitleModal(false);
     setShowSaveModal(true);
@@ -98,11 +100,42 @@ export default function ResultPage() {
         .filter((b) => b.type === 'place' || b.type === 'parking')
         .map(({ _uid, ...rest }) => rest);
 
+      // start/end 좌표를 임시 블록으로 앞뒤에 추가
+      // recalcTransportUtils에서 첫/마지막 블록의 이전/다음 좌표 참조에 사용
+      const startBlock = dayData.start
+        ? {
+            type: 'place',
+            lat: dayData.start.lat,
+            lng: dayData.start.lng,
+            _isAnchor: true,
+          }
+        : null;
+      const endBlock = dayData.end
+        ? {
+            type: 'place',
+            lat: dayData.end.lat,
+            lng: dayData.end.lng,
+            _isAnchor: true,
+          }
+        : null;
+
+      const blocksWithAnchors = [
+        ...(startBlock ? [startBlock] : []),
+        ...visibleBlocks,
+        ...(endBlock ? [endBlock] : []),
+      ];
+
       const recalculated = await recalcTransportUtils(
-        visibleBlocks,
+        blocksWithAnchors,
         course.transport
       );
-      updateBlocks(localDay.dayNumber, recalculated);
+
+      // anchor 블록 제거 후 blockOrder 재정렬 (anchor가 차지했던 순번 메꾸기)
+      const withoutAnchors = recalculated
+        .filter((b) => !b._isAnchor)
+        .map((block, idx) => ({ ...block, blockOrder: idx + 1 }));
+
+      updateBlocks(localDay.dayNumber, withoutAnchors);
     }
 
     setIsEditing(false);
@@ -183,7 +216,44 @@ export default function ResultPage() {
         />
       )}
 
-      <KakaoMap places={mapMarkers} padding={[50, 50, sheetY + 50, 50]} />
+      <KakaoMap
+        places={mapMarkers}
+        padding={[50, 50, sheetY + 50, 50]}
+        onMarkerClick={(marker) => {
+          const dayData = course.days.find((d) => d.dayNumber === selectedDay);
+          if (marker.type === 'place') {
+            const block = selectedBlocks.find(
+              (b) => b.type === 'place' && String(b.placeOrder) === marker.label
+            );
+            if (block) {
+              navigate(`/place/${block.placeId}`, {
+                state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          } else if (marker.type === 'parking') {
+            const block = selectedBlocks.find((b) => b.type === 'parking');
+            if (block) {
+              navigate(`/place/${block.placeId}`, {
+                state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          } else if (marker.type === 'start') {
+            const point = dayData?.start;
+            if (point) {
+              navigate(`/place/${encodeURIComponent(point.name)}`, {
+                state: { ...point, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          } else if (marker.type === 'end') {
+            const point = dayData?.end;
+            if (point) {
+              navigate(`/place/${encodeURIComponent(point.name)}`, {
+                state: { ...point, from: fromMyTrip ? 'mytrip' : 'result' },
+              });
+            }
+          }
+        }}
+      />
 
       <BottomSheet
         sheetY={sheetY}
@@ -220,6 +290,11 @@ export default function ResultPage() {
               onCardClick={(block) =>
                 navigate(`/place/${block.placeId}`, {
                   state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },
+                })
+              }
+              onPointClick={(point) =>
+                navigate(`/place/${encodeURIComponent(point.name)}`, {
+                  state: { ...point, from: fromMyTrip ? 'mytrip' : 'result' },
                 })
               }
             />

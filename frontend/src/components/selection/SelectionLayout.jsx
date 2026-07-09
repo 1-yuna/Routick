@@ -32,10 +32,12 @@ export default function SelectionLayout({
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
 
-      {/*질문 + 선택 컴포넌트*/}
-      <div className={`flex flex-col w-full ${contentGap}`}>
+      {/*질문 + 선택 컴포넌트 - 헤더 고정, children만 내부 스크롤*/}
+      <div className={`flex flex-col w-full flex-1 min-h-0 ${contentGap}`}>
         <PromptText icon={icon} text1={text1} text2={text2} subText={subText} />
-        {children}
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+          {children}
+        </div>
       </div>
 
       {/*다음 버튼 - disabled면 비활성화 스타일 및 클릭 막기*/}

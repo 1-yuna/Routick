@@ -21,6 +21,7 @@ export default function AddressPage() {
   const totalDays = PERIOD_DAYS[period] ?? 1;
   const dayList = Array.from({ length: totalDays }, (_, i) => ({
     start: addresses[i]?.start ?? EMPTY_PLACE,
+    mid: addresses[i]?.mid ?? EMPTY_PLACE,
     end: addresses[i]?.end ?? EMPTY_PLACE,
   }));
 
@@ -32,10 +33,10 @@ export default function AddressPage() {
 
   const isDestinationReady = address.name !== '';
   const isRouteReady = dayList.every(
-    (day) => day.start.name !== '' && day.end.name !== ''
+    (day) => day.start.name !== '' && day.mid.name !== '' && day.end.name !== ''
   );
 
-  // day별 거리 에러 계산
+  // day별 거리 에러 계산 (출발지-도착지 기준)
   const distanceErrors = dayList.map((day) =>
     getDistanceError(
       day.start.lat,
@@ -98,6 +99,12 @@ export default function AddressPage() {
                 value={day.start.name}
                 onClick={() => navigateToSearch(i, 'start')}
                 rounded="rounded-t-10"
+              />
+              <SelectionInput
+                placeholder="놀고 싶은 지역"
+                value={day.mid.name}
+                onClick={() => navigateToSearch(i, 'mid')}
+                rounded="rounded-none"
               />
               <SelectionInput
                 placeholder="도착지"

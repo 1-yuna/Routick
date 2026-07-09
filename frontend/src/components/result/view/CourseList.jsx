@@ -2,6 +2,7 @@ import DayTabs from './DayTabs.jsx';
 import CourseItem from './CourseItem.jsx';
 import MoveItem from './MoveItem.jsx';
 import ParkingGroupItem from './ParkingGroupItem.jsx';
+import StartPointItem from './StartPointItem.jsx';
 
 // 연속된 parking 블록을 그룹핑하여 렌더링 단위로 변환
 function groupBlocks(blocks) {
@@ -31,7 +32,7 @@ function groupBlocks(blocks) {
   return result;
 }
 
-function renderBlocks(blocks, onCardClick) {
+function renderBlocks(blocks, onCardClick, hasEnd = false) {
   const grouped = groupBlocks(blocks);
 
   return (
@@ -64,12 +65,14 @@ function renderBlocks(blocks, onCardClick) {
         }
       })}
 
-      {/* 마지막 종료 표시 원 */}
-      <div className="flex items-center gap-3">
-        <div className="w-5 flex justify-center flex-shrink-0">
-          <div className="w-2 h-2 rounded-full border border-gray2 bg-white" />
+      {/* 마지막 종료 표시 원 - end 없을 때만 */}
+      {!hasEnd && (
+        <div className="flex items-center gap-3">
+          <div className="w-5 flex justify-center flex-shrink-0">
+            <div className="w-2 h-2 rounded-full border border-gray2 bg-white" />
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
@@ -79,6 +82,7 @@ export default function CourseList({
   selectedDay,
   onDaySelect,
   onCardClick,
+  onPointClick,
 }) {
   const dayNumbers = course.days.map((d) => d.dayNumber);
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
@@ -91,7 +95,28 @@ export default function CourseList({
         onDaySelect={onDaySelect}
       />
       {selectedDayData && (
-        <div>{renderBlocks(selectedDayData.blocks, onCardClick)}</div>
+        <div>
+          {selectedDayData.start && (
+            <StartPointItem
+              name={selectedDayData.start.name}
+              time={selectedDayData.start.time}
+              onClick={() => onPointClick?.(selectedDayData.start)}
+            />
+          )}
+          {renderBlocks(
+            selectedDayData.blocks,
+            onCardClick,
+            !!selectedDayData.end
+          )}
+          {selectedDayData.end && (
+            <StartPointItem
+              name={selectedDayData.end.name}
+              time={selectedDayData.end.time}
+              isEnd
+              onClick={() => onPointClick?.(selectedDayData.end)}
+            />
+          )}
+        </div>
       )}
     </div>
   );
