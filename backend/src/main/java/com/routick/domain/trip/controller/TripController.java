@@ -1,9 +1,6 @@
 package com.routick.domain.trip.controller;
 
-import com.routick.domain.trip.dto.TripCreateRequest;
-import com.routick.domain.trip.dto.TripCreateResponse;
-import com.routick.domain.trip.dto.TripDaysUpdateRequest;
-import com.routick.domain.trip.dto.TripListResponse;
+import com.routick.domain.trip.dto.*;
 import com.routick.domain.trip.service.TripService;
 import com.routick.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -37,5 +34,11 @@ public class TripController {
     @GetMapping
     public ApiResponse<TripListResponse> getTrips() {
         return ApiResponse.success(tripService.getTrips());
+    }
+
+    // 내 여행 상세 조회
+    @GetMapping("/{tripId}")
+    public ApiResponse<TripDetailResponse> getTripDetail(@PathVariable Long tripId) {
+        return ApiResponse.success(tripService.getTripDetail(tripId));
     }
 }
