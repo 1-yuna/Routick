@@ -6,6 +6,7 @@ import com.routick.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/trips")
@@ -40,5 +41,21 @@ public class TripController {
     @GetMapping("/{tripId}")
     public ApiResponse<TripDetailResponse> getTripDetail(@PathVariable Long tripId) {
         return ApiResponse.success(tripService.getTripDetail(tripId));
+    }
+
+    // 내 여행 수정 (제목·커버)
+    @PatchMapping("/{tripId}")
+    public ApiResponse<TripUpdateResponse> updateTrip(
+            @PathVariable Long tripId,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) MultipartFile coverImage) {
+        return ApiResponse.success("여행이 수정되었습니다.", tripService.updateTrip(tripId, title, coverImage));
+    }
+
+    // 내 여행 삭제
+    @DeleteMapping("/{tripId}")
+    public ApiResponse<Void> deleteTrip(@PathVariable Long tripId) {
+        tripService.deleteTrip(tripId);
+        return ApiResponse.success("여행이 삭제되었습니다.");
     }
 }

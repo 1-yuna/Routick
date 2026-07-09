@@ -10,9 +10,11 @@ import com.routick.domain.user.repository.UserRepository;
 import com.routick.global.exception.CustomException;
 import com.routick.global.exception.ErrorCode;
 import com.routick.global.security.SecurityUtil;
+import com.routick.global.util.FileStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -24,6 +26,7 @@ public class TripService {
     private final PreferenceRepository preferenceRepository;
     private final UserRepository userRepository;
     private final TripMapper tripMapper;
+    private final FileStore fileStore;
 
     // 여행 저장
     @Transactional
@@ -96,5 +99,25 @@ public class TripService {
             throw new CustomException(ErrorCode.FORBIDDEN);
         }
         return trip;
+    }
+
+    // 내 여행 수정 (제목·커버 이미지)
+    @Transactional
+    public TripUpdateResponse updateTrip(Long tripId, String title, MultipartFile coverImage) {
+        Trip trip = getOwnedTrip(tripId);
+
+        String coverImageUrl = (coverImage != null && !coverImage.isEmpty())
+                ? fileStore.save(coverImage)
+                : null;
+
+        trip.updateInfo(title, coverImageUrl);   // 변경 감지로 UPDATE
+
+        return new TripUpdateResponse(trip.getId(), trip.getTitle(), trip.getCoverImageUrl());
+    }
+
+    // 내 여행 삭제
+    @Transactional
+    public void deleteTrip(Long tripId) {
+        tripRepository.delete(getOwnedTrip(tripId));   // cascade로 days/places도 삭제
     }
 }

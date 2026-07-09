@@ -47,4 +47,10 @@ public class Trip extends BaseTimeEntity {
     @Builder.Default
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TripDay> days = new ArrayList<>();
+
+    // 제목·커버 수정: null이 아닌 값만 반영
+    public void updateInfo(String title, String coverImageUrl) {
+        if (title != null) this.title = title;
+        if (coverImageUrl != null) this.coverImageUrl = coverImageUrl;
+    }
 }

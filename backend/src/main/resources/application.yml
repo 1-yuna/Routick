@@ -29,3 +29,6 @@ agent:
   base-url: http://localhost:8000
   mock: false
   timeout-seconds: 60
+
+file:
+  upload-dir: ./uploads   # ??? ?? ?? ??
