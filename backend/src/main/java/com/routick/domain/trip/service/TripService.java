@@ -5,6 +5,7 @@ import com.routick.domain.course.entity.enums.Transport;
 import com.routick.domain.course.repository.PreferenceRepository;
 import com.routick.domain.trip.dto.TripCreateRequest;
 import com.routick.domain.trip.dto.TripCreateResponse;
+import com.routick.domain.trip.dto.TripDaysUpdateRequest;
 import com.routick.domain.trip.entity.Trip;
 import com.routick.domain.trip.entity.TripDay;
 import com.routick.domain.trip.entity.TripPlace;
@@ -55,33 +56,53 @@ public class TripService {
                 .endRegion(request.getEndRegion())
                 .build();
 
-        for (TripCreateRequest.DayDto dayDto : request.getDays()) {
-            TripDay day = TripDay.builder()
-                    .trip(trip)
-                    .dayNumber(dayDto.getDayNumber())
-                    .build();
-
-            // start 블록 (block_order = 0)
-            if (dayDto.getStart() != null) {
-                day.getPlaces().add(toEndpointPlace(day, dayDto.getStart(), BlockType.START, 0));
-            }
-
-            int maxOrder = 0;
-            for (TripCreateRequest.BlockDto b : dayDto.getBlocks()) {
-                day.getPlaces().add(toBlockPlace(day, b));
-                maxOrder = Math.max(maxOrder, b.getBlockOrder());
-            }
-
-            // end 블록 (block_order = 마지막 + 1)
-            if (dayDto.getEnd() != null) {
-                day.getPlaces().add(toEndpointPlace(day, dayDto.getEnd(), BlockType.END, maxOrder + 1));
-            }
-
-            trip.getDays().add(day);
-        }
+        request.getDays().forEach(d -> trip.getDays().add(buildDay(trip, d)));
 
         Trip saved = tripRepository.save(trip);   // cascade로 days, places까지 저장
         return new TripCreateResponse(saved.getId());
+    }
+
+    // 여행 일정 수정 (전체 교체) — 편집 완료 시
+    @Transactional
+    public void updateTripDays(Long tripId, TripDaysUpdateRequest request) {
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new CustomException(ErrorCode.TRIP_NOT_FOUND));
+
+        if (!trip.getUser().getId().equals(SecurityUtil.getCurrentUserId())) {
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        }
+
+        trip.getDays().clear();   // orphanRemoval로 기존 trip_days/trip_places 삭제
+        request.getDays().forEach(d -> trip.getDays().add(buildDay(trip, d)));
+        // 변경 감지로 트랜잭션 종료 시 반영
+    }
+
+    // ── 내부 헬퍼 ─────────────────────────────────────────────
+
+    // day 하나 조립 (저장·일정교체 공용)
+    private TripDay buildDay(Trip trip, TripCreateRequest.DayDto dayDto) {
+        TripDay day = TripDay.builder()
+                .trip(trip)
+                .dayNumber(dayDto.getDayNumber())
+                .build();
+
+        // start 블록 (block_order = 0)
+        if (dayDto.getStart() != null) {
+            day.getPlaces().add(toEndpointPlace(day, dayDto.getStart(), BlockType.START, 0));
+        }
+
+        int maxOrder = 0;
+        for (TripCreateRequest.BlockDto b : dayDto.getBlocks()) {
+            day.getPlaces().add(toBlockPlace(day, b));
+            maxOrder = Math.max(maxOrder, b.getBlockOrder());
+        }
+
+        // end 블록 (block_order = 마지막 + 1)
+        if (dayDto.getEnd() != null) {
+            day.getPlaces().add(toEndpointPlace(day, dayDto.getEnd(), BlockType.END, maxOrder + 1));
+        }
+
+        return day;
     }
 
     // 커버 이미지: 미입력 시 첫 place 블록 이미지
@@ -170,7 +191,7 @@ public class TripService {
         }
     }
 
-    // 선택 enum: 모르는 값이면 null (bucket "parking" 등)
+    // 선택 enum: 모르는 값이면 null
     private <T extends Enum<T>> T toEnumOrNull(Class<T> type, String value) {
         if (value == null) return null;
         try {

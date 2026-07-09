@@ -46,8 +46,7 @@ public enum ErrorCode {
     GENERATION_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "일정 생성에 실패했어요."),
 
     // 내 여행 (trip)
-    TRIP_NOT_FOUND(HttpStatus.NOT_FOUND, "여행을 찾을 수 없습니다."),
-    TRIP_PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다.");
+    TRIP_NOT_FOUND(HttpStatus.NOT_FOUND, "여행을 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String message;
