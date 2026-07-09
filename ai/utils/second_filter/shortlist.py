@@ -1,63 +1,112 @@
 # ─────────────────────────────────────────────────────────────────────
 # shortlist
 # ─────────────────────────────────────────────────────────────────────
-# scored_candidates → shortlist (travel_days 기반 quota 분배)
+# scored_candidates → shortlist
 #
 # 흐름:
-#   1. bucket으로 분류 (LLM 우선, 실패 시 classify_fallback)
-#   2. travel_days 기반 quota 정의
-#   3. quota만큼 점수순으로 선별
-#   4. 부족분은 점수순으로 보충
+#   1. (endpoint만) 경로 인접성 보정 — start~end 직선에서 멀리 벗어난
+#      장소는 total_score에 패널티를 적용해 우선순위를 낮춤
+#   2. category_group_code 기반으로 분류 (CE7/FD6/나머지)
+#   3. route_type / travel_days 기반 quota 정의
+#      - 케이스 1 (only): travel_days별 전체 quota (30/50/70/80개)
+#      - 케이스 2 (endpoint): day당 고정 30개
+#   4. quota만큼 점수순으로 선별
+#   5. 부족분은 점수순으로 보충
 # ─────────────────────────────────────────────────────────────────────
 
-VALID_BUCKETS = {"cafe", "food", "activity", "lodging", "other"}
+import math
 
-
-# ─── LLM 실패 시 fallback 분류 (룰베이스) ───
-def classify_fallback(place: dict) -> str:
-    code = place.get("category_group_code", "") or ""
-    category = place.get("category", "") or ""
-
-    if code == "AD5" or any(kw in category for kw in ["숙박", "호텔", "게스트하우스", "펜션", "리조트"]):
-        return "lodging"
-    if code == "FD6" or any(kw in category for kw in ["음식점", "한식", "양식", "일식", "중식"]):
-        return "food"
-    if code == "CE7" or "카페" in category:
-        return "cafe"
-    if code in {"AT4", "CT1"} or any(kw in category for kw in ["관광", "문화", "전시", "박물", "체험", "스포츠", "레저"]):
-        return "activity"
-    return "other"
-
-
-# ─── travel_days 기반 quota 정의 ───
-SHORTLIST_QUOTA = {
-    1: {"cafe": 5,  "food": 8,  "activity": 12, "lodging": 0, "other": 5},
-    2: {"cafe": 10, "food": 15, "activity": 25, "lodging": 5, "other": 5},
-    3: {"cafe": 15, "food": 22, "activity": 40, "lodging": 8, "other": 5},
-    4: {"cafe": 20, "food": 30, "activity": 55, "lodging": 10, "other": 5},
+# ─── 케이스 1 (only): travel_days별 전체 quota ───
+ONLY_SHORTLIST_QUOTA = {
+    1: {"CE7": 5,  "FD6": 8,  "other": 17, "total": 30},
+    2: {"CE7": 8,  "FD6": 13, "other": 29, "total": 50},
+    3: {"CE7": 11, "FD6": 18, "other": 41, "total": 70},
+    4: {"CE7": 13, "FD6": 21, "other": 46, "total": 80},
 }
+
+# ─── 케이스 1 (only): K-means 분할 후 day당 quota ───
+ONLY_DAY_SHORTLIST_QUOTA = {
+    1: {"CE7": 5, "FD6": 8, "other": 17, "total": 30},
+    2: {"CE7": 4, "FD6": 6, "other": 15, "total": 25},
+    3: {"CE7": 4, "FD6": 6, "other": 13, "total": 23},
+    4: {"CE7": 3, "FD6": 5, "other": 12, "total": 20},
+}
+
+# ─── 케이스 2 (endpoint): day당 고정 quota ───
+DAY_SHORTLIST_QUOTA = {"CE7": 5, "FD6": 8, "other": 17, "total": 30}
+
+
+# ─── Haversine ───
+def _haversine(lat1, lng1, lat2, lng2):
+    R = 6371
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = math.sin(d_lat/2)**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(d_lng/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+# ─── 점 → 직선(start-end) 수직 거리 계산 ───
+def _perpendicular_distance(lat, lng, start_lat, start_lng, end_lat, end_lng):
+    # 위경도를 단순 평면 좌표로 근사 (작은 지역 범위에서는 충분히 정확)
+    def to_xy(la, ln):
+        x = ln * math.cos(math.radians(start_lat))
+        y = la
+        return x, y
+
+    px, py = to_xy(lat, lng)
+    sx, sy = to_xy(start_lat, start_lng)
+    ex, ey = to_xy(end_lat, end_lng)
+
+    line_len_sq = (ex - sx) ** 2 + (ey - sy) ** 2
+    if line_len_sq == 0:
+        return _haversine(lat, lng, start_lat, start_lng)
+
+    t = max(0, min(1, ((px - sx) * (ex - sx) + (py - sy) * (ey - sy)) / line_len_sq))
+    closest_x = sx + t * (ex - sx)
+    closest_y = sy + t * (ey - sy)
+
+    # 가장 가까운 직선상의 점(closest_x, closest_y)을 다시 위경도로 환산해 haversine 계산
+    closest_lat = closest_y
+    closest_lng = closest_x / math.cos(math.radians(start_lat))
+    return _haversine(lat, lng, closest_lat, closest_lng)
 
 
 # ─── shortlist 선별 ───
 def select_shortlist(
-    scored: list[dict],
+    scored:      list[dict],
+    route_type:  str = "endpoint",
     travel_days: int = 1,
+    start_lat:   float = None,
+    start_lng:   float = None,
+    end_lat:     float = None,
+    end_lng:     float = None,
 ) -> list[dict]:
-    quotas = SHORTLIST_QUOTA.get(travel_days, SHORTLIST_QUOTA[1])
-    target_count = sum(quotas.values())
 
-    # 카테고리별 버킷 분류 (점수순 유지)
-    buckets: dict[str, list] = {k: [] for k in quotas}
+    if route_type == "only":
+        quotas = ONLY_SHORTLIST_QUOTA.get(travel_days, ONLY_SHORTLIST_QUOTA[1])
+    elif route_type == "only_day":
+        quotas = ONLY_DAY_SHORTLIST_QUOTA.get(travel_days, ONLY_DAY_SHORTLIST_QUOTA[1])
+    else:
+        quotas = DAY_SHORTLIST_QUOTA
+
+    target_count = quotas["total"]
+
+    # category_group_code 기반 분류 (점수순 유지)
+    groups: dict[str, list] = {"CE7": [], "FD6": [], "other": []}
     for item in scored:
-        bucket = item["place"].get("bucket") or classify_fallback(item["place"])
-        if bucket not in VALID_BUCKETS:
-            bucket = "other"
-        buckets[bucket].append(item)
+        code = item["place"].get("category_group_code", "") or ""
+        if code == "CE7":
+            groups["CE7"].append(item)
+        elif code == "FD6":
+            groups["FD6"].append(item)
+        else:
+            groups["other"].append(item)
 
     # quota만큼 상위 N개 선별
     shortlist = []
-    for bucket_name, limit in quotas.items():
-        shortlist.extend(buckets[bucket_name][:limit])
+    for group_name in ["CE7", "FD6", "other"]:
+        limit = quotas.get(group_name, 0)
+        shortlist.extend(groups[group_name][:limit])
 
     # 부족분 점수순으로 보충
     if len(shortlist) < target_count:

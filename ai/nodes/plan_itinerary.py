@@ -1,257 +1,363 @@
 # ─────────────────────────────────────────────────────────────────────
 # plan_itinerary
 # ─────────────────────────────────────────────────────────────────────
-# Greedy NN으로 N개 동선 생성 + 조건에 따라 동선 제외
+# 점수 기반 day별 상위 5개 추출 + 주차장 추가
 #
 # 흐름:
-#   1. 모든 시작점 기준으로 Greedy NN 실행 (시작점당 3회 반복) → N개 동선 생성
-#   2. 조건에 따라 동선 제외
-#      - food 2회 이상 연속 제외
-#      - cafe 2회 이상 연속 제외
-#      - 나머지 bucket 3회 이상 연속 제외
-#      - 경로 교차 (X자 동선) 제외
-#      - 이동시간 초과 제외
-#   3. 중복 동선 제거 (유사도 70% 이상)
-#   4. 상위 20개 반환
+#   1. 주차장 거점 정보 추가 (transport=car인 경우만)
+#      - 동선 내 장소 순회하며 current_parking 기준으로 주차장 블록 추가
+#      - 1km 이내: 기존 주차장 유지
+#      - 1km 초과: 이전 주차장 복귀 블록 + 새 주차장 블록 추가
+#      - end(도착지) 도착 시에도 동일하게 거리 체크: 현재 주차장에서 end까지
+#        1km 초과면 이전 주차장 복귀 → end 근처 새 주차장 검색 → 자동차로 이동 →
+#        새 주차장에서 end까지 도보로 연결
+#      - 이동시간은 Haversine 기반 추정값 (정확한 재계산은 3-8에서 수행)
+#   2. total_score 내림차순 정렬 후 day별 상위 5개 반환
+#      유효 동선 1개 이상이면 진행, 없으면 실패 응답
 # ─────────────────────────────────────────────────────────────────────
 
+import math
+import os
+import httpx
 from datetime import datetime, timedelta
-from utils.route.greedy_nn import greedy_nn, STAY_MINUTES
-from utils.route.route_check import check_route_intersections
+
+KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
+
+MAX_ITINERARIES_PER_DAY   = 5
+PARKING_REUSE_DISTANCE_KM = 1.0
+CAR_SPEED_KMH             = 30.0
+WALK_SPEED_KMH            = 4.0
 
 
-# ─── 이동시간 초과 기준 (분) ───
-TRAVEL_TIME_LIMIT = {
-    "도보":   20,
-    "자동차": 30,
-}
-
-# ─── 시작점당 반복 횟수 ───
-REPEAT_PER_START = 3
+def haversine(lat1, lng1, lat2, lng2):
+    R = 6371
+    d_lat = math.radians(lat2 - lat1)
+    d_lng = math.radians(lng2 - lng1)
+    a = math.sin(d_lat/2)**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(d_lng/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
 
 
-# ─── 시간 문자열 → datetime ───
-def to_dt(time_str: str) -> datetime:
-    return datetime.strptime(time_str, "%H:%M")
+def travel_min(dist_km, speed_kmh):
+    return max(1, round((dist_km / speed_kmh) * 60))
 
 
-# ─── datetime → 시간 문자열 ───
-def to_str(dt: datetime) -> str:
+def to_dt(t):
+    return datetime.strptime(t, "%H:%M")
+
+
+def to_str(dt):
     return dt.strftime("%H:%M")
 
 
-# ─── 동선 시간 배치 ───
-def assign_times(route: list[dict], start_time: str, time_matrix: list[list[float]], place_index: list[str]) -> list[dict]:
-    id_to_idx = {pid: i for i, pid in enumerate(place_index)}
-    itinerary = []
-    current_time = to_dt(start_time)
-
-    for order, item in enumerate(route):
-        place = item["place"]
-        pid = place["id"]
-        bucket = place.get("bucket", "other")
-        stay = STAY_MINUTES.get(bucket, 60)
-
-        if order == 0:
-            travel_min = 0
-        else:
-            prev_pid = route[order - 1]["place"]["id"]
-            prev_idx = id_to_idx.get(prev_pid, 0)
-            curr_idx = id_to_idx.get(pid, 0)
-            travel_min = time_matrix[prev_idx][curr_idx]
-
-        arrive_dt = current_time + timedelta(minutes=travel_min)
-        leave_dt = arrive_dt + timedelta(minutes=stay)
-
-        if order < len(route) - 1:
-            next_pid = route[order + 1]["place"]["id"]
-            next_idx = id_to_idx.get(next_pid, 0)
-            curr_idx = id_to_idx.get(pid, 0)
-            travel_to_next = int(time_matrix[curr_idx][next_idx])
-        else:
-            travel_to_next = 0
-
-        itinerary.append({
-            "order": order + 1,
-            "place": place,
-            "arrive_at": to_str(arrive_dt),
-            "leave_at": to_str(leave_dt) if bucket != "lodging" else "-",
-            "travel_to_next_minutes": travel_to_next,
-            "recommendation_reason": "",
-        })
-
-        current_time = leave_dt
-
-    return itinerary
-
-
-# ─── 동선 유사도 계산 ───
-def similarity(itin1: list[dict], itin2: list[dict]) -> float:
-    ids1 = set(item["place"]["id"] for item in itin1)
-    ids2 = set(item["place"]["id"] for item in itin2)
-    intersection = ids1 & ids2
-    union = ids1 | ids2
-    return len(intersection) / len(union) if union else 0
-
-
-# ─── [노드] N개 동선 생성 ───
-def plan_itinerary(state: dict) -> dict:
-    shortlist = state["shortlist"]
-    time_matrix = state["time_matrix"]
-    place_index = state["place_index"]
-    travel_days = state["user_input"].get("travel_days", 1)
-    transport_kr = state["user_input"].get("transport_kr", "도보")
-    start_time = state["user_input"].get("start_time", "09:00")
-    end_time = state["user_input"].get("end_time", "22:00")
-
-    warnings = []
-
-    # 총 여행시간 계산
-    start_dt = to_dt(start_time)
-    end_dt = to_dt(end_time)
-    total_minutes = int((end_dt - start_dt).total_seconds() / 60)
-
-    # lodging 분리
-    lodging_items = [i for i in shortlist if i["place"].get("bucket") == "lodging"]
-    lodging_items.sort(key=lambda x: x["total_score"], reverse=True)
-
-    if travel_days > 1 and not lodging_items:
-        warnings.append("lodging 후보 없음 → 숙박 슬롯 스킵")
-
-    # lodging 제외 candidates
-    candidates = [
-        i for i in shortlist
-        if i["place"].get("bucket") != "lodging"
-    ]
-
-    travel_limit = TRAVEL_TIME_LIMIT.get(transport_kr, 20)
-
-    # ─── 1. 모든 시작점 기준으로 Greedy NN 실행 (시작점당 3회 반복) ───
-    all_routes = []
-    for i in range(len(candidates)):
-        for _ in range(REPEAT_PER_START):
-            route, total_travel = greedy_nn(
-                i, candidates, place_index, time_matrix, total_minutes, travel_limit
+async def search_parking(lat, lng, radius_m=500):
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.get(
+                "https://dapi.kakao.com/v2/local/search/category.json",
+                headers={"Authorization": f"KakaoAK {KAKAO_API_KEY}"},
+                params={"category_group_code": "PK6", "x": lng, "y": lat, "radius": radius_m, "size": 1},
             )
-            if not route:
-                continue
+            resp.raise_for_status()
+            docs = resp.json().get("documents", [])
+            if not docs:
+                return None
+            doc = docs[0]
+            return {
+                "id":                  doc["id"],
+                "name":                doc["place_name"],
+                "address":             doc.get("road_address_name") or doc.get("address_name", ""),
+                "lat":                 float(doc["y"]),
+                "lng":                 float(doc["x"]),
+                "category":            doc.get("category_name", ""),
+                "category_group_code": "PK6",
+                "bucket":              "parking",
+                "description":         None,
+            }
+        except Exception:
+            return None
 
-            lodging_item = lodging_items[i % len(lodging_items)] if lodging_items else None
 
-            final_route = list(route)
-            if lodging_item:
-                final_route.append(lodging_item)
+# ─── 동선에 주차장 블록 추가 ───
+async def add_parking_to_itinerary(itinerary: list[dict]) -> list[dict]:
+    if not itinerary:
+        return itinerary
 
-            itinerary = assign_times(final_route, start_time, time_matrix, place_index)
-            all_routes.append({
-                "itinerary": itinerary,
-                "total_travel": total_travel,
-                "total_score": sum(item["place"].get("total_score", 0) for item in final_route),
-            })
+    result          = []
+    current_parking = None
 
-    # ─── 2. 조건에 따라 동선 제외 ───
-    excluded_travel = 0
-    excluded_bucket = 0
-    excluded_tags   = 0
-    excluded_cross  = 0
-    valid_routes = []
+    for idx, item in enumerate(itinerary):
+        place  = item["place"]
+        bucket = place.get("bucket", "")
 
-    for r in all_routes:
-        itinerary = r["itinerary"]
+        # start/end 블록은 주차장 대상에서 제외하되, end는 주차장 경유 시 arrive_at 재계산
+        if bucket == "start":
+            result.append(item)
+            continue
+        if bucket == "end":
+            end_lat = place.get("lat", 0)
+            end_lng = place.get("lng", 0)
 
-        # 이동시간 초과 체크
-        if any(item["travel_to_next_minutes"] > travel_limit for item in itinerary):
-            excluded_travel += 1
+            if current_parking is not None:
+                dist_to_end = haversine(current_parking["lat"], current_parking["lng"], end_lat, end_lng)
+
+                if dist_to_end > PARKING_REUSE_DISTANCE_KM:
+                    # end가 현재 주차장에서 멀면, 마지막 장소 → 주차장 복귀 → end 근처 새 주차장 경유 → end
+                    last_place_item = result[-1] if result and result[-1].get("place", {}).get("bucket") not in ("parking",) else None
+                    leave_at = (last_place_item or item).get("leave_at") or item.get("arrive_at") or "09:00"
+                    last_place = (last_place_item or item)["place"]
+
+                    walk_back_min = travel_min(
+                        haversine(last_place["lat"], last_place["lng"],
+                                  current_parking["lat"], current_parking["lng"]),
+                        WALK_SPEED_KMH
+                    )
+                    old_park_arrive = to_str(to_dt(leave_at) + timedelta(minutes=walk_back_min))
+
+                    end_parking = await search_parking(end_lat, end_lng)
+                    if end_parking:
+                        car_min = travel_min(
+                            haversine(current_parking["lat"], current_parking["lng"],
+                                      end_parking["lat"], end_parking["lng"]),
+                            CAR_SPEED_KMH
+                        )
+                        new_park_arrive = to_str(to_dt(old_park_arrive) + timedelta(minutes=car_min))
+                        new_park_leave  = to_str(to_dt(new_park_arrive) + timedelta(minutes=1))
+
+                        walk_to_end = travel_min(
+                            haversine(end_parking["lat"], end_parking["lng"], end_lat, end_lng),
+                            WALK_SPEED_KMH
+                        )
+
+                        # 이전 주차장 복귀 블록
+                        result.append({
+                            "type":            "parking",
+                            "place":           current_parking,
+                            "arrive_at":       old_park_arrive,
+                            "leave_at":        new_park_leave,
+                            "enter_transport": {"mode": "walk", "minutes": walk_back_min},
+                            "exit_transport":  {"mode": "car",  "minutes": car_min},
+                            "travel_to_next_minutes": car_min,
+                        })
+
+                        # end 근처 새 주차장 블록
+                        result.append({
+                            "type":            "parking",
+                            "place":           end_parking,
+                            "arrive_at":       None,
+                            "leave_at":        None,
+                            "enter_transport": {"mode": "car",  "minutes": car_min},
+                            "exit_transport":  {"mode": "walk", "minutes": walk_to_end},
+                            "travel_to_next_minutes": walk_to_end,
+                        })
+
+                        new_end_arrive = to_str(to_dt(new_park_leave) + timedelta(minutes=walk_to_end))
+                        item = {**item, "arrive_at": new_end_arrive}
+                        result.append(item)
+                        continue
+
+            # 1km 이내거나 새 주차장을 못 찾은 경우: 기존처럼 직전 주차장에서 도보로 이동
+            if result and result[-1].get("type") == "parking" and result[-1].get("leave_at"):
+                # 직전이 새 주차장 블록이면: 주차장 → end까지 도보 이동시간 반영
+                last_parking = result[-1]
+                walk_to_end = travel_min(
+                    haversine(last_parking["place"]["lat"], last_parking["place"]["lng"],
+                              end_lat, end_lng),
+                    WALK_SPEED_KMH
+                )
+                new_arrive = to_str(to_dt(last_parking["leave_at"]) + timedelta(minutes=walk_to_end))
+                item = {**item, "arrive_at": new_arrive}
+            result.append(item)
             continue
 
-        # bucket 연속 체크
-        buckets = [item["place"].get("bucket", "other") for item in itinerary]
-        bucket_fail = False
-        for i in range(len(buckets) - 1):
-            if buckets[i] == "food" and buckets[i + 1] == "food":
-                bucket_fail = True
-                break
-            if buckets[i] == "cafe" and buckets[i + 1] == "cafe":
-                bucket_fail = True
-                break
-            if buckets[i] not in ("food", "cafe") and i >= 2:
-                if buckets[i] == buckets[i - 1] == buckets[i - 2]:
-                    bucket_fail = True
-                    break
-        if bucket_fail:
-            excluded_bucket += 1
+        lat = place.get("lat", 0)
+        lng = place.get("lng", 0)
+
+        # ── 첫 장소: 진입 전 주차장 검색 ──
+        if current_parking is None:
+            parking = await search_parking(lat, lng)
+            if parking:
+                current_parking = parking
+                walk_min = travel_min(
+                    haversine(parking["lat"], parking["lng"], lat, lng),
+                    WALK_SPEED_KMH
+                )
+                arrive_at = item.get("arrive_at", "09:00")
+                park_leave  = to_str(to_dt(arrive_at) - timedelta(minutes=walk_min))
+                park_arrive = to_str(to_dt(park_leave) - timedelta(minutes=1))
+                result.append({
+                    "type":            "parking",
+                    "place":           parking,
+                    "arrive_at":       park_arrive,
+                    "leave_at":        park_leave,
+                    "enter_transport": None,
+                    "exit_transport":  {"mode": "walk", "minutes": walk_min},
+                    "travel_to_next_minutes": walk_min,
+                })
+
+        # ── 현재 장소 추가 ──
+        result.append(item)
+
+        # ── 다음 장소가 있으면 거리 체크 ──
+        if idx < len(itinerary) - 1 and current_parking is not None:
+            next_place = itinerary[idx + 1]["place"]
+            next_lat   = next_place.get("lat", 0)
+            next_lng   = next_place.get("lng", 0)
+
+            dist = haversine(
+                current_parking["lat"], current_parking["lng"],
+                next_lat, next_lng
+            )
+
+            if dist > PARKING_REUSE_DISTANCE_KM:
+                # 새 주차장 검색
+                new_parking = await search_parking(next_lat, next_lng)
+                if new_parking:
+                    leave_at = item.get("leave_at", "09:00")
+
+                    # 현재 장소 → 이전 주차장 복귀 (도보)
+                    walk_back_min = travel_min(
+                        haversine(lat, lng, current_parking["lat"], current_parking["lng"]),
+                        WALK_SPEED_KMH
+                    )
+                    old_park_arrive = to_str(to_dt(leave_at) + timedelta(minutes=walk_back_min))
+
+                    # 이전 주차장 → 새 주차장 (자동차)
+                    car_min = travel_min(
+                        haversine(current_parking["lat"], current_parking["lng"],
+                                  new_parking["lat"], new_parking["lng"]),
+                        CAR_SPEED_KMH
+                    )
+                    new_park_arrive = to_str(to_dt(old_park_arrive) + timedelta(minutes=car_min))
+                    new_park_leave  = to_str(to_dt(new_park_arrive) + timedelta(minutes=1))
+
+                    # 새 주차장 → 다음 장소 (도보)
+                    walk_to_next = travel_min(
+                        haversine(new_parking["lat"], new_parking["lng"], next_lat, next_lng),
+                        WALK_SPEED_KMH
+                    )
+
+                    # 이전 주차장 복귀 블록 (arrive~leave = 전체 이동 구간)
+                    result.append({
+                        "type":            "parking",
+                        "place":           current_parking,
+                        "arrive_at":       old_park_arrive,
+                        "leave_at":        new_park_leave,
+                        "enter_transport": {"mode": "walk", "minutes": walk_back_min},
+                        "exit_transport":  {"mode": "car",  "minutes": car_min},
+                        "travel_to_next_minutes": car_min,
+                    })
+
+                    # 새 주차장 블록 (진입/출차 정보만)
+                    result.append({
+                        "type":            "parking",
+                        "place":           new_parking,
+                        "arrive_at":       None,
+                        "leave_at":        None,
+                        "enter_transport": {"mode": "car",  "minutes": car_min},
+                        "exit_transport":  {"mode": "walk", "minutes": walk_to_next},
+                        "travel_to_next_minutes": walk_to_next,
+                    })
+
+                    current_parking = new_parking
+
+                    # travel_to_next_minutes 업데이트 (장소 → 이전 주차장 도보)
+                    result[-3]["travel_to_next_minutes"] = walk_back_min
+
+    return result
+
+
+# ─── only 케이스 총 후보 수 ───
+ONLY_TOTAL_CANDIDATES = {1: 3, 2: 6, 3: 10, 4: 15}
+
+
+# ─── 브랜드명 정규화 ───
+def _brand_name(name: str) -> str:
+    import re
+    return re.sub(r'\s+\S*(점|지점|호점|본점|직영점|분점)$', '', name.strip()).strip()
+
+
+# ─── 동선에서 장소 id + 브랜드명 추출 (start/end/parking 제외) ───
+def _route_keys(itinerary: list[dict]) -> tuple[set[str], set[str]]:
+    ids, brands = set(), set()
+    for item in itinerary:
+        bucket = item["place"].get("bucket", "")
+        if bucket in ("start", "end", "parking"):
             continue
+        ids.add(item["place"]["id"])
+        brands.add(_brand_name(item["place"].get("name", "")))
+    return ids, brands
 
-        # place_tags 중복 체크 (동선 내 같은 place_tags 2개 이상 제외)
-        place_tags_list = []
-        place_tags_fail = False
-        for item in itinerary:
-            tags = item["place"].get("place_tags", [])
-            for tag in tags:
-                if tag in ("카페", "숙소"):
-                    continue
-                if tag in place_tags_list:
-                    place_tags_fail = True
-                    break
-                place_tags_list.append(tag)
-            if place_tags_fail:
-                break
-        if place_tags_fail:
-            excluded_tags += 1
-            continue
 
-        # 점심 슬롯(13:00 이전)에 고기/바/술집 제외
-        lunch_tag_fail = False
-        for item in itinerary:
-            if item["arrive_at"] < "13:00":
-                tags = item["place"].get("place_tags", [])
-                if any(tag in ("고기", "바/술집") for tag in tags):
-                    lunch_tag_fail = True
-                    break
-        if lunch_tag_fail:
-            excluded_tags += 1
-            continue
+# ─── [노드] 일정 계획 리스트 작성 ───
+async def plan_itinerary(state: dict) -> dict:
+    valid_routes_by_day = state.get("valid_routes_by_day", {})
+    all_routes_by_day   = state.get("all_routes_by_day", {})
+    transport_kr        = state["user_input"].get("transport_kr", "도보")
+    route_type          = state["user_input"].get("route_type", "only")
+    travel_days         = state["user_input"].get("travel_days", 1)
+    warnings: list[str] = []
 
-        # 경로 교차 체크
-        if check_route_intersections(itinerary):
-            excluded_cross += 1
-            continue
+    itineraries_by_day: dict[int, list[list[dict]]] = {}
 
-        valid_routes.append(r)
+    # ── 케이스 1 (only): day별 독립 배치 → 상위 N개 추출 ──────────────
+    if route_type == "only":
+        for day_number in range(1, travel_days + 1):
+            valid_routes = valid_routes_by_day.get(day_number, [])
+            if not valid_routes:
+                valid_routes = all_routes_by_day.get(day_number, [])
+            if not valid_routes:
+                warnings.append(f"[only] day{day_number} 동선 없음 → 실패")
+                return {"itineraries_by_day": {}, "warnings": warnings, "step": "failed"}
 
-    if not valid_routes:
-        warnings.append("조건 통과한 동선 없음 → 전체 동선 사용")
-        valid_routes = all_routes
+            top_routes = sorted(valid_routes, key=lambda x: x["total_score"], reverse=True)[:3]
+            final = []
+            for r in top_routes:
+                if transport_kr == "자동차":
+                    itinerary = await add_parking_to_itinerary(r["itinerary"])
+                else:
+                    itinerary = r["itinerary"]
+                final.append(itinerary)
 
-    # ─── 3. 중복 동선 제거 (유사도 70% 이상이면 제거) ───
-    diverse_routes = []
-    for route in valid_routes:
-        is_duplicate = False
-        for selected in diverse_routes:
-            if similarity(route["itinerary"], selected["itinerary"]) >= 0.7:
-                is_duplicate = True
-                break
-        if not is_duplicate:
-            diverse_routes.append(route)
+            itineraries_by_day[day_number] = final
+            warnings.append(f"[only] day{day_number} 동선 후보: {len(final)}개")
 
-    # ─── travel_days 기반 최대 동선 수 ───
-    MAX_ITINERARIES = {1: 5, 2: 10, 3: 15, 4: 20}
-    max_itineraries = MAX_ITINERARIES.get(travel_days, 10)
+        return {
+            "itineraries_by_day": itineraries_by_day,
+            "warnings":           warnings,
+            "step":               "itinerary_planned",
+        }
 
-    # ─── 4. total_score 내림차순 정렬 후 상위 N개 반환 ───
-    diverse_routes.sort(key=lambda x: x["total_score"], reverse=True)
-    itineraries = [r["itinerary"] for r in diverse_routes[:max_itineraries]]
+    # ── 케이스 2 (endpoint): day별 상위 5개 추출 ─────────────────────
+    for day_number in sorted(valid_routes_by_day.keys()):
+        valid_routes = valid_routes_by_day[day_number]
 
-    if not itineraries:
-        warnings.append("itineraries 비어있음")
+        if not valid_routes:
+            warnings.append(f"day{day_number} 유효 동선 없음 → 전체 동선 사용")
+            valid_routes = all_routes_by_day.get(day_number, [])
+
+        if not valid_routes:
+            warnings.append(f"day{day_number} 동선 없음 → 실패")
+            return {
+                "itineraries_by_day": {},
+                "warnings":           warnings,
+                "step":               "failed",
+            }
+
+        top_routes = sorted(valid_routes, key=lambda x: x["total_score"], reverse=True)[:MAX_ITINERARIES_PER_DAY]
+
+        final_itineraries = []
+        for r in top_routes:
+            if transport_kr == "자동차":
+                itinerary = await add_parking_to_itinerary(r["itinerary"])
+            else:
+                itinerary = r["itinerary"]
+            final_itineraries.append(itinerary)
+
+        itineraries_by_day[day_number] = final_itineraries
+        warnings.append(f"day{day_number} 동선 후보: {len(final_itineraries)}개")
 
     return {
-        "itineraries": itineraries,
-        "all_routes": all_routes,
-        "excluded_travel": excluded_travel,
-        "excluded_bucket": excluded_bucket,
-        "excluded_tags":   excluded_tags,
-        "excluded_cross":  excluded_cross,
-        "warnings": warnings,
-        "step": "itinerary_planned",
+        "itineraries_by_day": itineraries_by_day,
+        "warnings":           warnings,
+        "step":               "itinerary_planned",
     }

@@ -20,14 +20,6 @@ COMPANION_MAP = {
     "pet":      "반려동물과",
 }
 
-AGE_GROUP_MAP = {
-    "10s":    "10대",
-    "20s":    "20대",
-    "30s":    "30대",
-    "40s":    "40대",
-    "50plus": "50대",
-}
-
 TRANSPORT_MAP = {
     "walk": "도보",
     "car":  "자동차",
@@ -46,18 +38,34 @@ MOODS_MAP = {
 }
 
 ACTIVITIES_MAP = {
-    "tour/exhibition":      "관광/전시",
-    "performance/culture":  "공연/문화",
-    "thrill/experience":    "스릴/체험",
-    "entertainment/sports": "오락/스포츠",
-    "nature/walk":          "자연/산책",
-    "shopping":             "쇼핑",
-    "indoor":               "실내오락",
-    "bar":                  "술/바",
+    "exhibition/art":      "전시/예술",
+    "performance/culture": "공연/문화",
+    "activity":            "액티비티",
+    "indoor":              "실내오락",
+    "shopping":            "쇼핑",
+    "workshop":            "공방/소품",
+    "nature":              "자연/관광",
+    "bar":                 "술/바",
 }
 
-# ─── 이동수단/여행기간 기반 검색 반경 (km) ───
+WEEKDAY_MAP = {
+    0: "월",
+    1: "화",
+    2: "수",
+    3: "목",
+    4: "금",
+    5: "토",
+    6: "일",
+}
+
+# ─── 케이스 1 (only): 원형 반경 (km) ───
 RADIUS_MAP = {
-    "walk": {1: 2.0, 2: 2.0, 3: 2.0, 4: 2.0},
-    "car":  {1: 10.0, 2: 15.0, 3: 20.0, 4: 25.0},
+    "walk": {1: 2.0,  2: 2.5,  3: 3.0,  4: 3.5},
+    "car":  {1: 10.0, 2: 13.0, 3: 15.0, 4: 18.0},
+}
+
+# ─── 케이스 2 (endpoint): 사각형 마진 (km) ───
+MARGIN_MAP = {
+    "walk": {1: 0.5, 2: 0.6, 3: 0.7, 4: 0.8},
+    "car":  {1: 2.0, 2: 2.5, 3: 3.0, 4: 3.5},
 }
