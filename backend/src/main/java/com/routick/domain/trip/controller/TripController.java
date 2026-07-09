@@ -3,6 +3,7 @@ package com.routick.domain.trip.controller;
 import com.routick.domain.trip.dto.TripCreateRequest;
 import com.routick.domain.trip.dto.TripCreateResponse;
 import com.routick.domain.trip.dto.TripDaysUpdateRequest;
+import com.routick.domain.trip.dto.TripListResponse;
 import com.routick.domain.trip.service.TripService;
 import com.routick.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -30,5 +31,11 @@ public class TripController {
             @Valid @RequestBody TripDaysUpdateRequest request) {
         tripService.updateTripDays(tripId, request);
         return ApiResponse.success("일정이 수정되었습니다.");
+    }
+
+    // 내 여행 목록 조회
+    @GetMapping
+    public ApiResponse<TripListResponse> getTrips() {
+        return ApiResponse.success(tripService.getTrips());
     }
 }
