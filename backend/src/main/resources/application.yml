@@ -36,6 +36,11 @@ spring:
       host: localhost
       port: 6379
 
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration-ms: 3600000      # 1??
+  refresh-expiration-ms: 2592000000  # 30?
+
 agent:
   base-url: http://localhost:8000
   mock: false

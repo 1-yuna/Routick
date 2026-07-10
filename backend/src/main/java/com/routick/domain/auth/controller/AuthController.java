@@ -1,16 +1,18 @@
 package com.routick.domain.auth.controller;
 
-import com.routick.domain.auth.dto.EmailSendRequest;
-import com.routick.domain.auth.dto.EmailVerifyRequest;
-import com.routick.domain.auth.dto.SignupRequest;
-import com.routick.domain.auth.dto.SignupResponse;
+import com.routick.domain.auth.dto.*;
 import com.routick.domain.auth.service.AuthService;
 import com.routick.domain.auth.service.EmailService;
 import com.routick.global.response.ApiResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -39,5 +41,27 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<SignupResponse> signup(@Valid @RequestBody SignupRequest request) {
         return ApiResponse.success("회원가입이 완료되었습니다.", authService.signup(request));
+    }
+
+    // 로그인 — 토큰은 httpOnly 쿠키로 발급
+    @PostMapping("/login")
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request,
+                                            HttpServletResponse response) {
+        LoginResult result = authService.login(request);
+        addTokenCookie(response, "accessToken", result.accessToken(), Duration.ofHours(1));
+        addTokenCookie(response, "refreshToken", result.refreshToken(), Duration.ofDays(30));
+        return ApiResponse.success("로그인 되었습니다.", result.user());
+    }
+
+    // httpOnly 쿠키 설정 (secure는 로컬 http라 false — 배포(HTTPS) 시 true로)
+    private void addTokenCookie(HttpServletResponse response, String name, String value, Duration maxAge) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .httpOnly(true)      // JS 접근 차단 (XSS 방어)
+                .secure(false)       // TODO: 배포 시 true
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(maxAge)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }
