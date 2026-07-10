@@ -11,13 +11,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 비즈니스 예외 (직접 던지는 것)
+    // 비즈니스 예외 (서비스에서 직접 던지는 CustomException)
+    // e.getMessage()를 쓰는 이유: 기본 메시지는 ErrorCode의 것이 그대로 나오고,
+    // CustomException(errorCode, "커스텀 메시지")로 던지면 그 메시지가 우선 적용됨
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ApiResponse<Void>> handleCustomException(CustomException e) {
         ErrorCode errorCode = e.getErrorCode();
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(ApiResponse.error(errorCode.getMessage(), errorCode.name()));
+                .body(ApiResponse.error(e.getMessage(), errorCode.name()));
     }
 
     // @Valid 검증 실패

@@ -13,4 +13,10 @@ public class CustomException extends RuntimeException {
         super(errorCode.getMessage());
         this.errorCode = errorCode;
     }
+
+    // 기본 메시지 대신 커스텀 메시지 사용 (provider 등 동적 값 포함 시)
+    public CustomException(ErrorCode errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+    }
 }
