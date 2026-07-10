@@ -19,6 +19,7 @@ import java.util.Optional;
 public class KakaoLocalClient {
 
     private static final String KEYWORD_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/keyword.json";
+    private static final String CATEGORY_SEARCH_URL = "https://dapi.kakao.com/v2/local/search/category.json";
 
     private final RestClient restClient = RestClient.create();
 
@@ -81,5 +82,44 @@ public class KakaoLocalClient {
     public Optional<KakaoPlace> searchFirst(String keyword, Double lat, Double lng, int radiusM) {
         List<KakaoPlace> results = search(keyword, lat, lng, radiusM, 1);
         return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
+    // 카테고리 코드 검색 (FD6=음식점, CE7=카페, AT4=관광명소, CT1=문화시설)
+    public List<KakaoPlace> searchByCategory(String categoryCode, Double lat, Double lng, int radiusM, int size) {
+        try {
+            String url = UriComponentsBuilder.fromUriString(CATEGORY_SEARCH_URL)
+                    .queryParam("category_group_code", categoryCode)
+                    .queryParam("y", lat)
+                    .queryParam("x", lng)
+                    .queryParam("radius", radiusM)
+                    .queryParam("size", size)
+                    .queryParam("sort", "accuracy")
+                    .build()
+                    .toUriString();
+
+            JsonNode response = restClient.get()
+                    .uri(url)
+                    .header("Authorization", "KakaoAK " + apiKey)
+                    .retrieve()
+                    .body(JsonNode.class);
+
+            List<KakaoPlace> places = new ArrayList<>();
+            for (JsonNode doc : response.path("documents")) {
+                places.add(new KakaoPlace(
+                        doc.path("id").asText(),
+                        doc.path("place_name").asText(),
+                        doc.path("address_name").asText(null),
+                        doc.path("road_address_name").asText(null),
+                        doc.path("y").asDouble(),
+                        doc.path("x").asDouble(),
+                        doc.path("category_name").asText(null),
+                        doc.path("place_url").asText(null)));
+            }
+            return places;
+
+        } catch (Exception e) {
+            log.error("카카오 카테고리 검색 실패: {}", categoryCode, e);
+            throw new CustomException(ErrorCode.EXTERNAL_API_ERROR);
+        }
     }
 }

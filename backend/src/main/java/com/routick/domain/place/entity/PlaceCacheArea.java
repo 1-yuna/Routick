@@ -39,4 +39,15 @@ public class PlaceCacheArea {
     @Builder.Default
     @OneToMany(mappedBy = "area", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PlaceCacheItem> items = new ArrayList<>();
+
+    // PlaceCacheArea.java
+    // 캐시 갱신: 기존 아이템 전체 교체 + 갱신 시각 기록
+    public void replaceItems(List<PlaceCacheItem> newItems, LocalDateTime updatedAt) {
+        this.items.clear();
+        newItems.forEach(item -> {
+            item.assignArea(this);
+            this.items.add(item);
+        });
+        this.lastUpdatedAt = updatedAt;
+    }
 }

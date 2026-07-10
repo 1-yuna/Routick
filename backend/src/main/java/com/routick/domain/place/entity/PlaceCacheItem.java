@@ -36,11 +36,17 @@ public class PlaceCacheItem {
     @Column(columnDefinition = "TEXT")
     private String imageUrl;
 
-    private String shortDescription;         // 카드용 1줄 설명
+    private String description;         // 카드용 1줄 설명 (그대로)
 
     @Column(columnDefinition = "TEXT")
-    private String description;              // 상세페이지용 3줄 설명
+    private String longDescription;          // 상세용 3줄 설명 ← description에서 변경              // 상세페이지용 3줄 설명
 
     @Column(nullable = false)
     private Integer rank;                    // 추천 순위 (1~10)
+
+    // PlaceCacheItem.java
+    // 부모 연결 (캐시 갱신 시 사용)
+    public void assignArea(PlaceCacheArea area) {
+        this.area = area;
+    }
 }
