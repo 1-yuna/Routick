@@ -6,17 +6,14 @@ import com.routick.domain.user.entity.enums.Provider;
 import com.routick.domain.user.repository.UserRepository;
 import com.routick.global.exception.CustomException;
 import com.routick.global.exception.ErrorCode;
-import com.routick.global.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.regex.Pattern;
 
-// 계정 관련: 회원가입 (추후 로그인·토큰 재발급·로그아웃 추가 예정)
+// 계정 관련: 회원가입·로그인 (자격 검증 담당, 토큰은 TokenService에 위임)
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -24,14 +21,11 @@ public class AuthService {
     // 비밀번호: 8자 이상, 영문+숫자 포함
     private static final Pattern PASSWORD_PATTERN =
             Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d).{8,}$");
-    private static final Duration REFRESH_TTL = Duration.ofDays(30);
-    private static final String REFRESH_KEY_PREFIX = "refresh:";
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
-    private final JwtProvider jwtProvider;
-    private final StringRedisTemplate redisTemplate;
+    private final TokenService tokenService;
 
     // 회원가입
     @Transactional
@@ -69,7 +63,7 @@ public class AuthService {
         return new SignupResponse(user.getId(), user.getNickname(), user.getEmail());
     }
 
-    // 로그인
+    // 로그인: 자격 검증 후 토큰 발급
     @Transactional(readOnly = true)
     public LoginResult login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
@@ -86,51 +80,7 @@ public class AuthService {
             throw new CustomException(ErrorCode.PASSWORD_MISMATCH);
         }
 
-        // 토큰 발급 + refreshToken은 Redis에 저장 (서버에서 강제 만료 가능하게)
-        String accessToken = jwtProvider.createAccessToken(user.getId());
-        String refreshToken = jwtProvider.createRefreshToken(user.getId());
-        redisTemplate.opsForValue().set(REFRESH_KEY_PREFIX + user.getId(), refreshToken, REFRESH_TTL);
-
-        return new LoginResult(accessToken, refreshToken, LoginResponse.from(user));
-    }
-
-    // 토큰 재발급 (RTR: refreshToken도 함께 교체)
-    public TokenPair reissue(String refreshToken) {
-        // 쿠키 자체가 없음
-        if (refreshToken == null) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        // 서명·만료 검증 + userId 추출
-        Long userId;
-        try {
-            userId = jwtProvider.getUserId(refreshToken);
-        } catch (Exception e) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        // Redis에 저장된 토큰과 대조 (로그아웃·강제만료·탈취 대응)
-        String savedToken = redisTemplate.opsForValue().get(REFRESH_KEY_PREFIX + userId);
-        if (!refreshToken.equals(savedToken)) {
-            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
-        }
-
-        // 새 토큰 쌍 발급 + Redis 갱신 (이전 refreshToken은 즉시 무효화)
-        String newAccessToken = jwtProvider.createAccessToken(userId);
-        String newRefreshToken = jwtProvider.createRefreshToken(userId);
-        redisTemplate.opsForValue().set(REFRESH_KEY_PREFIX + userId, newRefreshToken, REFRESH_TTL);
-
-        return new TokenPair(newAccessToken, newRefreshToken);
-    }
-
-    // 로그아웃: Redis의 refreshToken 삭제 (쿠키 만료는 컨트롤러에서)
-    public void logout(String refreshToken) {
-        if (refreshToken == null) return;
-        try {
-            Long userId = jwtProvider.getUserId(refreshToken);
-            redisTemplate.delete(REFRESH_KEY_PREFIX + userId);
-        } catch (Exception ignored) {
-            // 이미 만료·위조된 토큰이면 지울 것도 없음 → 조용히 통과
-        }
+        TokenPair tokens = tokenService.issue(user.getId());
+        return new LoginResult(tokens.accessToken(), tokens.refreshToken(), LoginResponse.from(user));
     }
 }

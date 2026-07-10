@@ -3,6 +3,7 @@ package com.routick.domain.auth.controller;
 import com.routick.domain.auth.dto.*;
 import com.routick.domain.auth.service.AuthService;
 import com.routick.domain.auth.service.EmailService;
+import com.routick.domain.auth.service.TokenService;
 import com.routick.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailService emailService;
+    private final TokenService tokenService;
 
     // 이메일 인증번호 발송
     @PostMapping("/email/send")
@@ -69,7 +71,7 @@ public class AuthController {
     public ApiResponse<Void> refresh(
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
             HttpServletResponse response) {
-        TokenPair tokens = authService.reissue(refreshToken);
+        TokenPair tokens = tokenService.reissue(refreshToken);
         addTokenCookie(response, "accessToken", tokens.accessToken(), Duration.ofHours(1));
         addTokenCookie(response, "refreshToken", tokens.refreshToken(), Duration.ofDays(30));
         return ApiResponse.success("토큰이 재발급되었습니다.");
@@ -80,7 +82,7 @@ public class AuthController {
     public ApiResponse<Void> logout(
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
             HttpServletResponse response) {
-        authService.logout(refreshToken);
+        tokenService.logout(refreshToken);
         expireTokenCookie(response, "accessToken");
         expireTokenCookie(response, "refreshToken");
         return ApiResponse.success("로그아웃 되었습니다.");
