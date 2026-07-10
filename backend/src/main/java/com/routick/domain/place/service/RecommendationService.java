@@ -33,13 +33,14 @@ public class RecommendationService {
     private static final int MATCH_RADIUS_M = 5000;    // 카카오 매칭 반경 (지역 중심 기준 5km)
 
     private static final String SYSTEM_PROMPT = """
-            너는 여행 트렌드 분석가야. 블로그 글들에서 자주 언급되는 인기 장소를 추출해.
+            너는 여행 트렌드 분석가야. 블로그 글들에서 이 지역을 대표하는 명물을 추출해.
+            명물이란: 그 지역 하면 떠오르는 유명 먹거리, 특산물, 전통시장, 대표 맛집 같은 것.
             반드시 아래 JSON 형식으로만 응답해:
             {"places": [{"title": "장소명", "reason": "추천 이유 (30자 이내)", "tags": ["태그1", "태그2"]}]}
             규칙:
             - 정확히 %d개 추출, 언급 빈도가 높고 긍정적인 곳 우선
             - title은 검색 가능한 실제 상호명으로 (블로그에 적힌 그대로)
-            - tags는 "#감자 요리" 같은 형태 말고 "감자 요리"처럼 2개씩
+            - 단순히 요즘 유행하는 카페 같은 곳보다 지역 대표성이 있는 곳 우선
             - 광고성 글로 보이는 장소는 제외
             """.formatted(TOP_COUNT);
 
@@ -67,8 +68,8 @@ public class RecommendationService {
 
     // 갱신 파이프라인: 블로그 수집 → LLM 추출 → 카카오 매칭 → 구글 이미지 → 저장
     private LocalRecommendation refresh(LocalRecommendation existing, String regionName, Double lat, Double lng) {
-        // ① 블로그 snippet 수집
-        String query = regionName + " 맛집 카페 놀거리 추천";
+        // ① 블로그 snippet 수집 — 지역 "명물" 발굴용
+        String query = regionName + " 유명한 먹거리 특산물 명물 추천";
         List<String> snippets = naverBlogClient.searchSnippets(query, BLOG_COUNT);
 
         // ② LLM으로 장소 추출
