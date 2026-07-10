@@ -1,10 +1,20 @@
 package com.routick.global.security;
 
-// 현재 로그인한 사용자 ID 조회 창구
-// TODO: JWT 구현 시 SecurityContext에서 꺼내도록 이 메서드만 수정
+import com.routick.global.exception.CustomException;
+import com.routick.global.exception.ErrorCode;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+// 현재 로그인한 사용자 ID 조회 창구 (JwtFilter가 심어둔 값을 꺼냄)
 public class SecurityUtil {
 
     public static Long getCurrentUserId() {
-        return 1L;   // 개발 초기: 더미 유저 고정
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        // 비로그인(익명) 상태면 principal이 Long이 아님
+        if (authentication == null || !(authentication.getPrincipal() instanceof Long userId)) {
+            throw new CustomException(ErrorCode.UNAUTHORIZED);
+        }
+        return userId;
     }
 }

@@ -18,6 +18,7 @@ spring:
           auth: true
           starttls:
             enable: true
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -25,11 +26,6 @@ spring:
       hibernate:
         format_sql: true
     open-in-view: false
-    defer-datasource-initialization: true   # data.sql? ??? ?? ??? ??
-
-  sql:
-    init:
-      mode: always                          # ??? ??? data.sql ??
 
   data:
     redis:
