@@ -64,4 +64,9 @@ public class TokenService {
             // 이미 만료·위조된 토큰이면 지울 것도 없음 → 조용히 통과
         }
     }
+
+    // userId 기준 refreshToken 삭제 (회원 탈퇴용)
+    public void deleteRefreshToken(Long userId) {
+        redisTemplate.delete(REFRESH_KEY_PREFIX + userId);
+    }
 }

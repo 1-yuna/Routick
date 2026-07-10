@@ -37,4 +37,17 @@ public class User extends BaseTimeEntity {
     private String lastLocationRegionName;   // 마지막 선택 지역명
     private Double lastLocationLat;
     private Double lastLocationLng;
+
+    // 프로필 수정: null이 아닌 값만 반영
+    public void updateProfile(String nickname, String profileImageUrl) {
+        if (nickname != null) this.nickname = nickname;
+        if (profileImageUrl != null) this.profileImageUrl = profileImageUrl;
+    }
+
+    // 마지막 선택 위치 저장
+    public void updateLastLocation(String regionName, Double lat, Double lng) {
+        this.lastLocationRegionName = regionName;
+        this.lastLocationLat = lat;
+        this.lastLocationLng = lng;
+    }
 }
