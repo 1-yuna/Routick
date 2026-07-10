@@ -93,4 +93,44 @@ public class AuthService {
 
         return new LoginResult(accessToken, refreshToken, LoginResponse.from(user));
     }
+
+    // 토큰 재발급 (RTR: refreshToken도 함께 교체)
+    public TokenPair reissue(String refreshToken) {
+        // 쿠키 자체가 없음
+        if (refreshToken == null) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        // 서명·만료 검증 + userId 추출
+        Long userId;
+        try {
+            userId = jwtProvider.getUserId(refreshToken);
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        // Redis에 저장된 토큰과 대조 (로그아웃·강제만료·탈취 대응)
+        String savedToken = redisTemplate.opsForValue().get(REFRESH_KEY_PREFIX + userId);
+        if (!refreshToken.equals(savedToken)) {
+            throw new CustomException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+
+        // 새 토큰 쌍 발급 + Redis 갱신 (이전 refreshToken은 즉시 무효화)
+        String newAccessToken = jwtProvider.createAccessToken(userId);
+        String newRefreshToken = jwtProvider.createRefreshToken(userId);
+        redisTemplate.opsForValue().set(REFRESH_KEY_PREFIX + userId, newRefreshToken, REFRESH_TTL);
+
+        return new TokenPair(newAccessToken, newRefreshToken);
+    }
+
+    // 로그아웃: Redis의 refreshToken 삭제 (쿠키 만료는 컨트롤러에서)
+    public void logout(String refreshToken) {
+        if (refreshToken == null) return;
+        try {
+            Long userId = jwtProvider.getUserId(refreshToken);
+            redisTemplate.delete(REFRESH_KEY_PREFIX + userId);
+        } catch (Exception ignored) {
+            // 이미 만료·위조된 토큰이면 지울 것도 없음 → 조용히 통과
+        }
+    }
 }

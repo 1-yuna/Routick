@@ -64,4 +64,37 @@ public class AuthController {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
+    // 토큰 재발급 (refreshToken 쿠키 사용)
+    @PostMapping("/refresh")
+    public ApiResponse<Void> refresh(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response) {
+        TokenPair tokens = authService.reissue(refreshToken);
+        addTokenCookie(response, "accessToken", tokens.accessToken(), Duration.ofHours(1));
+        addTokenCookie(response, "refreshToken", tokens.refreshToken(), Duration.ofDays(30));
+        return ApiResponse.success("토큰이 재발급되었습니다.");
+    }
+
+    // 로그아웃: Redis 토큰 삭제 + 쿠키 만료
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response) {
+        authService.logout(refreshToken);
+        expireTokenCookie(response, "accessToken");
+        expireTokenCookie(response, "refreshToken");
+        return ApiResponse.success("로그아웃 되었습니다.");
+    }
+
+    // 쿠키 즉시 만료 (maxAge=0으로 덮어쓰면 브라우저가 삭제)
+    private void expireTokenCookie(HttpServletResponse response, String name) {
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(false)       // TODO: 배포 시 true
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
 }
