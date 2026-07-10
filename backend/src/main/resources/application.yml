@@ -60,5 +60,16 @@ agent:
   mock: false
   timeout-seconds: 60
 
+external:
+  kakao:
+    api-key: ${KAKAO_CLIENT_ID}          # ??? REST API ? (?? ???, OAuth? ?? ?)
+  naver:
+    client-id: ${NAVER_CLIENT_ID}        # ??? ?? (OAuth ?? ?? API ??)
+    client-secret: ${NAVER_CLIENT_SECRET}
+  openai:
+    api-key: ${OPENAI_API_KEY}
+  google:
+    places-api-key: ${GOOGLE_PLACES_API_KEY}
+
 file:
   upload-dir: ./uploads   # ??? ?? ?? ??
