@@ -34,4 +34,14 @@ public class LocalRecommendation {
     @Builder.Default
     @OneToMany(mappedBy = "recommendation", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecommendationItem> items = new ArrayList<>();
+
+    // 캐시 갱신: 기존 아이템 전체 교체 + 갱신 시각 기록
+    public void replaceItems(List<RecommendationItem> newItems, LocalDateTime updatedAt) {
+        this.items.clear();
+        newItems.forEach(item -> {
+            item.assignRecommendation(this);
+            this.items.add(item);
+        });
+        this.lastUpdatedAt = updatedAt;
+    }
 }

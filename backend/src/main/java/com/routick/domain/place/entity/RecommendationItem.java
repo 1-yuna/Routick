@@ -40,4 +40,9 @@ public class RecommendationItem {
 
     @Column(nullable = false)
     private Integer rank;                    // 추천 순위 (1~5)
+
+    // 부모 연결 (캐시 갱신 시 사용)
+    public void assignRecommendation(LocalRecommendation recommendation) {
+        this.recommendation = recommendation;
+    }
 }
