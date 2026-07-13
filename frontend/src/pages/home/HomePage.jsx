@@ -40,7 +40,7 @@ export default function HomePage() {
             onClick={() => setShowRegionSheet(true)}
             className="flex items-center whitespace-nowrap text-20-sb text-black1"
           >
-            {region.category.split(' ')[0]} {region.area}
+            {region.category.split(' ')[0]} {region.area.name}
             <DownIcon className="w-6 h-6 text-black1" />
           </button>
         }
@@ -61,7 +61,7 @@ export default function HomePage() {
         {/*지역 추천*/}
         <TopCardSection
           name="윤아"
-          area={region.area}
+          area={region.area.name}
           className="pl-6"
           items={mockTopPlaces}
         />
