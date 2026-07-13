@@ -1,7 +1,9 @@
 // pages/myProfile/MyPage.jsx
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../../common/bar/TopBar.jsx';
 import BottomBar from '../../common/bar/BottomBar.jsx';
+import BaseModal from '../../common/modal/BaseModal.jsx';
 import PersonIcon from '../../assets/icons/person.svg?react';
 import RightIcon from '../../assets/icons/right.svg?react';
 import logo from '../../assets/images/logo.png';
@@ -21,6 +23,8 @@ const PROVIDER_LABEL = {
 export default function MyPage() {
   const { user, clearUser } = useUserStore();
   const navigate = useNavigate();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteError, setShowDeleteError] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -34,20 +38,14 @@ export default function MyPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (
-      !window.confirm(
-        '정말 탈퇴하시겠습니까? 여행·선호도 데이터가 모두 삭제됩니다.'
-      )
-    )
-      return;
+    setShowDeleteConfirm(false);
     try {
       await deleteMe();
+      clearUser();
+      navigate('/login');
     } catch (e) {
-      alert('탈퇴에 실패했습니다. 잠시 후 다시 시도해주세요.');
-      return;
+      setShowDeleteError(true);
     }
-    clearUser();
-    navigate('/login');
   };
 
   if (!user) return null; // 로그아웃/탈퇴 처리 중 null 렌더 방지
@@ -97,13 +95,38 @@ export default function MyPage() {
             </button>
             <button
               className="text-left text-14-rg text-gray2"
-              onClick={handleDeleteAccount}
+              onClick={() => setShowDeleteConfirm(true)}
             >
               계정 삭제
             </button>
           </div>
         </div>
       </div>
+
+      {/*계정 삭제 확인 모달*/}
+      {showDeleteConfirm && (
+        <BaseModal
+          onConfirm={handleDeleteAccount}
+          onCancel={() => setShowDeleteConfirm(false)}
+        >
+          <p className="text-16-sb text-black1">정말 탈퇴하시겠어요?</p>
+          <p className="text-14-rg text-gray2 text-center">
+            여행·선호도 데이터가 모두 삭제되며
+            <br />
+            복구할 수 없어요
+          </p>
+        </BaseModal>
+      )}
+
+      {/*탈퇴 실패 모달*/}
+      {showDeleteError && (
+        <BaseModal confirmOnly onConfirm={() => setShowDeleteError(false)}>
+          <p className="text-16-sb text-black1">탈퇴에 실패했어요</p>
+          <p className="text-14-rg text-gray2 text-center">
+            잠시 후 다시 시도해주세요
+          </p>
+        </BaseModal>
+      )}
 
       <BottomBar />
     </div>
