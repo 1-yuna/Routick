@@ -1,0 +1,75 @@
+spring:
+  application:
+    name: routick
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/routick
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+oauth:
+  providers:
+    kakao:
+      client-id: ${KAKAO_CLIENT_ID}
+      client-secret: ${KAKAO_CLIENT_SECRET}
+      redirect-uri: http://localhost:8080/api/v1/auth/oauth/kakao/callback
+    naver:
+      client-id: ${NAVER_CLIENT_ID}
+      client-secret: ${NAVER_CLIENT_SECRET}
+      redirect-uri: http://localhost:8080/api/v1/auth/oauth/naver/callback
+    google:
+      client-id: ${GOOGLE_CLIENT_ID}
+      client-secret: ${GOOGLE_CLIENT_SECRET}
+      redirect-uri: http://localhost:8080/api/v1/auth/oauth/google/callback
+
+front:
+  base-url: http://localhost:5173
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration-ms: 3600000      # 1??
+  refresh-expiration-ms: 2592000000  # 30?
+
+agent:
+  base-url: http://localhost:8000
+  mock: false
+  timeout-seconds: 60
+
+external:
+  kakao:
+    api-key: ${KAKAO_CLIENT_ID}          # ??? REST API ? (?? ???, OAuth? ?? ?)
+  naver:
+    client-id: ${NAVER_CLIENT_ID}        # ??? ?? (OAuth ?? ?? API ??)
+    client-secret: ${NAVER_CLIENT_SECRET}
+  openai:
+    api-key: ${OPENAI_API_KEY}
+  google:
+    places-api-key: ${GOOGLE_PLACES_API_KEY}
+
+file:
+  upload-dir: ./uploads   # ??? ?? ?? ??

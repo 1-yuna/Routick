@@ -2,15 +2,15 @@
 # generate_response
 # ─────────────────────────────────────────────────────────────────────
 # select_itinerary → fetch_details에서 선택된 최종 동선을
-# Spring 백엔드 응답 형식으로 변환
+# Spring 백엔드 응답 형식으로 변환 (응답 키: snake_case)
 #
 # 흐름:
 #   1. meta, transport 최상위 필드 구성
-#   2. day별 region/startRegion/endRegion 매핑
+#   2. day별 region/start_region/end_region 매핑
 #   3. route_type=endpoint: start/end 블록 구성
 #   4. blocks 배열 구성 (place/walk/parking 타입 혼합)
 #      - place 블록 사이에 walk 블록 삽입
-#      - parking 블록은 enter/exitTransport 포함
+#      - parking 블록은 enter/exit_transport 포함
 # ─────────────────────────────────────────────────────────────────────
 
 from utils.route.greedy_nn import STAY_MINUTES
@@ -59,8 +59,8 @@ def generate_response(state: dict) -> dict:
         first_day_info = next((d for d in days_info if d.get("day_number") == 1), {})
         last_day_info  = next((d for d in reversed(days_info)), {})
         region_fields  = {
-            "startRegion": first_day_info.get("start_region", ""),
-            "endRegion":   last_day_info.get("end_region", ""),
+            "start_region": first_day_info.get("start_region", ""),
+            "end_region":   last_day_info.get("end_region", ""),
         }
 
     days = []
@@ -70,7 +70,7 @@ def generate_response(state: dict) -> dict:
         itinerary  = day_data["itinerary"]
 
         day_info = next((d for d in days_info if d.get("day_number") == day_number), {})
-        day_obj  = {"dayNumber": day_number}
+        day_obj  = {"day_number": day_number}
 
         # ── start/end/main 분리 ───────────────────────────────────────
         start_item = None
@@ -90,12 +90,12 @@ def generate_response(state: dict) -> dict:
         if route_type == "endpoint" and start_item:
             p = start_item["place"]
             day_obj["start"] = {
-                "name":    p.get("name", ""),
-                "address": p.get("address", ""),
-                "lat":     p.get("lat", 0.0),
-                "lng":     p.get("lng", 0.0),
-                "placeId": p.get("id", ""),
-                "exitTransport": {
+                "name":     p.get("name", ""),
+                "address":  p.get("address", ""),
+                "lat":      p.get("lat", 0.0),
+                "lng":      p.get("lng", 0.0),
+                "place_id": p.get("id", ""),
+                "exit_transport": {
                     "mode":    transport,
                     "minutes": start_item.get("travel_to_next_minutes", 0),
                 },
@@ -114,12 +114,12 @@ def generate_response(state: dict) -> dict:
                 enter_mode = TRANSPORT_MAP.get(last_main.get("travel_mode", "도보"), "walk")
 
             day_obj["end"] = {
-                "name":    p.get("name", ""),
-                "address": p.get("address", ""),
-                "lat":     p.get("lat", 0.0),
-                "lng":     p.get("lng", 0.0),
-                "placeId": p.get("id", ""),
-                "enterTransport": {
+                "name":     p.get("name", ""),
+                "address":  p.get("address", ""),
+                "lat":      p.get("lat", 0.0),
+                "lng":      p.get("lng", 0.0),
+                "place_id": p.get("id", ""),
+                "enter_transport": {
                     "mode":    enter_mode,
                     "minutes": enter_minutes,
                 },
@@ -143,44 +143,44 @@ def generate_response(state: dict) -> dict:
                     j += 1
                 last_parking_item = main_items[j - 1]
 
-                # arriveTime: 이전 장소 출발 시간 (이동 시작)
+                # arrive_time: 이전 장소 출발 시간 (이동 시작)
                 adjusted_arrive = prev_leave_at
 
-                # leaveTime: 마지막 주차장 leave_at + exitTransport.minutes (도보 이동 후 다음 장소 도착)
+                # leave_time: 마지막 주차장 leave_at + exit_transport.minutes (도보 이동 후 다음 장소 도착)
                 last_exit_min = (last_parking_item.get("exit_transport") or {}).get("minutes", 0)
                 last_leave    = last_parking_item.get("leave_at")
                 if last_leave:
                     from datetime import datetime, timedelta as _td
                     adjusted_leave = (
-                        datetime.strptime(last_leave, "%H:%M") + _td(minutes=last_exit_min)
+                            datetime.strptime(last_leave, "%H:%M") + _td(minutes=last_exit_min)
                     ).strftime("%H:%M")
                 else:
                     adjusted_leave = None
 
                 parking_block = {
-                    "blockOrder":  block_order,
+                    "block_order": block_order,
                     "type":        "parking",
                     "bucket":      "parking",
-                    "placeId":     place.get("id", ""),
+                    "place_id":    place.get("id", ""),
                     "name":        place.get("name", ""),
                     "address":     place.get("road_address_name") or place.get("address", ""),
                     "description": place.get("description"),
                     "lat":         place.get("lat", 0.0),
                     "lng":         place.get("lng", 0.0),
-                    "arriveTime":  adjusted_arrive,
-                    "leaveTime":   adjusted_leave,
+                    "arrive_time": adjusted_arrive,
+                    "leave_time":  adjusted_leave,
                 }
                 if item.get("enter_transport"):
-                    parking_block["enterTransport"] = item["enter_transport"]
+                    parking_block["enter_transport"] = item["enter_transport"]
                 elif adjusted_arrive and adjusted_leave:
                     # enter_transport가 None인 경우 (첫 주차장 등) 시간 차로 역산
                     from datetime import datetime as _dt2
                     arrive_min = _dt2.strptime(adjusted_arrive, "%H:%M").hour * 60 + _dt2.strptime(adjusted_arrive, "%H:%M").minute
                     leave_min  = _dt2.strptime(adjusted_leave, "%H:%M").hour * 60 + _dt2.strptime(adjusted_leave, "%H:%M").minute
                     inferred_min = max(1, leave_min - arrive_min - last_exit_min)
-                    parking_block["enterTransport"] = {"mode": transport, "minutes": inferred_min}
+                    parking_block["enter_transport"] = {"mode": transport, "minutes": inferred_min}
                 if item.get("exit_transport"):
-                    parking_block["exitTransport"] = item["exit_transport"]
+                    parking_block["exit_transport"] = item["exit_transport"]
 
                 blocks.append(parking_block)
                 block_order += 1
@@ -191,25 +191,25 @@ def generate_response(state: dict) -> dict:
             # ── place 블록 ───────────────────────────────────────────
             stay_minutes = STAY_MINUTES.get(bucket, 60)
             blocks.append({
-                "blockOrder":  block_order,
-                "type":        "place",
-                "bucket":      bucket,
-                "placeOrder":  place_order,
-                "placeId":     place.get("id", ""),
-                "name":        place.get("name", ""),
-                "address":     place.get("road_address_name", ""),
-                "src":         place.get("src"),
-                "status":      place.get("status", ""),
-                "description": item.get("recommendation_reason", ""),
-                "lat":         place.get("lat", 0.0),
-                "lng":         place.get("lng", 0.0),
-                "stayMinutes": stay_minutes,
-                "arriveTime":  item.get("arrive_at", ""),
-                "leaveTime":   item.get("leave_at", ""),
+                "block_order":  block_order,
+                "type":         "place",
+                "bucket":       bucket,
+                "place_order":  place_order,
+                "place_id":     place.get("id", ""),
+                "name":         place.get("name", ""),
+                "address":      place.get("road_address_name", ""),
+                "image_url":    place.get("src"),
+                "status":       place.get("status", ""),
+                "description":  item.get("recommendation_reason", ""),
+                "lat":          place.get("lat", 0.0),
+                "lng":          place.get("lng", 0.0),
+                "stay_minutes": stay_minutes,
+                "arrive_time":  item.get("arrive_at", ""),
+                "leave_time":   item.get("leave_at", ""),
             })
             block_order += 1
             place_order += 1
-            prev_leave_at = item.get("leave_at")  # 다음 parking 블록의 arriveTime 기준
+            prev_leave_at = item.get("leave_at")  # 다음 parking 블록의 arrive_time 기준
 
             # ── walk 블록 삽입 조건 ───────────────────────────────────
             # 다음 블록이 존재하고 parking이 아닌 경우에만 삽입
@@ -219,36 +219,36 @@ def generate_response(state: dict) -> dict:
 
             if travel_min > 0 and next_item and next_bucket != "parking":
                 blocks.append({
-                    "blockOrder": block_order,
-                    "type":       "walk",
-                    "minutes":    travel_min,
+                    "block_order": block_order,
+                    "type":        "walk",
+                    "minutes":     travel_min,
                 })
                 block_order += 1
 
-        # ── parking leaveTime = 다음 place arriveTime으로 보정 ─────────
+        # ── parking leave_time = 다음 place arrive_time으로 보정 ───────
         for idx, block in enumerate(blocks):
             if block["type"] == "parking":
                 for next_block in blocks[idx + 1:]:
                     if next_block["type"] == "place":
-                        block["leaveTime"] = next_block["arriveTime"]
+                        block["leave_time"] = next_block["arrive_time"]
                         break
-                # arriveTime > leaveTime 역전 방지
+                # arrive_time > leave_time 역전 방지
                 # (plan_itinerary에서 start_time 이전으로 계산된 경우)
-                if block.get("arriveTime") and block.get("leaveTime"):
+                if block.get("arrive_time") and block.get("leave_time"):
                     from datetime import datetime as _dt2
-                    arr = _dt2.strptime(block["arriveTime"], "%H:%M")
-                    lev = _dt2.strptime(block["leaveTime"], "%H:%M")
+                    arr = _dt2.strptime(block["arrive_time"], "%H:%M")
+                    lev = _dt2.strptime(block["leave_time"], "%H:%M")
                     if arr > lev:
-                        # arriveTime 기준으로 enter+exit 시간 합산해서 leaveTime 재계산
-                        enter_min = (block.get("enterTransport") or {}).get("minutes", 0)
-                        exit_min  = (block.get("exitTransport") or {}).get("minutes", 0)
+                        # arrive_time 기준으로 enter+exit 시간 합산해서 leave_time 재계산
+                        enter_min = (block.get("enter_transport") or {}).get("minutes", 0)
+                        exit_min  = (block.get("exit_transport") or {}).get("minutes", 0)
                         from datetime import timedelta as _td2
                         new_leave = arr + _td2(minutes=enter_min + exit_min)
-                        block["leaveTime"] = new_leave.strftime("%H:%M")
-                        # 다음 place arriveTime도 맞춰서 업데이트
+                        block["leave_time"] = new_leave.strftime("%H:%M")
+                        # 다음 place arrive_time도 맞춰서 업데이트
                         for next_block in blocks[idx + 1:]:
                             if next_block["type"] == "place":
-                                next_block["arriveTime"] = block["leaveTime"]
+                                next_block["arrive_time"] = block["leave_time"]
                                 break
 
         day_obj["blocks"] = blocks
