@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import SplashPage from '../pages/login/SplashPage.jsx';
 import LoginPage from '../pages/login/LoginPage.jsx';
 import SignupPage from '../pages/login/SignupPage.jsx';
+import OAuthRedirectPage from '../pages/login/OAuthRedirectPage.jsx';
 import HomePage from '../pages/home/HomePage.jsx';
 import PlayListPage from '../pages/home/PlayListPage.jsx';
 import PlaceDetailPage from '../pages/place/PlaceDetailPage.jsx';
@@ -31,6 +32,7 @@ export default function Router() {
         <Route path="/" element={<SplashPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/oauth/redirect" element={<OAuthRedirectPage />} />
 
         <Route path="/home" element={<HomePage />} />
         <Route path="/playlist" element={<PlayListPage />} />

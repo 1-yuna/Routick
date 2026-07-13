@@ -51,7 +51,7 @@ public class OAuthController {
             TokenPair tokens = oAuthService.socialLogin(toProvider(provider), code);
             CookieUtil.addTokenCookie(response, "accessToken", tokens.accessToken(), Duration.ofHours(1));
             CookieUtil.addTokenCookie(response, "refreshToken", tokens.refreshToken(), Duration.ofDays(30));
-            response.sendRedirect(frontBaseUrl + "/");                              // 성공 → 메인
+            response.sendRedirect(frontBaseUrl + "/oauth/redirect");                          // 성공 → 메인
         } catch (CustomException e) {
             response.sendRedirect(frontBaseUrl + "/login?error=" + e.getErrorCode().name());   // 실패 → 로그인 화면
         }
