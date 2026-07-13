@@ -9,30 +9,57 @@ import RegionSelectSheet from '../../components/home/RegionSelectSheet.jsx';
 import home from '../../assets/images/home.png';
 import DownIcon from '../../assets/icons/down.svg?react';
 import useCourseStore from '../../store/selectionStore.jsx';
+import useUserStore from '../../store/userStore.jsx';
 import { useState } from 'react';
 import { REGION_DATA, DEFAULT_REGION } from '../../data/regionData.jsx';
 import { mockTopPlaces } from '../../data/mock/topPlaces.jsx';
+import { updateLocation } from '../../api/user.jsx';
+
+// REGION_DATA에서 regionName으로 {category, area} 찾기 (lastLocation 복원용)
+const findRegionByName = (regionName) => {
+  for (const cat of REGION_DATA) {
+    const area = cat.areas.find((a) => a.name === regionName);
+    if (area) return { category: cat.category, area };
+  }
+  return null;
+};
 
 // 홈 페이지
 export default function HomePage() {
   const reset = useCourseStore((state) => state.reset);
+  const user = useUserStore((state) => state.user);
   const navigate = useNavigate();
-  const [region, setRegion] = useState(DEFAULT_REGION);
+  const [region, setRegion] = useState(() => {
+    const location = user?.lastLocation;
+    if (location) {
+      const found = findRegionByName(location.regionName);
+      if (found) return found;
+    }
+    return DEFAULT_REGION;
+  });
   const [showRegionSheet, setShowRegionSheet] = useState(false);
+
+  // 지역 선택 - 화면 반영 + 서버에 마지막 위치 저장
+  const handleSelectRegion = (newRegion) => {
+    setRegion(newRegion);
+    updateLocation(
+      newRegion.area.name,
+      newRegion.area.lat,
+      newRegion.area.lng
+    ).catch(() => {});
+  };
 
   return (
     <div className="flex flex-col pt-12 pb-32 gap-8 h-screen bg-default">
-      {/*지역 설정 바텀시트*/}
       {showRegionSheet && (
         <RegionSelectSheet
           regions={REGION_DATA}
           selected={region}
-          onSelect={setRegion}
+          onSelect={handleSelectRegion}
           onClose={() => setShowRegionSheet(false)}
         />
       )}
 
-      {/*상단 바*/}
       <TopBar
         className="px-6"
         leftContent={
@@ -47,9 +74,8 @@ export default function HomePage() {
       />
 
       <div className="flex flex-col gap-10 overflow-y-auto no-scrollbar">
-        {/*배너*/}
         <CourseBanner
-          name="윤아"
+          name={user?.nickname}
           image={home}
           className="px-6"
           onClick={() => {
@@ -58,15 +84,13 @@ export default function HomePage() {
           }}
         />
 
-        {/*지역 추천*/}
         <TopCardSection
-          name="윤아"
+          name={user?.nickname}
           area={region.area.name}
           className="pl-6"
           items={mockTopPlaces}
         />
 
-        {/*놀거리*/}
         <PlaySection
           className="px-6 pt-5 pb-12"
           onHotplace={() => navigate('/playlist?type=hotplace')}
@@ -75,7 +99,6 @@ export default function HomePage() {
         />
       </div>
 
-      {/*하단바*/}
       <BottomBar />
     </div>
   );
