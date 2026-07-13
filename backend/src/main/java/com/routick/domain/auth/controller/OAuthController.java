@@ -7,6 +7,8 @@ import com.routick.global.exception.CustomException;
 import com.routick.global.exception.ErrorCode;
 import com.routick.global.util.CookieUtil;
 import com.routick.infra.oauth.OAuthApiClient;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,7 @@ import java.time.Duration;
 @RestController
 @RequestMapping("/api/v1/auth/oauth")
 @RequiredArgsConstructor
+@Tag(name = "OAuth", description = "소셜 로그인 (카카오/네이버/구글)")
 public class OAuthController {
 
     private final OAuthService oAuthService;
@@ -28,6 +31,7 @@ public class OAuthController {
     private String frontBaseUrl;
 
     // 소셜 로그인 시작: 해당 소셜의 로그인 페이지로 리다이렉트
+    @Operation(summary = "소셜 로그인 시작", description = "해당 소셜의 로그인 페이지로 리다이렉트한다")
     @GetMapping("/{provider}")
     public void redirectToProvider(@PathVariable String provider,
                                    HttpServletResponse response) throws IOException {
@@ -35,6 +39,7 @@ public class OAuthController {
     }
 
     // 소셜 콜백: 인가코드로 로그인 처리 후 프론트로 리다이렉트
+    @Operation(summary = "소셜 로그인 콜백", description = "인가코드로 로그인/자동가입 처리 후 프론트로 리다이렉트한다 (실패 시 /login?error=)")
     @GetMapping("/{provider}/callback")
     public void callback(@PathVariable String provider,
                          @RequestParam(required = false) String code,

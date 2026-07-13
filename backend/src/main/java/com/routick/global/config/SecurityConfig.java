@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()   // 회원가입·로그인 등 로그인 전 API
                         .requestMatchers("/api/v1/health").permitAll()    // 헬스체크
                         .requestMatchers("/images/**").permitAll()        // 업로드 이미지 서빙
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()   // 스웨거
                         .anyRequest().authenticated())                    // 나머지 전부 로그인 필수
                 // 미인증 접근 시 401 + 공통 에러 형식으로 응답
                 .exceptionHandling(e -> e.authenticationEntryPoint(jwtAuthenticationEntryPoint))
