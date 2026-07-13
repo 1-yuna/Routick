@@ -4,6 +4,9 @@ import FieldMessage from '../../common/text/FieldMessage.jsx';
 
 // 계정 기본 정보 폼
 export default function AccountInfoSection({
+  nickname,
+  setNickname,
+  nicknameError,
   email,
   setEmail,
   emailError,
@@ -18,11 +21,17 @@ export default function AccountInfoSection({
   isVerified,
 }) {
   return (
-    // 계정 기본 정보 묶음
     <div className="flex flex-col gap-3 ">
       {/*닉네임*/}
-      <FullWidthInput placeholder="닉네임" type="text" />
-
+      <div className="flex flex-col gap-1">
+        <FullWidthInput
+          placeholder="닉네임"
+          type="text"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+        />
+        <FieldMessage type="error">{nicknameError}</FieldMessage>
+      </div>
       {/*인증*/}
       <div className="flex flex-col gap-1">
         <EmailButton

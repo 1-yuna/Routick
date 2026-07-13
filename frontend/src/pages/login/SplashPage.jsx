@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getMe } from '../../api/user';
+import useUserStore from '../../store/userStore';
 
 import main from '../../assets/images/main.png';
 
@@ -15,8 +17,14 @@ export default function SplashPage() {
     }, 1000);
 
     // 1.5초 후 로그인 페이지로 이동
-    const timer2 = setTimeout(() => {
-      navigate('/login'); // 이동
+    const timer2 = setTimeout(async () => {
+      try {
+        const res = await getMe(); // 쿠키 유효하면 로그인 상태
+        useUserStore.getState().setUser(res.data.data);
+        navigate('/home');
+      } catch {
+        navigate('/login'); // 비로그인
+      }
     }, 1500);
 
     // 컴포넌트 언마운트 시 타이머 정리

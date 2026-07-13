@@ -12,6 +12,9 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 export default function SignUpPage() {
   const navigate = useNavigate();
   const {
+    nickname,
+    setNickname,
+    nicknameError,
     email,
     setEmail,
     emailError,
@@ -45,6 +48,9 @@ export default function SignUpPage() {
 
         {/*기본 정보 폼*/}
         <AccountInfoSection
+          nickname={nickname}
+          setNickname={setNickname}
+          nicknameError={nicknameError}
           email={email}
           setEmail={setEmail}
           emailError={emailError}

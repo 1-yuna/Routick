@@ -6,11 +6,25 @@ import PersonIcon from '../../assets/icons/person.svg?react';
 import RightIcon from '../../assets/icons/right.svg?react';
 import logo from '../../assets/images/logo.png';
 import useUserStore from '../../store/userStore.jsx';
+import { logout } from '../../api/auth.jsx';
 
 // 내 정보 페이지
 export default function MyPage() {
-  const { user } = useUserStore();
+  const { user, clearUser } = useUserStore();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      // 서버 로그아웃 실패해도 클라이언트 상태는 정리
+    } finally {
+      clearUser();
+      navigate('/login');
+    }
+  };
+
+  if (!user) return null; // 로그아웃 처리 중 user가 null이 되는 순간 렌더 방지
 
   return (
     <div className="pt-12 pb-32 flex flex-col h-screen bg-white">
@@ -52,7 +66,7 @@ export default function MyPage() {
             </div>
             <button
               className="text-left text-14-rg text-red"
-              onClick={() => console.log('로그아웃')}
+              onClick={handleLogout}
             >
               로그아웃
             </button>
