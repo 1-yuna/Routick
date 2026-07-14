@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import BottomBar from '../../common/bar/BottomBar.jsx';
@@ -24,6 +24,9 @@ const findRegionByName = (regionName) => {
   return null;
 };
 
+// 컴포넌트가 언마운트돼도 유지되는 스크롤 위치 (모듈 레벨)
+let homeScrollTop = 0;
+
 export default function HomePage() {
   const reset = useCourseStore((state) => state.reset);
   const user = useUserStore((state) => state.user);
@@ -40,6 +43,18 @@ export default function HomePage() {
   const [topPlaces, setTopPlaces] = useState([]);
   const [loadingTopPlaces, setLoadingTopPlaces] = useState(true);
   const updateUser = useUserStore((state) => state.updateUser);
+  const scrollRef = useRef(null);
+
+  // 마운트 시 이전 스크롤 위치 복원
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = homeScrollTop;
+    }
+  }, []);
+
+  const handleScroll = (e) => {
+    homeScrollTop = e.currentTarget.scrollTop;
+  };
 
   const navigateToPlaylist = (type) => {
     const params = new URLSearchParams({
@@ -132,7 +147,11 @@ export default function HomePage() {
         }
       />
 
-      <div className="flex flex-col gap-10 overflow-y-auto no-scrollbar">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex flex-col gap-10 overflow-y-auto no-scrollbar"
+      >
         <CourseBanner
           name={user?.nickname}
           image={home}
