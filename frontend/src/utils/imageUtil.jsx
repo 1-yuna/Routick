@@ -6,6 +6,11 @@ const IMAGE_HOST = import.meta.env.VITE_API_BASE_URL.replace(
 
 export const getImageUrl = (path) => {
   if (!path) return null;
-  if (path.startsWith('http')) return path; // 이미 절대경로면 그대로
+  if (
+    path.startsWith('http') ||
+    path.startsWith('blob:') ||
+    path.startsWith('data:')
+  )
+    return path;
   return `${IMAGE_HOST}${path}`;
 };

@@ -14,13 +14,13 @@ import BaseModal from '../../common/modal/BaseModal.jsx';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
-import useMyTripStore from '../../store/myTripStore.jsx';
 import { extractMarkers } from '../../utils/markerUtils.jsx';
 import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
+import { createTrip } from '../../api/trip.jsx';
+import { buildTripCreatePayload } from '../../utils/tripUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
-  const addTrip = useMyTripStore((state) => state.addTrip);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
   const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const navigate = useNavigate();
@@ -54,26 +54,16 @@ export default function ResultPage() {
     selectedDayData
   );
 
-  const handleSave = (title) => {
-    // only 케이스: course.region / endpoint 케이스: startRegion·endRegion
-    const region = course.region
-      ? course.region
-      : course.startRegion === course.endRegion
-        ? course.startRegion
-        : `${course.startRegion} → ${course.endRegion}`;
-
-    const meta = course.meta ?? {};
-
-    addTrip({
-      title: title?.trim() || '나의 여행',
-      region,
-      transport: course.transport === 'car' ? '자동차' : '도보',
-      tags: [...(meta.mood ?? []), ...(meta.activity ?? [])],
-      hashtags: [meta.companion, meta.period].filter(Boolean),
-      course,
-    });
-    setShowTitleModal(false);
-    setShowSaveModal(true);
+  const handleSave = async (title) => {
+    try {
+      const payload = buildTripCreatePayload(course, title);
+      await createTrip(payload);
+      setShowTitleModal(false);
+      setShowSaveModal(true);
+    } catch (e) {
+      setShowTitleModal(false);
+      alert('저장에 실패했어요. 다시 시도해주세요.');
+    }
   };
 
   const handleCheck = (uniqueId) => {

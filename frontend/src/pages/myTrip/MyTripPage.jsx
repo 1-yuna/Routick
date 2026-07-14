@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import TopBar from '../../common/bar/TopBar.jsx';
@@ -10,24 +10,40 @@ import BaseModal from '../../common/modal/BaseModal.jsx';
 import logo from '../../assets/images/logo.png';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useMyTripStore from '../../store/myTripStore.jsx';
+import useCourseStore from '../../store/courseStore.jsx';
+import { getTrips, getTripDetail } from '../../api/trip.jsx';
+import { normalizeCourse } from '../../utils/courseUtils.jsx';
 
-// 내 여행 페이지
 export default function MyTripPage() {
   const trips = useMyTripStore((state) => state.trips);
+  const setTrips = useMyTripStore((state) => state.setTrips);
   const deleteTrips = useMyTripStore((state) => state.deleteTrips);
+  const setCourse = useCourseStore((state) => state.setCourse);
   const navigate = useNavigate();
   const location = useLocation();
   const [isEditing, setIsEditing] = useState(
     location.state?.isEditing ?? false
   );
+  const [loading, setLoading] = useState(true);
 
-  // 새로고침 시 편집모드 진입 방지
   if (location.state?.isEditing) {
     window.history.replaceState({}, '');
   }
   const [checkedTrips, setCheckedTrips] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showDoneModal, setShowDoneModal] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getTrips();
+        setTrips(res.data.data.trips);
+      } catch (e) {
+        setTrips([]); // 실패 시 명시적으로 비움
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [setTrips]);
 
   const handleCheck = (id) => {
     setCheckedTrips((prev) =>
@@ -36,14 +52,23 @@ export default function MyTripPage() {
   };
 
   const handleDelete = () => {
-    deleteTrips(checkedTrips);
+    deleteTrips(checkedTrips); // TODO: 다음 배치에서 DELETE API 연동
     setCheckedTrips([]);
     setShowDeleteModal(false);
   };
 
+  const handleTripClick = async (trip) => {
+    try {
+      const res = await getTripDetail(trip.tripId);
+      setCourse(normalizeCourse(res.data.data));
+      navigate('/result', { state: { from: 'mytrip' } });
+    } catch (e) {
+      alert('여행 정보를 불러오지 못했어요.');
+    }
+  };
+
   return (
     <div className="pt-12 pb-32 flex flex-col h-screen bg-default relative">
-      {/*상단 바*/}
       {isEditing ? (
         <TopBar
           className="px-6"
@@ -66,8 +91,7 @@ export default function MyTripPage() {
         </TopBar>
       )}
 
-      {/*여행 목록*/}
-      {trips.length === 0 ? (
+      {!loading && trips.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-14-rg text-gray2">아직 저장된 여행이 없어요 🥲</p>
         </div>
@@ -78,25 +102,22 @@ export default function MyTripPage() {
           {trips.map((trip) =>
             isEditing ? (
               <EditTripCard
-                key={trip.id}
+                key={trip.tripId}
                 trip={trip}
-                isChecked={checkedTrips.includes(trip.id)}
-                onCheck={() => handleCheck(trip.id)}
+                isChecked={checkedTrips.includes(trip.tripId)}
+                onCheck={() => handleCheck(trip.tripId)}
               />
             ) : (
               <TripCard
-                key={trip.id}
+                key={trip.tripId}
                 trip={trip}
-                onClick={() =>
-                  navigate('/result', { state: { from: 'mytrip' } })
-                }
+                onClick={() => handleTripClick(trip)}
               />
             )
           )}
         </div>
       )}
 
-      {/*삭제 확인 모달*/}
       {showDeleteModal && (
         <BaseModal
           onConfirm={handleDelete}
@@ -109,7 +130,6 @@ export default function MyTripPage() {
         </BaseModal>
       )}
 
-      {/*삭제 버튼*/}
       {isEditing && checkedTrips.length > 0 && (
         <div className="absolute bottom-0 left-0 w-full px-6 pb-[88px]">
           <FullWidthButton

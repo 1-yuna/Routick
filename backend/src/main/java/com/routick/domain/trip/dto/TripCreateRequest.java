@@ -76,6 +76,7 @@ public class TripCreateRequest {
         private Double lat;
         private Double lng;
         private String imageUrl;
+        private String imageData;      // 로컬에서 새로 첨부한 이미지 (data URL, base64) - 있으면 저장 후 imageUrl을 덮어씀
         private String status;
         private String description;
         private Integer stayMinutes;

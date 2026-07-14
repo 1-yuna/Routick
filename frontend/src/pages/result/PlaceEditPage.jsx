@@ -6,6 +6,7 @@ import CameraIcon from '../../assets/icons/camera.svg?react';
 import DownIcon from '../../assets/icons/down.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import PlaceImageDefault from '../../common/imageDefault/PlaceImageDefault.jsx';
+import { getImageUrl } from '../../utils/imageUtil.jsx';
 
 const BUCKET_OPTIONS = [
   { value: 'food', label: '음식' },
@@ -53,6 +54,7 @@ export default function PlaceEditPage() {
   );
   const [description, setDescription] = useState(block?.description ?? '');
   const [src, setSrc] = useState(block?.src ?? null);
+  const [imageFile, setImageFile] = useState(null); // 저장하기 시점에 업로드할 파일
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -71,7 +73,7 @@ export default function PlaceEditPage() {
   const handleDone = () => {
     const updates =
       bucket === 'parking'
-        ? { name, bucket, description, src }
+        ? { name, bucket, description, src, _pendingImageFile: imageFile }
         : {
             name,
             bucket,
@@ -79,6 +81,7 @@ export default function PlaceEditPage() {
             stayMinutes: stayMinutes || 90,
             description,
             src,
+            _pendingImageFile: imageFile,
           };
     updateBlock(block._uid, block.dayNumber, updates);
     goBack();
@@ -104,7 +107,7 @@ export default function PlaceEditPage() {
           <label className="relative w-24 h-24 flex-shrink-0 cursor-pointer">
             {src ? (
               <img
-                src={src}
+                src={getImageUrl(src)}
                 alt="장소 이미지"
                 className="w-24 h-24 object-cover rounded-5"
               />
