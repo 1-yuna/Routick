@@ -19,7 +19,6 @@ function timeToMinutes(time) {
   return h * 60 + m;
 }
 
-// bucket별 기본 체류시간
 const DEFAULT_STAY = {
   cafe: 90,
   food: 90,
@@ -40,13 +39,13 @@ export default function PlaceDetailPage() {
   const place = location.state;
   const [placeDetail, setPlaceDetail] = useState(null);
 
-  // lat/lng이 없는 진입(놀거리 카테고리·지역추천 카드 클릭)만 상세조회로 보강
+  // lat/lng이 없는 진입(놀거리 카테고리·지역추천 카드 클릭)만 GET /places/{placeId}로 상세 보강
   useEffect(() => {
     if (!place?.placeId || (place.lat != null && place.lng != null)) return;
     (async () => {
       try {
         const res = await getPlaceDetail(place.placeId);
-        setPlaceDetail(res.data.data);
+        setPlaceDetail(res.data.data); // { placeId, name, address, lat, lng, imageUrl, description, kakaoUrl }
       } catch (e) {
         // 실패해도 넘어온 기본 정보로만 표시
       }
@@ -60,6 +59,7 @@ export default function PlaceDetailPage() {
   };
   if (!place) return null;
 
+  // placeDetail이 오면 그걸로 덮어씀 - description은 여기서 옴 (list에서 넘어온 longDescription은 fetch 전 임시용)
   const displayPlace = placeDetail
     ? {
         ...place,
@@ -68,7 +68,6 @@ export default function PlaceDetailPage() {
       }
     : place;
 
-  // course.transport 기준 ('car' | 'walk')
   const transport = course.transport ?? 'walk';
 
   const handleAdd = async () => {
@@ -106,7 +105,6 @@ export default function PlaceDetailPage() {
       transport
     );
 
-    // 추가 후 전체 이동시간 재계산
     const updatedDay = useCourseStore
       .getState()
       .course.days.find((d) => d.dayNumber === dayNumber);

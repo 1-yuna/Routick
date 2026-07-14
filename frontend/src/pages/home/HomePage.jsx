@@ -41,6 +41,16 @@ export default function HomePage() {
   const [loadingTopPlaces, setLoadingTopPlaces] = useState(true);
   const updateUser = useUserStore((state) => state.updateUser);
 
+  const navigateToPlaylist = (type) => {
+    const params = new URLSearchParams({
+      type,
+      regionName: region.area.name,
+      lat: region.area.lat,
+      lng: region.area.lng,
+    });
+    navigate(`/playlist?${params.toString()}`);
+  };
+
   // 지역 바뀔 때마다 지역추천 TOP5 재조회
   useEffect(() => {
     setLoadingTopPlaces(true);
@@ -144,9 +154,9 @@ export default function HomePage() {
 
         <PlaySection
           className="px-6 pt-5 pb-12"
-          onHotplace={() => navigate('/playlist?type=hotplace')}
-          onCultureNature={() => navigate('/playlist?type=culture-nature')}
-          onFoodCafe={() => navigate('/playlist?type=food-cafe')}
+          onHotplace={() => navigateToPlaylist('hotplace')}
+          onCultureNature={() => navigateToPlaylist('culture-nature')}
+          onFoodCafe={() => navigateToPlaylist('food-cafe')}
         />
       </div>
 

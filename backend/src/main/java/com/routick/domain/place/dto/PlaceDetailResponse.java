@@ -23,7 +23,7 @@ public record PlaceDetailResponse(
                 item.getLat(),
                 item.getLng(),
                 item.getImageUrl(),
-                item.getLongDescription(),
+                item.getDescription(),
                 KAKAO_MAP_URL + item.getPlaceId());
     }
 }
