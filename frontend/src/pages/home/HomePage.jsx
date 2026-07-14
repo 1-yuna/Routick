@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import BottomBar from '../../common/bar/BottomBar.jsx';
@@ -10,12 +11,11 @@ import home from '../../assets/images/home.png';
 import DownIcon from '../../assets/icons/down.svg?react';
 import useCourseStore from '../../store/selectionStore.jsx';
 import useUserStore from '../../store/userStore.jsx';
-import { useState } from 'react';
 import { REGION_DATA, DEFAULT_REGION } from '../../data/regionData.jsx';
-import { mockTopPlaces } from '../../data/mock/topPlaces.jsx';
 import { updateLocation } from '../../api/user.jsx';
+import { getRecommendations } from '../../api/place.jsx';
+import { getImageUrl } from '../../utils/imageUtil.jsx';
 
-// REGION_DATA에서 regionName으로 {category, area} 찾기 (lastLocation 복원용)
 const findRegionByName = (regionName) => {
   for (const cat of REGION_DATA) {
     const area = cat.areas.find((a) => a.name === regionName);
@@ -24,7 +24,6 @@ const findRegionByName = (regionName) => {
   return null;
 };
 
-// 홈 페이지
 export default function HomePage() {
   const reset = useCourseStore((state) => state.reset);
   const user = useUserStore((state) => state.user);
@@ -38,8 +37,30 @@ export default function HomePage() {
     return DEFAULT_REGION;
   });
   const [showRegionSheet, setShowRegionSheet] = useState(false);
+  const [topPlaces, setTopPlaces] = useState([]);
 
-  // 지역 선택 - 화면 반영 + 서버에 마지막 위치 저장
+  // 지역 바뀔 때마다 지역추천 TOP5 재조회
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getRecommendations(
+          region.area.name,
+          region.area.lat,
+          region.area.lng
+        );
+        const items = res.data.data.items.map((item) => ({
+          src: getImageUrl(item.imageUrl),
+          name: item.title,
+          tags: item.tags,
+          placeId: item.placeId, // 카카오 매칭 실패 시 null
+        }));
+        setTopPlaces(items);
+      } catch (e) {
+        setTopPlaces([]);
+      }
+    })();
+  }, [region.area.name, region.area.lat, region.area.lng]);
+
   const handleSelectRegion = (newRegion) => {
     setRegion(newRegion);
     updateLocation(
@@ -47,6 +68,18 @@ export default function HomePage() {
       newRegion.area.lat,
       newRegion.area.lng
     ).catch(() => {});
+  };
+
+  const handleTopPlaceClick = (item) => {
+    if (!item.placeId) return;
+    navigate(`/place/${item.placeId}`, {
+      state: {
+        placeId: item.placeId,
+        name: item.name,
+        src: item.src,
+        from: 'home',
+      },
+    });
   };
 
   return (
@@ -88,7 +121,8 @@ export default function HomePage() {
           name={user?.nickname}
           area={region.area.name}
           className="pl-6"
-          items={mockTopPlaces}
+          items={topPlaces}
+          onClick={handleTopPlaceClick}
         />
 
         <PlaySection
