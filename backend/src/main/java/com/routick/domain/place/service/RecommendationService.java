@@ -31,18 +31,20 @@ public class RecommendationService {
     private static final int BLOG_COUNT = 10;          // 수집할 블로그 수
     private static final int TOP_COUNT = 5;            // 추천 장소 수
     private static final int MATCH_RADIUS_M = 5000;    // 카카오 매칭 반경 (지역 중심 기준 5km)
+    private static final int MIN_COUNT = 2;   // 최소 확보 개수
 
     private static final String SYSTEM_PROMPT = """
-            너는 여행 트렌드 분석가야. 블로그 글들에서 이 지역을 대표하는 명물을 추출해.
-            명물이란: 그 지역 하면 떠오르는 유명 먹거리, 특산물, 전통시장, 대표 맛집 같은 것.
-            반드시 아래 JSON 형식으로만 응답해:
-            {"places": [{"title": "장소명", "reason": "추천 이유 (30자 이내)", "tags": ["태그1", "태그2"]}]}
-            규칙:
-            - 정확히 %d개 추출, 언급 빈도가 높고 긍정적인 곳 우선
-            - title은 검색 가능한 실제 상호명으로 (블로그에 적힌 그대로)
-            - 단순히 요즘 유행하는 카페 같은 곳보다 지역 대표성이 있는 곳 우선
-            - 광고성 글로 보이는 장소는 제외
-            """.formatted(TOP_COUNT);
+        너는 여행 트렌드 분석가야. 블로그 글들에서 이 지역을 대표하는 명물을 추출해.
+        명물이란: 그 지역 하면 떠오르는 특정 가게·시장·브랜드의 대표 메뉴/상품이야.
+        예: "대림창고", "성수족발", "구제시장 꽈배기" (O) / "성수동 카페", "성수동 맛집", "성수동 전통시장" (X, 카테고리명이라 안 됨)
+        반드시 아래 JSON 형식으로만 응답해:
+        {"places": [{"title": "장소명", "reason": "추천 이유 (30자 이내)", "tags": ["태그1", "태그2"]}]}
+        규칙:
+        - 최소 %d개, 최대 %d개. 구체적인 상호명이 확인되는 곳만 골라 (억지로 개수를 채우지 말되, 최소 개수는 꼭 채울 것)
+        - title은 검색 가능한 실제 상호명으로 (지역명+업종만 있는 뭉뚱그린 이름 금지)
+        - 언급 빈도가 높고 긍정적인 곳, 지역 대표성이 있는 곳 우선
+        - 광고성 글로 보이는 장소는 제외
+        """.formatted(MIN_COUNT, TOP_COUNT);
 
     private final LocalRecommendationRepository recommendationRepository;
     private final NaverBlogClient naverBlogClient;
@@ -69,7 +71,7 @@ public class RecommendationService {
     // 갱신 파이프라인: 블로그 수집 → LLM 추출 → 카카오 매칭 → 구글 이미지 → 저장
     private LocalRecommendation refresh(LocalRecommendation existing, String regionName, Double lat, Double lng) {
         // ① 블로그 snippet 수집 — 지역 "명물" 발굴용
-        String query = regionName + " 유명한 먹거리 특산물 명물 추천";
+        String query = regionName + "top5";
         List<String> snippets = naverBlogClient.searchSnippets(query, BLOG_COUNT);
 
         // ② LLM으로 장소 추출
