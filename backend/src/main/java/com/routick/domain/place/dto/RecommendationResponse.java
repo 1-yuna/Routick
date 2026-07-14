@@ -14,11 +14,13 @@ public record RecommendationResponse(String regionName, List<Item> items) {
             String imageUrl,
             String reason,
             List<String> tags,
-            String placeId      // 카카오 매칭 실패 시 null → 프론트에서 클릭 불가 처리
+            String placeId,     // 카카오 매칭 실패 시 null → 프론트에서 클릭 불가 처리
+             Double lat,           // 매칭 실패 시 null
+            Double lng
     ) {
         public static Item from(RecommendationItem item) {
             return new Item(item.getRank(), item.getTitle(), item.getImageUrl(),
-                    item.getReason(), item.getTag(), item.getPlaceId());
+                    item.getReason(), item.getTag(), item.getPlaceId(), item.getLat(), item.getLng());
         }
     }
 

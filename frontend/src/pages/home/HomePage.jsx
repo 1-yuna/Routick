@@ -56,6 +56,8 @@ export default function HomePage() {
           name: item.title,
           tags: item.tags,
           placeId: item.placeId,
+          lat: item.lat,
+          lng: item.lng,
         }));
         setTopPlaces(items);
       } catch (e) {
@@ -89,6 +91,8 @@ export default function HomePage() {
         placeId: item.placeId,
         name: item.name,
         src: item.src,
+        lat: item.lat,
+        lng: item.lng,
         from: 'home',
       },
     });

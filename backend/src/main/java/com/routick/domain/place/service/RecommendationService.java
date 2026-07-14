@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 // 지역추천 TOP5: 30일 캐시 + 갱신 파이프라인 (블로그 → LLM → 카카오 매칭 → 구글 이미지)
 @Slf4j
@@ -106,12 +107,11 @@ public class RecommendationService {
                 String title = place.path("title").asText(null);
                 if (title == null || title.isBlank()) continue;
 
-                // ③ 카카오 매칭 (실패 시 placeId null — 상세 이동만 불가)
-                String placeId = kakaoLocalClient.searchFirst(title, lat, lng, MATCH_RADIUS_M)
-                        .map(KakaoLocalClient.KakaoPlace::placeId)
-                        .orElse(null);
+                // ③ 카카오 매칭 (실패 시 placeId/lat/lng 모두 null — 상세 이동·지도 표시만 불가)
+                Optional<KakaoLocalClient.KakaoPlace> matched =
+                        kakaoLocalClient.searchFirst(title, lat, lng, MATCH_RADIUS_M);
 
-                // ④ 구글 이미지 (실패 시 null — 플레이스홀더 렌더링)
+// ④ 구글 이미지 (실패 시 null — 플레이스홀더 렌더링)
                 String imageUrl = googlePlacesClient.findImageUrl(title).orElse(null);
 
                 List<String> tags = new ArrayList<>();
@@ -122,7 +122,9 @@ public class RecommendationService {
                         .reason(place.path("reason").asText(null))
                         .tag(tags)
                         .imageUrl(imageUrl)
-                        .placeId(placeId)
+                        .placeId(matched.map(KakaoLocalClient.KakaoPlace::placeId).orElse(null))
+                        .lat(matched.map(KakaoLocalClient.KakaoPlace::lat).orElse(null))
+                        .lng(matched.map(KakaoLocalClient.KakaoPlace::lng).orElse(null))
                         .rank(rank++)
                         .build());
             }
