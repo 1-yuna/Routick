@@ -11,7 +11,7 @@ import logo from '../../assets/images/logo.png';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useMyTripStore from '../../store/myTripStore.jsx';
 import useCourseStore from '../../store/courseStore.jsx';
-import { getTrips, getTripDetail } from '../../api/trip.jsx';
+import { getTrips, getTripDetail, deleteTrip } from '../../api/trip.jsx';
 import { normalizeCourse } from '../../utils/courseUtils.jsx';
 
 export default function MyTripPage() {
@@ -51,10 +51,16 @@ export default function MyTripPage() {
     );
   };
 
-  const handleDelete = () => {
-    deleteTrips(checkedTrips); // TODO: 다음 배치에서 DELETE API 연동
-    setCheckedTrips([]);
-    setShowDeleteModal(false);
+  const handleDelete = async () => {
+    try {
+      await Promise.all(checkedTrips.map((id) => deleteTrip(id)));
+      deleteTrips(checkedTrips);
+    } catch (e) {
+      alert('삭제에 실패했어요. 다시 시도해주세요.');
+    } finally {
+      setCheckedTrips([]);
+      setShowDeleteModal(false);
+    }
   };
 
   const handleTripClick = async (trip) => {
