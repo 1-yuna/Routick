@@ -39,6 +39,7 @@ export default function HomePage() {
   const [showRegionSheet, setShowRegionSheet] = useState(false);
   const [topPlaces, setTopPlaces] = useState([]);
   const [loadingTopPlaces, setLoadingTopPlaces] = useState(true);
+  const updateUser = useUserStore((state) => state.updateUser);
 
   // 지역 바뀔 때마다 지역추천 TOP5 재조회
   useEffect(() => {
@@ -67,6 +68,13 @@ export default function HomePage() {
 
   const handleSelectRegion = (newRegion) => {
     setRegion(newRegion);
+    updateUser({
+      lastLocation: {
+        regionName: newRegion.area.name,
+        lat: newRegion.area.lat,
+        lng: newRegion.area.lng,
+      },
+    });
     updateLocation(
       newRegion.area.name,
       newRegion.area.lat,
