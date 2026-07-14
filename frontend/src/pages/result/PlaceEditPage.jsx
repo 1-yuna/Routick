@@ -19,6 +19,7 @@ const STATUS_OPTIONS = [
   { value: '영업 중', label: '영업 중' },
   { value: '브레이크 타임', label: '브레이크 타임' },
   { value: '휴무', label: '휴무' },
+  { value: '정보 없음', label: '정보 없음' },
 ];
 
 const STAY_OPTIONS = [
