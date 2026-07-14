@@ -54,7 +54,6 @@ export default function PlaceEditPage() {
   );
   const [description, setDescription] = useState(block?.description ?? '');
   const [src, setSrc] = useState(block?.src ?? null);
-  const [imageFile, setImageFile] = useState(null); // 저장하기 시점에 업로드할 파일
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -73,7 +72,7 @@ export default function PlaceEditPage() {
   const handleDone = () => {
     const updates =
       bucket === 'parking'
-        ? { name, bucket, description, src, _pendingImageFile: imageFile }
+        ? { name, bucket, description, src }
         : {
             name,
             bucket,
@@ -81,7 +80,6 @@ export default function PlaceEditPage() {
             stayMinutes: stayMinutes || 90,
             description,
             src,
-            _pendingImageFile: imageFile,
           };
     updateBlock(block._uid, block.dayNumber, updates);
     goBack();

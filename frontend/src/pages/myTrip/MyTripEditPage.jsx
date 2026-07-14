@@ -5,6 +5,7 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 import CameraIcon from '../../assets/icons/camera.svg?react';
 import BaseModal from '../../common/modal/BaseModal.jsx';
 import useMyTripStore from '../../store/myTripStore.jsx';
+import { getImageUrl } from '../../utils/imageUtil.jsx';
 
 export default function MyTripEditPage() {
   const location = useLocation();
@@ -15,7 +16,7 @@ export default function MyTripEditPage() {
   const updateTripImage = useMyTripStore((state) => state.updateTripImage);
 
   const [title, setTitle] = useState(trip?.title ?? '');
-  const [src, setSrc] = useState(trip?.src ?? null);
+  const [src, setSrc] = useState(getImageUrl(trip?.coverImageUrl));
   const [showSaveModal, setShowSaveModal] = useState(false);
 
   if (!trip) return null;
@@ -28,8 +29,8 @@ export default function MyTripEditPage() {
   };
 
   const handleSave = () => {
-    updateTripTitle(trip.id, title);
-    updateTripImage(trip.id, src);
+    updateTripTitle(trip.tripId, title);
+    updateTripImage(trip.tripId, src);
     setShowSaveModal(false);
     navigate('/mytrip', { state: { isEditing: true } });
   };
