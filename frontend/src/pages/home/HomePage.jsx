@@ -15,6 +15,7 @@ import { REGION_DATA, DEFAULT_REGION } from '../../data/regionData.jsx';
 import { updateLocation } from '../../api/user.jsx';
 import { getRecommendations } from '../../api/place.jsx';
 import { getImageUrl } from '../../utils/imageUtil.jsx';
+import { prefetchPlaceList } from '../../utils/placeListCache.jsx';
 
 const findRegionByName = (regionName) => {
   for (const cat of REGION_DATA) {
@@ -23,6 +24,8 @@ const findRegionByName = (regionName) => {
   }
   return null;
 };
+
+const PLAYLIST_CATEGORIES = ['HOTPLACE', 'CULTURE_NATURE', 'FOOD_CAFE'];
 
 // 컴포넌트가 언마운트돼도 유지되는 스크롤 위치 (모듈 레벨)
 let homeScrollTop = 0;
@@ -45,7 +48,6 @@ export default function HomePage() {
   const updateUser = useUserStore((state) => state.updateUser);
   const scrollRef = useRef(null);
 
-  // 마운트 시 이전 스크롤 위치 복원
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = homeScrollTop;
@@ -91,6 +93,18 @@ export default function HomePage() {
         setLoadingTopPlaces(false);
       }
     })();
+  }, [region.area.name, region.area.lat, region.area.lng]);
+
+  // 놀거리 3개 카테고리 미리 조회 (목록 페이지 진입 시 대기시간 없애기)
+  useEffect(() => {
+    PLAYLIST_CATEGORIES.forEach((category) =>
+      prefetchPlaceList(
+        category,
+        region.area.name,
+        region.area.lat,
+        region.area.lng
+      )
+    );
   }, [region.area.name, region.area.lat, region.area.lng]);
 
   const handleSelectRegion = (newRegion) => {

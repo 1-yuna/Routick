@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../../common/bar/TopBar.jsx';
 import HotPlaceItem from '../../components/home/PlaceItem.jsx';
 import LeftIcon from '../../assets/icons/left.svg?react';
-import { getPlaceList } from '../../api/place.jsx';
+import { getCachedPlaceList } from '../../utils/placeListCache.jsx';
 import { getImageUrl } from '../../utils/imageUtil.jsx';
 
 const TITLE_MAP = {
@@ -19,7 +19,6 @@ const CATEGORY_MAP = {
   'food-cafe': 'FOOD_CAFE',
 };
 
-// 놀거리 추천 페이지 - type(hotplace/culture-nature/food-cafe)에 따라 다른 장소 목록 표시
 export default function PlayListPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -36,33 +35,28 @@ export default function PlayListPage() {
   useEffect(() => {
     if (!regionName || !lat || !lng) return;
     setLoading(true);
-    (async () => {
-      try {
-        const res = await getPlaceList(category, regionName, lat, lng);
-        const items = res.data.data.items.map((item) => ({
-          placeId: item.placeId,
-          name: item.name,
-          longDescription: item.longDescription,
-          address: item.address,
-          src: getImageUrl(item.imageUrl),
-        }));
-        setPlaces(items);
-      } catch (e) {
-        setPlaces([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    getCachedPlaceList(category, regionName, lat, lng)
+      .then((items) => {
+        setPlaces(
+          items.map((item) => ({
+            placeId: item.placeId,
+            name: item.name,
+            longDescription: item.longDescription,
+            address: item.address,
+            src: getImageUrl(item.imageUrl),
+          }))
+        );
+      })
+      .catch(() => setPlaces([]))
+      .finally(() => setLoading(false));
   }, [category, regionName, lat, lng]);
 
   return (
     <div className="px-6 pt-12 flex flex-col h-screen bg-white">
-      {/*상단 바*/}
       <TopBar className="bg-white" title={title} onClick={() => navigate(-1)}>
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
 
-      {/*장소 목록*/}
       <div className="overflow-y-auto flex flex-col no-scrollbar">
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (
