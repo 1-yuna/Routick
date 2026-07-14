@@ -19,3 +19,7 @@ export const updateTrip = (tripId, title, coverImageFile) => {
 
 // 여행 삭제
 export const deleteTrip = (tripId) => api.delete(`/trips/${tripId}`);
+
+// 여행 일정 수정 (전체 교체)
+export const updateTripDays = (tripId, payload) =>
+  api.put(`/trips/${tripId}/days`, payload);

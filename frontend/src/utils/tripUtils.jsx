@@ -16,3 +16,8 @@ export const buildTripCreatePayload = (course, title) => {
   }
   return payload;
 };
+
+export const buildTripDaysUpdatePayload = (course) => {
+  const { days } = denormalizeCourse(course);
+  return { days };
+};

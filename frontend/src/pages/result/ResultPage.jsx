@@ -16,8 +16,11 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import { extractMarkers } from '../../utils/markerUtils.jsx';
 import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
-import { createTrip } from '../../api/trip.jsx';
-import { buildTripCreatePayload } from '../../utils/tripUtils.jsx';
+import { createTrip, updateTripDays } from '../../api/trip.jsx';
+import {
+  buildTripCreatePayload,
+  buildTripDaysUpdatePayload,
+} from '../../utils/tripUtils.jsx';
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
@@ -31,6 +34,7 @@ export default function ResultPage() {
   const [selectedDay, setSelectedDay] = useState(1);
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const isEditing = useCourseStore((state) => state.isEditing);
   const setIsEditing = useCourseStore((state) => state.setIsEditing);
   const [checkedBlocks, setCheckedBlocks] = useState([]);
@@ -42,7 +46,6 @@ export default function ResultPage() {
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
   const selectedBlocks = selectedDayData?.blocks ?? [];
 
-  // 편집 모드에서 pendingLocalDays 있으면 그 기준으로 마커 계산
   const pendingDayData = pendingLocalDays?.find(
     (d) => d.dayNumber === selectedDay
   );
@@ -54,6 +57,7 @@ export default function ResultPage() {
     selectedDayData
   );
 
+  // 저장 (새로 생성한 코스 - POST /trips)
   const handleSave = async (title) => {
     try {
       const payload = buildTripCreatePayload(course, title);
@@ -66,6 +70,17 @@ export default function ResultPage() {
     }
   };
 
+  // 수정 (저장된 여행 - PUT /trips/{tripId}/days), 제목은 이미 있으므로 모달 없이 바로 호출
+  const handleUpdateTrip = async () => {
+    try {
+      const payload = buildTripDaysUpdatePayload(course);
+      await updateTripDays(course.tripId, payload);
+      setShowUpdateModal(true);
+    } catch (e) {
+      alert('수정에 실패했어요. 다시 시도해주세요.');
+    }
+  };
+
   const handleCheck = (uniqueId) => {
     setCheckedBlocks((prev) =>
       prev.includes(uniqueId)
@@ -74,7 +89,6 @@ export default function ResultPage() {
     );
   };
 
-  // 완료 버튼 - 전체 재계산 (장소간 거리, 번호, 시작시간 09:00 고정)
   const handleEditDone = async () => {
     const source = pendingLocalDays ?? course.days;
 
@@ -84,14 +98,10 @@ export default function ResultPage() {
       );
       if (!dayData) continue;
 
-      // pendingLocalDays는 place/parking만 있음 (_uid 제거)
-      // walk는 recalc가 알아서 재삽입하므로 visible 블록만 추림
       const visibleBlocks = localDay.blocks
         .filter((b) => b.type === 'place' || b.type === 'parking')
         .map(({ _uid, ...rest }) => rest);
 
-      // start/end 좌표를 임시 블록으로 앞뒤에 추가
-      // recalcTransportUtils에서 첫/마지막 블록의 이전/다음 좌표 참조에 사용
       const startBlock = dayData.start
         ? {
             type: 'place',
@@ -120,7 +130,6 @@ export default function ResultPage() {
         course.transport
       );
 
-      // anchor 블록 제거 후 blockOrder 재정렬 (anchor가 차지했던 순번 메꾸기)
       const withoutAnchors = recalculated
         .filter((b) => !b._isAnchor)
         .map((block, idx) => ({ ...block, blockOrder: idx + 1 }));
@@ -133,15 +142,12 @@ export default function ResultPage() {
     setPendingLocalDays(null);
   };
 
-  // 뒤로가기 버튼 - 순서변경 취소 (store 반영 안 함)
   const handleEditCancel = () => {
     setIsEditing(false);
     setCheckedBlocks([]);
     setPendingLocalDays(null);
   };
 
-  // 드래그 중/종료 - store 반영 안 하고 pendingLocalDays에만 저장
-  // 완료 버튼 눌러야 store 반영
   const handleDragEnd = (newLocalDays) => {
     setPendingLocalDays(newLocalDays);
   };
@@ -161,6 +167,11 @@ export default function ResultPage() {
       {showSaveModal && (
         <SaveCompleteModal onConfirm={() => navigate('/home')} />
       )}
+      {showUpdateModal && (
+        <BaseModal confirmOnly onConfirm={() => navigate('/mytrip')}>
+          <p className="text-14-sb text-black1">수정되었습니다</p>
+        </BaseModal>
+      )}
       {showDeleteModal && (
         <BaseModal
           onConfirm={() => {
@@ -177,12 +188,18 @@ export default function ResultPage() {
 
       {showExitModal && (
         <BaseModal
-          onConfirm={() => navigate('/home')}
+          onConfirm={() => navigate(fromMyTrip ? -1 : '/home')}
           onCancel={() => setShowExitModal(false)}
         >
-          <p className="text-14-sb text-black1">이 화면을 나가시겠어요?</p>
+          <p className="text-14-sb text-black1">
+            {fromMyTrip
+              ? '수정하지 않고 나가시겠어요?'
+              : '이 화면을 나가시겠어요?'}
+          </p>
           <p className="text-12-rg text-gray2">
-            저장하지 않으면 이 일정은 사라져요
+            {fromMyTrip
+              ? '수정하지 않으면 변경사항이 사라져요'
+              : '저장하지 않으면 이 일정은 사라져요'}
           </p>
         </BaseModal>
       )}
@@ -201,7 +218,7 @@ export default function ResultPage() {
         </div>
       ) : (
         <MapTopBar
-          onClick={() => (fromMyTrip ? navigate(-1) : setShowExitModal(true))}
+          onClick={() => setShowExitModal(true)}
           icon={fromMyTrip ? LeftIcon : CancelIcon}
         />
       )}
@@ -295,7 +312,10 @@ export default function ResultPage() {
                 })
               }
               onEdit={() => setIsEditing(true)}
-              onSave={() => setShowTitleModal(true)}
+              onSave={
+                fromMyTrip ? handleUpdateTrip : () => setShowTitleModal(true)
+              }
+              saveLabel={fromMyTrip ? '수정하기' : '저장하기'}
             />
           </div>
         )}
