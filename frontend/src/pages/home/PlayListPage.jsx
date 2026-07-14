@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import TopBar from '../../common/bar/TopBar.jsx';
@@ -19,6 +19,9 @@ const CATEGORY_MAP = {
   'food-cafe': 'FOOD_CAFE',
 };
 
+// type별 스크롤 위치 (모듈 레벨, 언마운트돼도 유지)
+const scrollPositions = {};
+
 export default function PlayListPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -31,10 +34,10 @@ export default function PlayListPage() {
 
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     if (!regionName || !lat || !lng) return;
-    setLoading(true);
     getCachedPlaceList(category, regionName, lat, lng)
       .then((items) => {
         setPlaces(
@@ -50,6 +53,16 @@ export default function PlayListPage() {
       .catch(() => setPlaces([]))
       .finally(() => setLoading(false));
   }, [category, regionName, lat, lng]);
+  // 실제 목록이 렌더된 뒤(로딩 끝난 뒤) 이전 스크롤 위치 복원
+  useEffect(() => {
+    if (!loading && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollPositions[type] ?? 0;
+    }
+  }, [loading, type]);
+
+  const handleScroll = (e) => {
+    scrollPositions[type] = e.currentTarget.scrollTop;
+  };
 
   return (
     <div className="px-6 pt-12 flex flex-col h-screen bg-white">
@@ -57,7 +70,11 @@ export default function PlayListPage() {
         <LeftIcon className="w-5 h-10 text-primary" />
       </TopBar>
 
-      <div className="overflow-y-auto flex flex-col no-scrollbar">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="overflow-y-auto flex flex-col no-scrollbar"
+      >
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex gap-4 py-4 border-b border-line1">
