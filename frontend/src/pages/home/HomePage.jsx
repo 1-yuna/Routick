@@ -38,9 +38,11 @@ export default function HomePage() {
   });
   const [showRegionSheet, setShowRegionSheet] = useState(false);
   const [topPlaces, setTopPlaces] = useState([]);
+  const [loadingTopPlaces, setLoadingTopPlaces] = useState(true);
 
   // 지역 바뀔 때마다 지역추천 TOP5 재조회
   useEffect(() => {
+    setLoadingTopPlaces(true);
     (async () => {
       try {
         const res = await getRecommendations(
@@ -52,11 +54,13 @@ export default function HomePage() {
           src: getImageUrl(item.imageUrl),
           name: item.title,
           tags: item.tags,
-          placeId: item.placeId, // 카카오 매칭 실패 시 null
+          placeId: item.placeId,
         }));
         setTopPlaces(items);
       } catch (e) {
         setTopPlaces([]);
+      } finally {
+        setLoadingTopPlaces(false);
       }
     })();
   }, [region.area.name, region.area.lat, region.area.lng]);
@@ -122,6 +126,7 @@ export default function HomePage() {
           area={region.area.name}
           className="pl-6"
           items={topPlaces}
+          loading={loadingTopPlaces}
           onClick={handleTopPlaceClick}
         />
 
