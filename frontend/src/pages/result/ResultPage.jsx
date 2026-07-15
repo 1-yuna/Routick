@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import KakaoMap from '../../common/map/KakaoMap.jsx';
 import MapTopBar from '../../common/bar/MapTopBar.jsx';
@@ -22,6 +22,11 @@ import {
   buildTripDaysUpdatePayload,
 } from '../../utils/tripUtils.jsx';
 
+// 언마운트돼도 유지되는 화면 상태 (장소 상세로 갔다가 돌아와도 고정되게)
+let resultSheetY = 400;
+let resultSelectedDay = 1;
+let resultScrollTop = 0;
+
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
@@ -30,8 +35,8 @@ export default function ResultPage() {
   const location = useLocation();
   const fromMyTrip = location.state?.from === 'mytrip';
 
-  const [sheetY, setSheetY] = useState(400);
-  const [selectedDay, setSelectedDay] = useState(1);
+  const [sheetY, setSheetY] = useState(resultSheetY);
+  const [selectedDay, setSelectedDay] = useState(resultSelectedDay);
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -42,6 +47,15 @@ export default function ResultPage() {
   const [showExitModal, setShowExitModal] = useState(false);
   // 순서변경 임시 저장 - 완료 누를 때만 store 반영
   const [pendingLocalDays, setPendingLocalDays] = useState(null);
+
+  // sheetY/selectedDay 바뀔 때마다 모듈 변수에 동기화 (setState 호출 아니라서 lint 규칙 안 걸림)
+  useEffect(() => {
+    resultSheetY = sheetY;
+  }, [sheetY]);
+
+  useEffect(() => {
+    resultSelectedDay = selectedDay;
+  }, [selectedDay]);
 
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
   const selectedBlocks = selectedDayData?.blocks ?? [];
@@ -268,6 +282,10 @@ export default function ResultPage() {
         initialHeight={400}
         snapPoints={[100, 400, 700]}
         maxHeightPercent={75}
+        initialScrollTop={resultScrollTop}
+        onContentScroll={(top) => {
+          resultScrollTop = top;
+        }}
         footer={
           isEditing && checkedBlocks.length > 0 ? (
             <FullWidthButton

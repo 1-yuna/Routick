@@ -10,6 +10,8 @@ export default function BottomSheet({
   maxHeightPercent,
   children,
   footer,
+  initialScrollTop = 0,
+  onContentScroll,
 }) {
   const contentRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -34,6 +36,14 @@ export default function BottomSheet({
     },
     [sortedSnapPoints]
   );
+
+  // 마운트 시 이전 스크롤 위치 복원
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = initialScrollTop;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 드래그 시작
   const handleDragStart = (e) => {
@@ -113,6 +123,7 @@ export default function BottomSheet({
       {/*바디 - 스크롤 가능한 컨텐츠 영역*/}
       <div
         ref={contentRef}
+        onScroll={(e) => onContentScroll?.(e.currentTarget.scrollTop)}
         className={`px-6 overflow-y-auto flex-1 ${footer ? 'pb-8' : 'pb-[88px]'}`}
       >
         {children}
