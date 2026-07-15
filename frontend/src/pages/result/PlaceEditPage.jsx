@@ -6,6 +6,7 @@ import CameraIcon from '../../assets/icons/camera.svg?react';
 import DownIcon from '../../assets/icons/down.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
 import PlaceImageDefault from '../../common/imageDefault/PlaceImageDefault.jsx';
+import { getImageUrl } from '../../utils/imageUtil.jsx';
 
 const BUCKET_OPTIONS = [
   { value: 'food', label: '음식' },
@@ -19,6 +20,7 @@ const STATUS_OPTIONS = [
   { value: '영업 중', label: '영업 중' },
   { value: '브레이크 타임', label: '브레이크 타임' },
   { value: '휴무', label: '휴무' },
+  { value: '정보 없음', label: '정보 없음' },
 ];
 
 const STAY_OPTIONS = [
@@ -103,7 +105,7 @@ export default function PlaceEditPage() {
           <label className="relative w-24 h-24 flex-shrink-0 cursor-pointer">
             {src ? (
               <img
-                src={src}
+                src={getImageUrl(src)}
                 alt="장소 이미지"
                 className="w-24 h-24 object-cover rounded-5"
               />

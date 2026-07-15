@@ -5,6 +5,8 @@ import LeftIcon from '../../assets/icons/left.svg?react';
 import CameraIcon from '../../assets/icons/camera.svg?react';
 import BaseModal from '../../common/modal/BaseModal.jsx';
 import useMyTripStore from '../../store/myTripStore.jsx';
+import { getImageUrl } from '../../utils/imageUtil.jsx';
+import { updateTrip } from '../../api/trip.jsx';
 
 export default function MyTripEditPage() {
   const location = useLocation();
@@ -15,7 +17,8 @@ export default function MyTripEditPage() {
   const updateTripImage = useMyTripStore((state) => state.updateTripImage);
 
   const [title, setTitle] = useState(trip?.title ?? '');
-  const [src, setSrc] = useState(trip?.src ?? null);
+  const [src, setSrc] = useState(getImageUrl(trip?.coverImageUrl));
+  const [coverImageFile, setCoverImageFile] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
 
   if (!trip) return null;
@@ -23,15 +26,24 @@ export default function MyTripEditPage() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const imageUrl = URL.createObjectURL(file);
-    setSrc(imageUrl);
+    setCoverImageFile(file);
+    setSrc(URL.createObjectURL(file));
   };
 
-  const handleSave = () => {
-    updateTripTitle(trip.id, title);
-    updateTripImage(trip.id, src);
-    setShowSaveModal(false);
-    navigate('/mytrip', { state: { isEditing: true } });
+  const handleSave = async () => {
+    try {
+      const finalTitle = title.trim() || trip.title;
+      const res = await updateTrip(trip.tripId, finalTitle, coverImageFile);
+      const updated = res.data.data; // { tripId, title, coverImageUrl }
+      updateTripTitle(updated.tripId, updated.title);
+      if (updated.coverImageUrl)
+        updateTripImage(updated.tripId, updated.coverImageUrl);
+      setShowSaveModal(false);
+      navigate('/mytrip', { state: { isEditing: true } });
+    } catch (e) {
+      setShowSaveModal(false);
+      alert('저장에 실패했어요. 다시 시도해주세요.');
+    }
   };
 
   return (

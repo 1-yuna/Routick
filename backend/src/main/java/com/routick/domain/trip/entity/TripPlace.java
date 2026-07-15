@@ -68,4 +68,9 @@ public class TripPlace {
 
     private LocalTime arriveTime;
     private LocalTime leaveTime;
+
+    // 저장 시점에 업로드된 이미지 URL 반영
+    public void updateImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 }

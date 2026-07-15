@@ -1,4 +1,5 @@
 import PlaceImageDefault from '../../../common/imageDefault/PlaceImageDefault.jsx';
+import { getImageUrl } from '../../../utils/imageUtil.jsx';
 
 const STATUS_COLOR = {
   '영업 중': 'text-green',
@@ -42,7 +43,7 @@ export default function CourseItem({ block, onCardClick }) {
         >
           {block.src ? (
             <img
-              src={block.src}
+              src={getImageUrl(block.src)}
               alt={block.name}
               className="w-20 h-20 rounded-5 object-cover flex-shrink-0"
             />

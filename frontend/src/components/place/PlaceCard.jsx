@@ -1,4 +1,5 @@
 import PlaceImageDefault from '../../common/imageDefault/PlaceImageDefault.jsx';
+import { getImageUrl } from '../../utils/imageUtil.jsx';
 
 // 장소 상세보기 - 하단 카드 (이미지, 이름, 설명, 카카오맵 바로가기)
 export default function PlaceCard({ place }) {
@@ -10,7 +11,7 @@ export default function PlaceCard({ place }) {
         {/*이미지 - 없으면 기본 이미지*/}
         {src ? (
           <img
-            src={src}
+            src={getImageUrl(src)}
             alt="장소 이미지"
             className="w-24 h-24 object-cover rounded-5"
           />

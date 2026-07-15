@@ -12,6 +12,7 @@ export default function RegionSelectSheet({
 
   const activeRegion = regions.find((r) => r.category === activeCategory);
 
+  // area = { name, lat, lng } 객체 통째로 전달 (위치 저장 API에 좌표 필요)
   const handleSelectArea = (area) => {
     onSelect({ category: activeCategory, area });
     onClose();
@@ -58,16 +59,17 @@ export default function RegionSelectSheet({
           <div className="flex-1 px-6 overflow-y-auto no-scrollbar">
             {activeRegion?.areas.map((area) => {
               const isSelected =
-                selected.category === activeCategory && selected.area === area;
+                selected.category === activeCategory &&
+                selected.area?.name === area.name;
               return (
                 <button
-                  key={area}
+                  key={area.name}
                   onClick={() => handleSelectArea(area)}
                   className={`w-full h-14 flex items-center text-left border-b border-line1 text-14-sb ${
                     isSelected ? 'text-primary' : 'text-black1'
                   }`}
                 >
-                  {area}
+                  {area.name}
                 </button>
               );
             })}

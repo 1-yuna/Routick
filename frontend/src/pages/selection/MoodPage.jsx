@@ -11,9 +11,9 @@ export default function MoodPage() {
   const navigate = useNavigate();
 
   const MOOD_OPTIONS = [
-    { label: '활기찬', value: 'energetic' },
+    { label: '활기찬', value: 'active' },
     { label: '힐링', value: 'healing' },
-    { label: '감성', value: 'emotional' },
+    { label: '감성', value: 'sensibility' },
     { label: '조용한', value: 'quiet' },
     { label: '따뜻한', value: 'warm' },
     { label: '로맨틱', value: 'romantic' },

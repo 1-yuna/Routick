@@ -4,6 +4,10 @@ import com.routick.domain.course.entity.Preference;
 import com.routick.domain.course.repository.PreferenceRepository;
 import com.routick.domain.trip.dto.*;
 import com.routick.domain.trip.entity.Trip;
+import com.routick.domain.trip.entity.TripDay;
+import com.routick.domain.trip.entity.TripImage;
+import com.routick.domain.trip.entity.TripPlace;
+import com.routick.domain.trip.repository.TripImageRepository;
 import com.routick.domain.trip.repository.TripRepository;
 import com.routick.domain.user.entity.User;
 import com.routick.domain.user.repository.UserRepository;
@@ -16,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -25,6 +30,7 @@ public class TripService {
     private final TripRepository tripRepository;
     private final PreferenceRepository preferenceRepository;
     private final UserRepository userRepository;
+    private final TripImageRepository tripImageRepository;
     private final TripMapper tripMapper;
     private final FileStore fileStore;
 
@@ -53,8 +59,53 @@ public class TripService {
 
         request.getDays().forEach(d -> trip.getDays().add(tripMapper.buildDay(trip, d)));
 
-        Trip saved = tripRepository.save(trip);
+        Trip saved = tripRepository.save(trip);   // 여기서 TripDay/TripPlace까지 cascade INSERT, id 생성됨
+
+        saveTripImages(request.getDays(), saved.getDays());
+
         return new TripCreateResponse(saved.getId());
+    }
+
+    // 요청의 blocks[].imageData(base64)를 저장된 TripPlace.id로 TripImage에 저장하고 image_url 갱신
+    // dayDtos와 days는 buildDay() 호출 순서와 동일한 순서로 쌍을 이룸
+    private void saveTripImages(List<TripCreateRequest.DayDto> dayDtos, List<TripDay> days) {
+        for (int i = 0; i < dayDtos.size(); i++) {
+            TripCreateRequest.DayDto dayDto = dayDtos.get(i);
+            TripDay day = days.get(i);
+
+            int offset = dayDto.getStart() != null ? 1 : 0;   // start 행이 있으면 blocks는 1번 인덱스부터
+            List<TripPlace> places = day.getPlaces();
+            List<TripCreateRequest.BlockDto> blocks = dayDto.getBlocks();
+
+            for (int j = 0; j < blocks.size(); j++) {
+                TripCreateRequest.BlockDto b = blocks.get(j);
+                if (b.getImageData() == null) continue;
+
+                TripPlace place = places.get(offset + j);
+                TripImage image = TripImage.of(place.getId(), decodeBase64(b.getImageData()), extractContentType(b.getImageData()));
+                tripImageRepository.save(image);
+                place.updateImageUrl("/images/trip/" + place.getId());
+            }
+        }
+    }
+
+    // "data:image/png;base64,...." → 바이트
+    private byte[] decodeBase64(String dataUrl) {
+        try {
+            String base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
+            return Base64.getDecoder().decode(base64);
+        } catch (Exception e) {
+            throw new CustomException(ErrorCode.IMAGE_UPLOAD_FAILED);
+        }
+    }
+
+    // "data:image/png;base64,...." → "image/png"
+    private String extractContentType(String dataUrl) {
+        try {
+            return dataUrl.substring(5, dataUrl.indexOf(';'));
+        } catch (Exception e) {
+            return "application/octet-stream";
+        }
     }
 
     // 여행 일정 수정 (전체 교체) — 편집 완료 시
@@ -64,6 +115,7 @@ public class TripService {
 
         trip.getDays().clear();
         request.getDays().forEach(d -> trip.getDays().add(tripMapper.buildDay(trip, d)));
+        // TODO: 일정 수정 배치 때 - 여기도 imageData 처리 추가 필요
     }
 
     // 내 여행 목록 조회 (최신순)
@@ -83,8 +135,6 @@ public class TripService {
     public TripDetailResponse getTripDetail(Long tripId) {
         return tripMapper.toDetail(getOwnedTrip(tripId));
     }
-
-    // ── 조회·검증 헬퍼 ──────────────────────────────────────────
 
     private User getCurrentUser() {
         return userRepository.findById(SecurityUtil.getCurrentUserId())
@@ -110,7 +160,7 @@ public class TripService {
                 ? fileStore.save(coverImage)
                 : null;
 
-        trip.updateInfo(title, coverImageUrl);   // 변경 감지로 UPDATE
+        trip.updateInfo(title, coverImageUrl);
 
         return new TripUpdateResponse(trip.getId(), trip.getTitle(), trip.getCoverImageUrl());
     }
@@ -118,6 +168,6 @@ public class TripService {
     // 내 여행 삭제
     @Transactional
     public void deleteTrip(Long tripId) {
-        tripRepository.delete(getOwnedTrip(tripId));   // cascade로 days/places도 삭제
+        tripRepository.delete(getOwnedTrip(tripId));
     }
 }

@@ -26,9 +26,10 @@ export default function AddressSearchPage() {
     setResults(value.length >= 2 ? await searchPlaces(value) : []);
   };
 
-  const handlePlaceSelect = ({ place_name, x, y, id }) => {
+  const handlePlaceSelect = ({ place_name, address_name, x, y, id }) => {
     const selectedPlace = {
       name: place_name,
+      address: address_name,
       lat: Number(y),
       lng: Number(x),
       placeId: id,

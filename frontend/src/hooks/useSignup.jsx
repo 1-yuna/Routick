@@ -1,14 +1,25 @@
 import { useState } from 'react';
-import useTimer from '../hooks/useTimer';
 import { useNavigate } from 'react-router-dom';
+import useTimer from '../hooks/useTimer';
+import {
+  sendEmailCode,
+  verifyEmailCode,
+  signup,
+  login,
+  getErrorMessage,
+} from '../api/auth';
+import useUserStore from '../store/userStore';
 
-// 인증 시도 최대 횟수
-const MAX_VERIFY_ATTEMPTS = 3;
 const EXPIRED_MESSAGE = '인증번호가 만료되었습니다. 다시 요청해주세요';
 
 // 회원가입 관련 상태 및 로직 관리 훅
 export default function useSignup() {
   const navigate = useNavigate();
+  const setUser = useUserStore((state) => state.setUser);
+
+  // 닉네임
+  const [nickname, setNickname] = useState('');
+  const [nicknameError, setNicknameError] = useState('');
 
   // 이메일
   const [email, setEmail] = useState('');
@@ -21,7 +32,6 @@ export default function useSignup() {
   // 인증번호
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState('');
-  const [attemptCount, setAttemptCount] = useState(0);
 
   // password 체크
   const [password, setPassword] = useState('');
@@ -36,58 +46,41 @@ export default function useSignup() {
     return `${m}:${s}`;
   };
 
-  // 화면에 보여줄 최종 에러 - 시간이 만료됐으면 만료 메시지가 항상 우선
-  // (effect 없이 렌더링 시점에 계산하는 파생값)
+  // 시간이 만료됐으면 만료 메시지가 항상 우선
   const displayedCodeError =
     showVerify && !isVerified && time === 0 ? EXPIRED_MESSAGE : codeError;
 
-  // 이메일 인증 버튼
-  // TODO: API 연동 시 실제 이메일 중복 확인 요청으로 교체
-  const handleVerifyEmail = () => {
+  // 이메일 인증 버튼 — 가입 여부 확인 + 인증번호 발송
+  const handleVerifyEmail = async () => {
     if (!email) {
       setEmailError('이메일을 입력해주세요.');
       return;
     }
-
-    // mock: 이메일에 'kakao'가 포함되면 이미 가입된 계정으로 처리
-    if (email.includes('kakao')) {
-      setEmailError('이미 가입된 계정입니다');
+    try {
+      await sendEmailCode(email);
+      setEmailError('');
+      setShowVerify(true);
+      setIsVerified(false);
+      setCode('');
+      setCodeError('');
+      setTime(120);
+    } catch (e) {
+      // EMAIL_ALREADY_EXISTS / EMAIL_DIFFERENT_PROVIDER 등 서버 메시지 그대로 표시
+      setEmailError(getErrorMessage(e));
       setShowVerify(false);
-      return;
     }
-
-    setEmailError('');
-    setShowVerify(true);
-    setIsVerified(false);
-    setCode('');
-    setCodeError('');
-    setAttemptCount(0);
-    setTime(120);
   };
 
-  // 인증번호 확인 버튼
-  // TODO: API 연동 시 실제 인증번호 확인 요청으로 교체
-  const handleConfirmCode = () => {
-    // 이미 시간이 만료된 상태면 더 이상 시도 불가
-    if (time === 0) {
-      return;
-    }
-
-    // mock: 인증번호가 '1234'면 성공
-    if (code === '1234') {
+  // 인증번호 확인 버튼 — 시도 횟수 제한(5회)은 서버가 관리
+  const handleConfirmCode = async () => {
+    if (time === 0) return;
+    try {
+      await verifyEmailCode(email, code);
       setIsVerified(true);
       setCodeError('');
-      return;
-    }
-
-    // 틀렸을 때 - 시도 횟수 누적
-    const nextCount = attemptCount + 1;
-    setAttemptCount(nextCount);
-
-    if (nextCount >= MAX_VERIFY_ATTEMPTS) {
-      setCodeError('인증 시도 횟수를 초과했습니다. 다시 요청해주세요');
-    } else {
-      setCodeError('인증번호가 일치하지 않습니다');
+    } catch (e) {
+      // CODE_MISMATCH / CODE_EXPIRED / CODE_ATTEMPT_EXCEEDED 서버 메시지 그대로 표시
+      setCodeError(getErrorMessage(e));
     }
   };
 
@@ -95,16 +88,16 @@ export default function useSignup() {
   const isValidPasswordFormat = (value) =>
     value.length >= 8 && /[a-zA-Z]/.test(value) && /[0-9]/.test(value);
 
-  // 가입 버튼
-  const handleSignup = () => {
+  // 가입 버튼 — 성공 시 자동 로그인 후 홈으로
+  const handleSignup = async () => {
+    if (!nickname || nickname.length < 2 || nickname.length > 10) {
+      setNicknameError('닉네임은 2~10자로 입력해주세요');
+      return;
+    }
+    setNicknameError('');
     if (!isVerified) {
-      if (showVerify) {
-        // 인증 버튼은 눌렀지만 인증번호 확인을 안 마친 상태
-        setCodeError('이메일 인증을 완료해주세요');
-      } else {
-        // 인증 버튼 자체를 누르지 않은 상태
-        setEmailError('이메일 인증을 완료해주세요');
-      }
+      if (showVerify) setCodeError('이메일 인증을 완료해주세요');
+      else setEmailError('이메일 인증을 완료해주세요');
       return;
     }
     if (!password || !passwordCheck) {
@@ -119,11 +112,21 @@ export default function useSignup() {
       setError('비밀번호가 일치하지 않습니다');
       return;
     }
-    setError('');
-    navigate('/home');
+    try {
+      setError('');
+      await signup(nickname, email, password);
+      const res = await login(email, password); // 가입 직후 자동 로그인 (쿠키 발급)
+      setUser(res.data.data);
+      navigate('/home');
+    } catch (e) {
+      setError(getErrorMessage(e));
+    }
   };
 
   return {
+    nickname,
+    setNickname,
+    nicknameError,
     email,
     setEmail,
     emailError,

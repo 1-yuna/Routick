@@ -11,7 +11,7 @@ export default function CompanionPage() {
   const navigate = useNavigate();
 
   const COMPANION_OPTIONS = [
-    { label: '홀로', value: 'solo' },
+    { label: '혼자', value: 'solo' },
     { label: '연인', value: 'couple' },
     { label: '친구', value: 'friend' },
     { label: '부모님과', value: 'parents' },

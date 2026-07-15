@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import KakaoMap from '../../common/map/KakaoMap.jsx';
@@ -9,6 +10,7 @@ import useCourseStore from '../../store/courseStore.jsx';
 import { getTransportTime } from '../../utils/directionUtils.jsx';
 import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
 import { minutesToTime } from '../../utils/timeUtils.jsx';
+import { getPlaceDetail } from '../../api/place.jsx';
 
 // HH:MM → 분 변환
 function timeToMinutes(time) {
@@ -17,7 +19,6 @@ function timeToMinutes(time) {
   return h * 60 + m;
 }
 
-// bucket별 기본 체류시간
 const DEFAULT_STAY = {
   cafe: 90,
   food: 90,
@@ -36,6 +37,21 @@ export default function PlaceDetailPage() {
 
   const from = location.state?.from;
   const place = location.state;
+  const [placeDetail, setPlaceDetail] = useState(null);
+
+  // lat/lng이 없는 진입(놀거리 카테고리·지역추천 카드 클릭)만 GET /places/{placeId}로 상세 보강
+  useEffect(() => {
+    if (!place?.placeId || (place.lat != null && place.lng != null)) return;
+    (async () => {
+      try {
+        const res = await getPlaceDetail(place.placeId);
+        setPlaceDetail(res.data.data); // { placeId, name, address, lat, lng, imageUrl, description, kakaoUrl }
+      } catch (e) {
+        // 실패해도 넘어온 기본 정보로만 표시
+      }
+    })();
+  }, [place?.placeId, place?.lat, place?.lng]);
+
   const handleBack = () => {
     if (from === 'result') navigate('/result');
     else if (from === 'mytrip') navigate('/mytrip');
@@ -43,7 +59,15 @@ export default function PlaceDetailPage() {
   };
   if (!place) return null;
 
-  // course.transport 기준 ('car' | 'walk')
+  // placeDetail이 오면 그걸로 덮어씀 - description은 여기서 옴 (list에서 넘어온 longDescription은 fetch 전 임시용)
+  const displayPlace = placeDetail
+    ? {
+        ...place,
+        ...placeDetail,
+        src: placeDetail.imageUrl ?? place.src ?? null,
+      }
+    : place;
+
   const transport = course.transport ?? 'walk';
 
   const handleAdd = async () => {
@@ -56,33 +80,31 @@ export default function PlaceDetailPage() {
     let leaveTime = '';
 
     if (lastPlace) {
-      // transport에 따라 이동시간 계산
       moveMinutes = await getTransportTime(
         { lat: lastPlace.lat, lng: lastPlace.lng },
-        { lat: place.lat, lng: place.lng },
+        { lat: displayPlace.lat, lng: displayPlace.lng },
         transport === 'car' ? '자동차' : '도보'
       );
 
       const lastLeaveMinutes = timeToMinutes(lastPlace.leaveTime);
       const arriveMinutes = lastLeaveMinutes + moveMinutes;
-      const stayMinutes = DEFAULT_STAY[place.bucket ?? 'other'];
+      const stayMinutes = DEFAULT_STAY[displayPlace.bucket ?? 'other'];
       arriveTime = minutesToTime(arriveMinutes);
       leaveTime = minutesToTime(arriveMinutes + stayMinutes);
     }
 
     addPlace(
       {
-        ...place,
+        ...displayPlace,
         arriveTime,
         leaveTime,
-        stayMinutes: DEFAULT_STAY[place.bucket ?? 'other'],
+        stayMinutes: DEFAULT_STAY[displayPlace.bucket ?? 'other'],
       },
       dayNumber,
       moveMinutes,
       transport
     );
 
-    // 추가 후 전체 이동시간 재계산
     const updatedDay = useCourseStore
       .getState()
       .course.days.find((d) => d.dayNumber === dayNumber);
@@ -119,8 +141,8 @@ export default function PlaceDetailPage() {
         <MapTopBar onClick={handleBack} />
       )}
 
-      <KakaoMap lat={place.lat} lng={place.lng} />
-      {place && <PlaceCard place={place} />}
+      <KakaoMap lat={displayPlace.lat} lng={displayPlace.lng} />
+      {displayPlace && <PlaceCard place={displayPlace} />}
     </div>
   );
 }

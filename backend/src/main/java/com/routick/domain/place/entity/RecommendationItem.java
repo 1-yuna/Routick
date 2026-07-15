@@ -25,6 +25,9 @@ public class RecommendationItem {
 
     private String placeId;                  // 카카오 장소 ID (매칭 실패 시 null)
 
+    private Double lat;                       // 매칭 실패 시 null
+    private Double lng;
+
     @Column(nullable = false)
     private String title;
 
