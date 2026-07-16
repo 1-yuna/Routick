@@ -28,6 +28,7 @@ from utils.second_filter.scoring import (
     calc_party_fit_score,
     calc_revisit_score,
     calc_blog_score,
+    calc_hint_bonus,
     calc_total_score,
 )
 from utils.second_filter.shortlist import select_shortlist
@@ -45,6 +46,7 @@ async def second_filter_candidates(state: dict) -> dict:
     route_type   = ui.get("route_type", "endpoint")
 
     filtered_by_day = state.get("filtered_by_day", {})
+    days_info       = ui.get("days_info") or []
 
     if not filtered_by_day:
         warnings.append("filtered_by_day 비어있음 → 보강 스킵")
@@ -64,6 +66,10 @@ async def second_filter_candidates(state: dict) -> dict:
     shortlist_route_type = "only_day" if route_type == "only" else "endpoint"
 
     for day_number, day_filtered in filtered_by_day.items():
+        # day별 hint_keywords (fallback 이름 매칭용 — 태그 없는 보충 수집 장소 대비) *(v3.1)*
+        day_info_entry = next((d for d in days_info if d.get("day_number") == day_number), None)
+        hint_keywords  = (day_info_entry.get("hint_keywords") if day_info_entry else None) or []
+
         scored, shortlist = await _enrich_and_score(
             places=day_filtered,
             moods_kr=moods_kr,
@@ -73,6 +79,7 @@ async def second_filter_candidates(state: dict) -> dict:
             travel_days=travel_days,
             warnings=warnings,
             label=f"day{day_number}",
+            hint_keywords=hint_keywords,
         )
         shortlist_by_day[day_number] = shortlist
         all_scored.extend(scored)
@@ -102,6 +109,7 @@ async def _enrich_and_score(
     start_lng:     float = None,
     end_lat:       float = None,
     end_lng:       float = None,
+    hint_keywords: list[str] = None,
 ) -> tuple[list[dict], list[dict]]:
 
     if not places:
@@ -207,7 +215,8 @@ async def _enrich_and_score(
         blog_score      = calc_blog_score(positive_count, has_negative)
         party_fit_score = calc_party_fit_score(place, companion_kr)
         revisit_score   = calc_revisit_score(place)
-        total_score     = calc_total_score(mood_score, blog_score, party_fit_score, revisit_score)
+        hint_bonus      = calc_hint_bonus(place, hint_keywords)   # *(v3.1)* 앵커 20 / 주변 10
+        total_score     = calc_total_score(mood_score, blog_score, party_fit_score, revisit_score, hint_bonus)
 
         scored.append({
             "place":           place,
@@ -215,6 +224,7 @@ async def _enrich_and_score(
             "party_fit_score": party_fit_score,
             "revisit_score":   revisit_score,
             "blog_score":      blog_score,
+            "hint_bonus":      hint_bonus,
             "total_score":     total_score,
         })
 
