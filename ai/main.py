@@ -85,6 +85,8 @@ async def generate(request: dict):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()  # 콘솔에 전체 스택트레이스 출력 (원인 파일/줄번호 확인용)
         raise HTTPException(status_code=500, detail=str(e))
 
 

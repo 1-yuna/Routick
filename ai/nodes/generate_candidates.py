@@ -108,8 +108,8 @@ def distance_to_minutes(distance_km: float, transport_kr: str) -> float:
 
 # ─── 이동시간 행렬 계산 ───
 def build_matrix(
-    shortlist:    list[dict],
-    transport_kr: str,
+        shortlist:    list[dict],
+        transport_kr: str,
 ) -> tuple[list[str], list[list[float]], list[list[float]]]:
     place_index     = [item["place"]["id"] for item in shortlist]
     distance_matrix = []
@@ -147,10 +147,10 @@ def to_str(dt: datetime) -> str:
 
 # ─── 동선 시간 배치 ───
 def assign_times(
-    route:       list[dict],
-    start_time:  str,
-    time_matrix: list[list[float]],
-    place_index: list[str],
+        route:       list[dict],
+        start_time:  str,
+        time_matrix: list[list[float]],
+        place_index: list[str],
 ) -> list[dict]:
     id_to_idx    = {pid: i for i, pid in enumerate(place_index)}
     itinerary    = []
@@ -190,10 +190,10 @@ def assign_times(
 
 # ─── 동선 유효성 검증 ───
 def is_valid_route(
-    itinerary:         list[dict],
-    travel_limit:      int,
-    max_same_category: int = 1,
-    max_intersections: int = 0,
+        itinerary:         list[dict],
+        travel_limit:      int,
+        max_same_category: int = 1,
+        max_intersections: int = 0,
 ) -> tuple[bool, str]:
 
     for idx, item in enumerate(itinerary[:-1]):
@@ -236,23 +236,23 @@ def _effective_stop_time(transport_kr: str) -> str:
 
 # ─── 단일 day 동선 생성 ───
 def _generate_day_routes(
-    candidates:         list[dict],
-    place_index:        list[str],
-    time_matrix:        list[list[float]],
-    travel_limit:       int,
-    start_time:         str,
-    stop_time:          str,
-    excluded_place_ids: set[str],
-    start_lat:          float = None,
-    start_lng:          float = None,
-    mid_lat:            float = None,
-    mid_lng:            float = None,
-    end_lat:            float = None,
-    end_lng:            float = None,
-    start_name:         str = "출발지",
-    end_name:           str = "도착지",
-    day_info:           dict = None,
-    repeat_per_start:   int = REPEAT_PER_START,
+        candidates:         list[dict],
+        place_index:        list[str],
+        time_matrix:        list[list[float]],
+        travel_limit:       int,
+        start_time:         str,
+        stop_time:          str,
+        excluded_place_ids: set[str],
+        start_lat:          float = None,
+        start_lng:          float = None,
+        mid_lat:            float = None,
+        mid_lng:            float = None,
+        end_lat:            float = None,
+        end_lng:            float = None,
+        start_name:         str = "출발지",
+        end_name:           str = "도착지",
+        day_info:           dict = None,
+        repeat_per_start:   int = REPEAT_PER_START,
 ) -> list[dict]:
     all_routes = []
     has_start  = start_lat is not None and start_lng is not None
@@ -423,6 +423,7 @@ def generate_candidates(state: dict) -> dict:
 
             valid_routes, invalid_routes = [], []
             for r in batch_routes:
+                r["intersection_count"] = len(check_route_intersections(r["itinerary"]))
                 ok, reason = is_valid_route(r["itinerary"], travel_limit)
                 if ok:
                     valid_routes.append(r)
@@ -521,6 +522,7 @@ def generate_candidates(state: dict) -> dict:
 
         valid_routes, invalid_routes = [], []
         for r in all_routes:
+            r["intersection_count"] = len(check_route_intersections(r["itinerary"]))
             ok, reason = is_valid_route(r["itinerary"], day_travel_limit, max_intersections=day_max_intersections)
             if ok:
                 valid_routes.append(r)

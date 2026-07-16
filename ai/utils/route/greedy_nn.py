@@ -72,21 +72,93 @@ def haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 
+# ─── 2-opt 재정렬 (총 이동거리 최소화) ───
+# greedy 선택은 매 슬롯 "그 순간 가장 가까운 곳"만 보기 때문에, 멀리 있는 후보를
+# 강제로 방문한 뒤(예: 점심 슬롯은 무조건 food) 남은 후보가 몰려있는 쪽으로 되돌아오는
+# 지그재그가 생길 수 있음. 교차(X자) 사전 필터는 "선이 실제로 겹치는" 경우만 잡아내므로,
+# 겹치지는 않지만 비효율적인 왕복 패턴은 별도로 총 이동시간을 줄이는 재정렬로 정리한다.
+#
+# 주의: food(점심/저녁) 아이템은 슬롯 로직이 "이 시간대에 방문"하도록 정해서 고른 것이므로
+# 순서를 함부로 옮기면 점심/저녁 타이밍이 깨진다 (예: 점심 food가 뒤로 밀려 저녁 food와
+# 붙어버림). 그래서 food 아이템의 인덱스는 고정하고, food와 food 사이 / 처음~첫 food /
+# 마지막 food~끝 구간처럼 food로 나뉜 각 구간 "내부"에서만 2-opt를 적용한다.
+# 첫 장소(슬롯1)도 고정, endpoint 케이스면 마지막 장소(도착지 인접 선정됨)도 고정한다.
+def _two_opt(
+        route:             list[dict],
+        time_matrix:       list[list[float]],
+        id_to_matrix_idx:  dict[str, int],
+        fix_last:          bool = False,
+) -> list[dict]:
+    n = len(route)
+    if n < 4:
+        return route
+
+    def travel(a, b):
+        return time_matrix[id_to_matrix_idx[a["id"]]][id_to_matrix_idx[b["id"]]]
+
+    # 고정 지점(움직이면 안 되는 인덱스): 첫 장소, food 전부, (endpoint면) 마지막 장소
+    anchors = {0}
+    if fix_last:
+        anchors.add(n - 1)
+    for idx, item in enumerate(route):
+        if item["place"].get("bucket") == "food":
+            anchors.add(idx)
+    anchors = sorted(anchors)
+
+    # 고정 지점 사이 구간들을 독립적으로 계산 (앵커 쌍 사이 + 마지막 앵커~배열 끝)
+    runs = []
+    for k in range(len(anchors) - 1):
+        lo, hi = anchors[k] + 1, anchors[k + 1] - 1
+        if hi - lo >= 1:
+            runs.append((lo, hi))
+    if anchors[-1] < n - 1:
+        lo, hi = anchors[-1] + 1, n - 1
+        if hi - lo >= 1:
+            runs.append((lo, hi))
+
+    route = route[:]
+    for lo, hi in runs:
+        improved = True
+        while improved:
+            improved = False
+            for i in range(lo, hi):
+                for j in range(i + 1, hi + 1):
+                    a, b, c = route[i - 1]["place"], route[i]["place"], route[j]["place"]
+                    d = route[j + 1]["place"] if j + 1 < n else None
+                    old_cost = travel(a, b) + (travel(c, d) if d else 0)
+                    new_cost = travel(a, c) + (travel(b, d) if d else 0)
+                    if new_cost < old_cost - 0.01:
+                        route[i:j + 1] = list(reversed(route[i:j + 1]))
+                        improved = True
+    return route
+
+
+def _route_total_travel(
+        route:            list[dict],
+        time_matrix:      list[list[float]],
+        id_to_matrix_idx: dict[str, int],
+) -> float:
+    return sum(
+        time_matrix[id_to_matrix_idx[route[i]["place"]["id"]]][id_to_matrix_idx[route[i + 1]["place"]["id"]]]
+        for i in range(len(route) - 1)
+    )
+
+
 # ─── Greedy NN 한 번 실행 ───
 def greedy_nn(
-    start_idx:          int,
-    candidates:         list[dict],
-    place_index:        list[str],
-    time_matrix:        list[list[float]],
-    total_minutes:      int,
-    travel_limit:       int = 20,
-    excluded_place_ids: set[str] = None,
-    mid_lat:            float = None,
-    mid_lng:            float = None,
-    end_lat:            float = None,
-    end_lng:            float = None,
-    start_time:         str = "11:00",
-    stop_time:          str = "21:00",
+        start_idx:          int,
+        candidates:         list[dict],
+        place_index:        list[str],
+        time_matrix:        list[list[float]],
+        total_minutes:      int,
+        travel_limit:       int = 20,
+        excluded_place_ids: set[str] = None,
+        mid_lat:            float = None,
+        mid_lng:            float = None,
+        end_lat:            float = None,
+        end_lng:            float = None,
+        start_time:         str = "11:00",
+        stop_time:          str = "21:00",
 ) -> tuple[list[dict], float]:
 
     if excluded_place_ids is None:
@@ -228,10 +300,15 @@ def greedy_nn(
                 pool = non_crossing
 
             pool_sorted = sorted(pool, key=lambda item:
-                time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
+            time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
         else:
-            pool_sorted = sorted(selectable_all, key=lambda item:
-                time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
+            # only 케이스(목표 좌표 없음): 방향성 필터는 적용 불가하지만,
+            # 교차 사전 필터는 동일하게 적용 (지금까지의 경로와 교차 안 하는 후보 우선)
+            non_crossing = [item for item in selectable_all if not causes_intersection(item)]
+            pool = non_crossing if non_crossing else selectable_all
+
+            pool_sorted = sorted(pool, key=lambda item:
+            time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
 
         # 방향성 정렬된 순서를 유지한 채, travel_limit 이내 후보를 우선 사용
         # (이내 후보가 없으면 부득이하게 전체 후보로 fallback)
@@ -303,5 +380,9 @@ def greedy_nn(
         if not pick_slot(["activity", "cafe", "browse", "pop"], is_last=is_last):
             break
         extra_count += 1
+
+    # ── 2-opt 재정렬: 첫 장소 고정, endpoint면 마지막 장소(도착지 인접)도 고정 ──
+    visited      = _two_opt(visited, time_matrix, id_to_matrix_idx, fix_last=is_endpoint)
+    total_travel = _route_total_travel(visited, time_matrix, id_to_matrix_idx)
 
     return visited, total_travel

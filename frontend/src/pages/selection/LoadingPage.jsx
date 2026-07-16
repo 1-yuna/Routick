@@ -55,7 +55,7 @@ export default function LoadingPage() {
           />
         </div>
         <p className="text-14-rg text-gray2">
-          딱 맞는 여행 코스를 찾고있어요✈️
+          딱 맞는 여행 코스를 찾고있어요 ✈️
         </p>
       </div>
     </div>

@@ -303,13 +303,21 @@ async def plan_itinerary(state: dict) -> dict:
     if route_type == "only":
         for day_number in range(1, travel_days + 1):
             valid_routes = valid_routes_by_day.get(day_number, [])
+            used_fallback = False
             if not valid_routes:
                 valid_routes = all_routes_by_day.get(day_number, [])
+                used_fallback = True
             if not valid_routes:
                 warnings.append(f"[only] day{day_number} 동선 없음 → 실패")
                 return {"itineraries_by_day": {}, "warnings": warnings, "step": "failed"}
+            if used_fallback:
+                warnings.append(f"[only] day{day_number} 유효 동선 없음 → 전체 동선 중 교차 적은 순으로 폴백")
 
-            top_routes = sorted(valid_routes, key=lambda x: x["total_score"], reverse=True)[:3]
+            # 교차 적은 순 → 점수 높은 순 (폴백일 때도 그나마 덜 지저분한 동선을 우선 노출)
+            top_routes = sorted(
+                valid_routes,
+                key=lambda x: (x.get("intersection_count", 0), -x["total_score"]),
+            )[:3]
             final = []
             for r in top_routes:
                 if transport_kr == "자동차":
@@ -343,7 +351,10 @@ async def plan_itinerary(state: dict) -> dict:
                 "step":               "failed",
             }
 
-        top_routes = sorted(valid_routes, key=lambda x: x["total_score"], reverse=True)[:MAX_ITINERARIES_PER_DAY]
+        top_routes = sorted(
+            valid_routes,
+            key=lambda x: (x.get("intersection_count", 0), -x["total_score"]),
+        )[:MAX_ITINERARIES_PER_DAY]
 
         final_itineraries = []
         for r in top_routes:
