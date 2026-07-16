@@ -159,6 +159,7 @@ def greedy_nn(
         end_lng:            float = None,
         start_time:         str = "11:00",
         stop_time:          str = "21:00",
+        taxi_limit:         int | None = None,   # *(v3)* 도보 여행: 택시 허용 하드컷(45분)
 ) -> tuple[list[dict], float]:
 
     if excluded_place_ids is None:
@@ -311,13 +312,22 @@ def greedy_nn(
             time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]])
 
         # 방향성 정렬된 순서를 유지한 채, travel_limit 이내 후보를 우선 사용
-        # (이내 후보가 없으면 부득이하게 전체 후보로 fallback)
+        # *(v3)* 이내 후보가 없으면 taxi_limit(도보 여행 45분) 이내 후보로 2차 fallback
+        # (택시 태깅으로 살릴 수 있는 범위 — 그것도 없으면 부득이하게 전체 허용,
+        #  45분 초과 구간은 사후 검증 is_valid_route에서 무효 처리됨)
         within_limit = [
             item for item in pool_sorted
             if time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]] <= travel_limit
         ]
         if within_limit:
             pool_sorted = within_limit
+        elif taxi_limit:
+            within_taxi = [
+                item for item in pool_sorted
+                if time_matrix[current_idx][id_to_matrix_idx[item["place"]["id"]]] <= taxi_limit
+            ]
+            if within_taxi:
+                pool_sorted = within_taxi
 
         top5      = pool_sorted[:5]
         best_item = random.choice(top5)

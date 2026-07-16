@@ -14,6 +14,8 @@
 #        단, 출발-도착 거리가 짧으면(SHORT_DISTANCE_THRESHOLD_KM 이하)
 #        작은 원형 동선이 자연스러우므로 일정 건수(MAX_INTERSECTIONS_SHORT_DISTANCE) 허용
 #      - 이동시간 초과 제외
+#        *(v3)* 도보 여행: 20분 초과 구간은 무효 대신 travel_mode="택시" 태깅 후 통과,
+#        45분(WALK_TAXI_LIMIT) 초과만 무효. 자동차는 기존대로 30분 초과 무효
 #      - 동선 내 동일 category_name (맨 마지막 depth 기준) 2개 이상 제외 (food/cafe 제외)
 #      - 점심 슬롯 술집/고기류 제외
 # ─────────────────────────────────────────────────────────────────────
@@ -29,6 +31,11 @@ TRAVEL_TIME_LIMIT = {
     "도보":   20,
     "자동차": 30,
 }
+
+# ─── 도보 여행 택시 전환 하드컷 (분) *(v3)* ───
+# 도보 20분 초과 ~ 45분 이하 구간은 travel_mode="택시" 태깅 후 유효 처리,
+# 45분 초과 구간만 무효 처리
+WALK_TAXI_LIMIT = 45
 
 # ─── 출발-도착 거리가 이 값 이하면 transport=car여도 도보 기준 적용 ───
 SHORT_DISTANCE_THRESHOLD_KM = 1.0
@@ -188,13 +195,37 @@ def assign_times(
     return itinerary
 
 
+# ─── 이동수단 태깅 *(v3)* ───
+# 각 아이템의 다음 구간 이동수단(travel_mode)을 부여.
+# 도보 여행에서 20분 초과 구간은 "택시"로 임시 태깅
+# (fetch_details에서 최종 이동수단 확정 시 이 태그를 보존,
+#  generate_response에서 type=taxi 블록으로 출력됨)
+def _tag_travel_modes(itinerary: list[dict], transport_kr: str) -> list[dict]:
+    walk_limit = TRAVEL_TIME_LIMIT["도보"]
+    result = []
+    for item in itinerary:
+        travel_min = item.get("travel_to_next_minutes", 0) or 0
+        if transport_kr == "자동차":
+            mode = "자동차"
+        elif travel_min > walk_limit:
+            mode = "택시"
+        else:
+            mode = "도보"
+        result.append({**item, "travel_mode": mode})
+    return result
+
+
 # ─── 동선 유효성 검증 ───
 def is_valid_route(
         itinerary:         list[dict],
         travel_limit:      int,
         max_same_category: int = 1,
         max_intersections: int = 0,
+        taxi_limit:        int | None = None,
 ) -> tuple[bool, str]:
+    # *(v3)* 도보 여행이면 taxi_limit(45분)이 하드컷 —
+    # travel_limit(20분) 초과 구간은 택시로 태깅돼 있으므로 45분까지 유효
+    hard_limit = taxi_limit if taxi_limit else travel_limit
 
     for idx, item in enumerate(itinerary[:-1]):
         bucket = item["place"].get("bucket", "")
@@ -202,7 +233,7 @@ def is_valid_route(
             continue
         if itinerary[idx + 1]["place"].get("bucket") == "end":
             continue
-        if item["travel_to_next_minutes"] > travel_limit:
+        if item["travel_to_next_minutes"] > hard_limit:
             return False, "이동시간 초과"
 
     category_last_list = []
@@ -253,6 +284,8 @@ def _generate_day_routes(
         end_name:           str = "도착지",
         day_info:           dict = None,
         repeat_per_start:   int = REPEAT_PER_START,
+        transport_kr:       str = "도보",
+        taxi_limit:         int | None = None,
 ) -> list[dict]:
     all_routes = []
     has_start  = start_lat is not None and start_lng is not None
@@ -304,6 +337,7 @@ def _generate_day_routes(
                 end_lng=end_lng,
                 start_time=start_time,
                 stop_time=stop_time,
+                taxi_limit=taxi_limit,
             )
             if not route:
                 continue
@@ -360,6 +394,9 @@ def _generate_day_routes(
                     "recommendation_reason":  "",
                 }]
 
+            # 이동수단 태깅 (도보 20분 초과 구간 → 택시) *(v3)*
+            itinerary = _tag_travel_modes(itinerary, transport_kr)
+
             all_routes.append({
                 "itinerary":    itinerary,
                 "total_travel": total_travel,
@@ -382,6 +419,8 @@ def generate_candidates(state: dict) -> dict:
 
     warnings: list[str] = []
     travel_limit = TRAVEL_TIME_LIMIT.get(transport_kr, 20)
+    # *(v3)* 도보 여행만 택시 전환 허용 (자동차는 None → 기존 30분 하드컷)
+    taxi_limit = WALK_TAXI_LIMIT if transport_kr == "도보" else None
 
     all_routes_by_day:      dict[int, list[dict]] = {}
     valid_routes_by_day:    dict[int, list[dict]] = {}
@@ -419,12 +458,13 @@ def generate_candidates(state: dict) -> dict:
                 candidates=candidates, place_index=p_idx, time_matrix=t_mat,
                 travel_limit=travel_limit, start_time=start_time, stop_time=stop_time,
                 excluded_place_ids=set(excluded_place_ids),
+                transport_kr=transport_kr, taxi_limit=taxi_limit,
             )
 
             valid_routes, invalid_routes = [], []
             for r in batch_routes:
                 r["intersection_count"] = len(check_route_intersections(r["itinerary"]))
-                ok, reason = is_valid_route(r["itinerary"], travel_limit)
+                ok, reason = is_valid_route(r["itinerary"], travel_limit, taxi_limit=taxi_limit)
                 if ok:
                     valid_routes.append(r)
                 else:
@@ -518,12 +558,14 @@ def generate_candidates(state: dict) -> dict:
             start_name=day_info.get("start_name"),
             end_name=day_info.get("end_name"),
             day_info=day_info,
+            transport_kr=transport_kr, taxi_limit=taxi_limit,
         )
 
         valid_routes, invalid_routes = [], []
         for r in all_routes:
             r["intersection_count"] = len(check_route_intersections(r["itinerary"]))
-            ok, reason = is_valid_route(r["itinerary"], day_travel_limit, max_intersections=day_max_intersections)
+            ok, reason = is_valid_route(r["itinerary"], day_travel_limit,
+                                        max_intersections=day_max_intersections, taxi_limit=taxi_limit)
             if ok:
                 valid_routes.append(r)
             else:
