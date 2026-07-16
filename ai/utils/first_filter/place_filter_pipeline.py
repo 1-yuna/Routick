@@ -320,6 +320,7 @@ def get_activity_keywords(activities_kr: list[str]) -> list[str]:
 
 
 # ─── 정렬
+# -1: 힌트 앵커(is_hint_anchor 태그) 또는 힌트 장소명 매칭 (v3.1 — cap에서 살아남도록 최우선 배치)
 # 0: final_keywords category 매칭 + 비프랜차이즈
 # 1: name_search_keywords name 매칭 + 비프랜차이즈
 # 2: final_keywords category 매칭 + 프랜차이즈
@@ -331,14 +332,29 @@ def sort_by_priority(
         places: list[dict],
         final_keywords: list[str] = None,
         name_search_keywords: list[str] = None,
+        hint_keywords: list[str] = None,
 ) -> list[dict]:
     final_kws = final_keywords or []
     name_kws  = name_search_keywords or []
+    hint_kws  = hint_keywords or []
 
     def priority(p):
         name     = p.get("name", "") or ""
         category = p.get("category", "") or ""
         chain    = is_chain_brand(p)
+
+        # 힌트 앵커 본인은 무조건 최우선 *(v3.1)*
+        # 태그 기반이 우선 — 이름 매칭은 띄어쓰기 차이에 깨짐
+        # (예: 힌트 "해운대 블루라인파크" vs 카카오 상호 "해운대블루라인파크")
+        if p.get("is_hint_anchor"):
+            return -1
+
+        # fallback: 보충 수집으로 들어와 태그가 없어도 힌트 장소명과 부분 일치하면 최우선
+        hint_matched = bool(hint_kws) and any(
+            hint in name or name in hint for hint in hint_kws
+        )
+        if hint_matched:
+            return -1
 
         category_matched = bool(final_kws) and any(kw in category for kw in final_kws)
         name_matched     = bool(name_kws) and any(kw in name for kw in name_kws)

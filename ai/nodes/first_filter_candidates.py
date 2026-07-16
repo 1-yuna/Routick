@@ -93,6 +93,7 @@ def _filter_one_day(
     start_lng: float = None,
     end_lat: float = None,
     end_lng: float = None,
+    hint_keywords: list[str] = None,
 ) -> list[dict]:
     activity_keywords = get_activity_keywords(activities_kr)
 
@@ -122,7 +123,10 @@ def _filter_one_day(
         _debug_print(f"5️⃣  [{day_label}] bucket 분류 + activity 필터", filtered, removed)
 
     filtered = boost_by_priority(filtered, companion_kr=companion_kr, activities_kr=activities_kr)
-    filtered = sort_by_priority(filtered, final_keywords=final_keywords, name_search_keywords=name_search_keywords)
+    filtered = sort_by_priority(
+        filtered, final_keywords=final_keywords, name_search_keywords=name_search_keywords,
+        hint_keywords=hint_keywords,
+    )
     if debug:
         _debug_print(f"5️⃣  [{day_label}] 정렬", filtered, 0)
 
@@ -155,6 +159,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     activities_kr        = ui.get("activities_kr") or []
     final_keywords       = ui.get("final_keywords") or []
     name_search_keywords = ui.get("name_search_keywords") or []
+    days_info            = ui.get("days_info") or []
 
     filtered_by_day: dict[int, list] = {}
     all_filtered:    list[dict]      = []
@@ -162,10 +167,15 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     # ── 케이스 1 (only): 정렬 후 라운드로빈으로 day별 균등 배분 ──────────
     if route_type == "only":
         all_candidates = candidates_by_day.get(1, [])
+        # only 케이스는 목적지 좌표가 동일하므로 힌트도 첫 day 기준 사용
+        hint_keywords = (days_info[0].get("hint_keywords") if days_info else None) or []
 
         # 우선순위 정렬 (활동/동행자 우선 + 프랜차이즈 뒤로)
         sorted_candidates = boost_by_priority(all_candidates, companion_kr=companion_kr, activities_kr=activities_kr)
-        sorted_candidates = sort_by_priority(sorted_candidates, final_keywords=final_keywords, name_search_keywords=name_search_keywords)
+        sorted_candidates = sort_by_priority(
+            sorted_candidates, final_keywords=final_keywords, name_search_keywords=name_search_keywords,
+            hint_keywords=hint_keywords,
+        )
 
         # category_group_code 기준 분류 (food/cafe/others)
         food_list   = [p for p in sorted_candidates if p.get("category_group_code") == "FD6"]
@@ -201,6 +211,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 travel_days=travel_days,
                 debug=debug,
                 day_label=f"only-day{day_number}",
+                hint_keywords=hint_keywords,
             )
 
             filtered_by_day[day_number] = filtered
@@ -228,6 +239,9 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
             end_lat   = day_raw.get("end_lat") if day_raw else None
             end_lng   = day_raw.get("end_lng") if day_raw else None
 
+            day_info_entry = next((d for d in days_info if d.get("day_number") == day_number), None)
+            hint_keywords  = (day_info_entry.get("hint_keywords") if day_info_entry else None) or []
+
             filtered = _filter_one_day(
                 places=day_candidates,
                 avoid_activities=avoid_activities,
@@ -240,6 +254,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 travel_days=travel_days,
                 debug=debug,
                 day_label=f"day{day_number}",
+                hint_keywords=hint_keywords,
                 start_lat=start_lat,
                 start_lng=start_lng,
                 end_lat=end_lat,
