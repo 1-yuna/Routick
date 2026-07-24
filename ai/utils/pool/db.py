@@ -28,7 +28,7 @@ async def get_pool() -> asyncpg.Pool:
             port=int(os.getenv("DB_PORT", "5432")),
             user=os.getenv("DB_USER", os.getlogin()),
             password=os.getenv("DB_PASSWORD", ""),
-            database=os.getenv("DB_NAME", "travel_planner"),
+            database=os.getenv("DB_NAME", "routick"),
             min_size=1,
             max_size=10,
         )

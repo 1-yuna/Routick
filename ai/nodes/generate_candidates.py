@@ -77,11 +77,14 @@ def classify_bucket(place: dict) -> str:
     category = place.get("category", "") or ""
     name     = place.get("name", "") or ""
 
+    # 디저트류(제과/베이커리/디저트/아이스크림/도넛)는 FD6이라도 cafe로 분류
+    # (1차 필터 CAFE_FOOD_KEYWORDS와 동일 기준 — FD6 체크보다 먼저 와야 함.
+    #  닭강정·떡,한과 같은 테이크아웃 먹거리는 food 유지)
+    if any(kw in category for kw in ("제과", "베이커리", "디저트", "아이스크림", "도넛")):
+        return "cafe"
     if code == "FD6":
         return "food"
     if code == "CE7":
-        return "cafe"
-    if "제과" in category or "베이커리" in category:
         return "cafe"
     if any(kw in category for kw in BUCKET_KEYWORDS["browse"]):
         return "browse"
