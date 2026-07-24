@@ -266,11 +266,13 @@ def is_valid_route(
 
 
 # ─── stop_time 계산 ───
+# *(v3.1)* 21:00 → 22:00으로 상향 — 저녁 food가 도달 가능해도 stop_time까지
+# 남은 시간이 부족해 pick_slot이 실패하는 케이스(저녁 통째로 누락)의 여유를 늘림
 def _effective_stop_time(transport_kr: str) -> str:
     if transport_kr == "자동차":
         from datetime import datetime as _dt, timedelta as _td
-        return (_dt.strptime("21:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)).strftime("%H:%M")
-    return "21:00"
+        return (_dt.strptime("22:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)).strftime("%H:%M")
+    return "22:00"
 
 
 # ─── 단일 day 동선 생성 ───

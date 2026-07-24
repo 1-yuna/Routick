@@ -312,54 +312,53 @@ mock_endpoint_3day_car: UserInput = {
     "final_keywords": None, "name_search_keywords": None, "days_info": None,
 }
 
-
 # ══════════════════════════════════════════════════════════════════════
-# 케이스 9: 출발/도착 + 1박2일 + 자동차
-# day1: 해운대역 → 코오롱씨클라우드호텔
-# day2: 코오롱씨클라우드호텔 → 광안리해수욕장 (광안리 경유)
+# 케이스 10: 출발/도착 + 1박2일 + 도보
+# day1: 묵호역 (단독)
+# day2: 삼척역 (단독)
 # ══════════════════════════════════════════════════════════════════════
-mock_endpoint_2day_car: UserInput = {
-    "route_type":       "endpoint",
-    "travel_days":      2,
-    "travel_date":      "2025-06-15",
-    "transport":        "car",
-    "companion":        "couple",
-    "moods":            ["healing", "active"],
-    "activities":       ["activity", "nature"],
+mock_endpoint_2day_walk: UserInput = {
+    "route_type": "endpoint",
+    "travel_days": 2,
+    "travel_date": "2025-06-15",
+    "transport": "walk",
+    "companion": "couple",
+    "moods": ["healing", "active"],
+    "activities": ["activity", "nature"],
     "avoid_activities": [],
-    "lat":              None,
-    "lng":              None,
-    "destination":      None,
+    "lat": None,
+    "lng": None,
+    "destination": None,
     "days": [
         {
-            "day_number":     1,
-            "start_lat":      35.1631, "start_lng": 129.1637,
-            "start_name":     "해운대역",
-            "start_address":  "부산 해운대구 중동 1428",
-            "start_place_id": "8362476",
-            "mid_lat":        35.1587, "mid_lng": 129.1604,
-            "mid_name":       "해운대",
-            "end_lat":        35.1602, "end_lng": 129.1607,
-            "end_name":       "코오롱씨클라우드호텔",
-            "end_address":    "부산 해운대구 우동 1408-5",
-            "end_place_id":   "11819137",
+            "day_number": 1,
+            "start_lat": 37.4299, "start_lng": 129.1787,
+            "start_name": "삼척역",
+            "start_address": "강원특별자치도 삼척시 중앙로 13",
+            "start_place_id": "10440361",
+            "mid_lat": 37.4299, "mid_lng": 129.1787,
+            "mid_name": "삼척역",
+            "end_lat": 37.4299, "end_lng": 129.1787,
+            "end_name": "삼척역",
+            "end_address": "강원특별자치도 삼척시 중앙로 13",
+            "end_place_id": "10440361",
         },
         {
-            "day_number":     2,
-            "start_lat":      35.1602, "start_lng": 129.1607,
-            "start_name":     "코오롱씨클라우드호텔",
-            "start_address":  "부산 해운대구 우동 1408-5",
-            "start_place_id": "11819137",
-            "mid_lat":        35.1531, "mid_lng": 129.1186,
-            "mid_name":       "광안리",
-            "end_lat":        35.1531, "end_lng": 129.1186,
-            "end_name":       "광안리해수욕장",
-            "end_address":    "부산 수영구 광안해변로 219",
-            "end_place_id":   "7913310",
-        },
+            "day_number": 2,
+            "start_lat": 37.5469, "start_lng": 129.1069,
+            "start_name": "묵호역",
+            "start_address": "강원특별자치도 동해시 발한동 210",
+            "start_place_id": "10440360",
+            "mid_lat": 37.5469, "mid_lng": 129.1069,
+            "mid_name": "묵호역",
+            "end_lat": 37.5469, "end_lng": 129.1069,
+            "end_name": "묵호역",
+            "end_address": "강원특별자치도 동해시 발한동 210",
+            "end_place_id": "10440360",
+        }
     ],
-    "start_time":       "11:00",
-    "end_time":         "22:00",
+    "start_time": "11:00",
+    "end_time": "22:00",
     "companion_kr": None, "moods_kr": None, "activities_kr": None,
     "transport_kr": None, "duration_kr": None, "travel_weekday": None,
     "final_keywords": None, "name_search_keywords": None, "days_info": None,

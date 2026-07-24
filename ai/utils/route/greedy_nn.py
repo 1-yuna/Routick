@@ -11,7 +11,7 @@
 #   → 슬롯4: activity, browse
 #   → 슬롯5: food (17:30 이후면 food, 아니면 activity/browse/pop)
 #   → 슬롯6: activity, browse, pop
-#   → 슬롯7~: 21:00 이전이면 계속 추가 (activity, browse, pop)
+#   → 슬롯7~: 22:00 이전이면 계속 추가 (activity, browse, pop)
 #   각 슬롯에서 travel_limit 이내 가까운 5개 중 랜덤 선택
 #   endpoint 케이스: 현재 목표(mid 통과 전엔 mid, 통과 후엔 end) 방향으로
 #     진행하는(현재 위치보다 목표에 더 가까운) 후보만 사용
@@ -79,8 +79,8 @@ def get_stay_minutes(place: dict) -> int:
 # 슬롯4: activity, browse
 # 슬롯5: 17:30 이후면 food / 아니면 activity,browse,pop 먼저 → food (food는 무조건)
 # 슬롯6: activity, browse, pop
-# 슬롯7~: 21:00 이전이면 계속 추가 (activity, cafe, browse, pop)
-STOP_TIME = "21:00"  # 기본값 (도보 케이스)
+# 슬롯7~: 22:00 이전이면 계속 추가 (activity, cafe, browse, pop)
+STOP_TIME = "22:00"  # 기본값 (도보 케이스) *(v3.1)* 21:00 → 22:00
 
 # ─── 점심 슬롯 제외 category_name 키워드 ───
 LUNCH_EXCLUDE_KEYWORDS = ["술집", "호프", "요리주점", "칵테일바", "와인바", "육류", "고기"]
@@ -184,7 +184,7 @@ def greedy_nn(
         end_lat:            float = None,
         end_lng:            float = None,
         start_time:         str = "11:00",
-        stop_time:          str = "21:00",
+        stop_time:          str = "22:00",
         taxi_limit:         int | None = None,   # *(v3)* 도보 여행: 택시 허용 하드컷(45분)
 ) -> tuple[list[dict], float]:
 
@@ -386,15 +386,20 @@ def greedy_nn(
 
         # food 도달 가능성 보호 *(v3.1)*
         # protect_food=True(저녁 전 activity 루프)일 때, 그 후보를 찍고 나면
-        # food에 더 이상 못 가게 되는 후보는 배제. 전부 배제되면(안전한 후보가
-        # 하나도 없으면) 필터를 풀어 원래 풀 그대로 사용 — 빈 풀보다는 나음.
+        # food에 더 이상 못 가게 되는 후보는 배제. 안전한 후보가 하나도 없으면
+        # 이 슬롯 자체를 포기(False)한다 — 예전엔 필터를 풀고 원래 풀 그대로
+        # 사용했는데, 그러면 protect_food가 막으려던 바로 그 상황(food 도달
+        # 불가능한 곳을 찍어버림)이 그대로 재발해서 저녁이 통째로 사라지는
+        # 문제가 있었음. while 루프가 pick_slot 실패 시 멈추도록 이미 설계돼
+        # 있으므로, 여기서 False를 반환하면 루프가 제때 멈춘다.
         if protect_food:
             food_safe = [
                 item for item in pool_sorted
                 if _food_reachable(id_to_matrix_idx[item["place"]["id"]])
             ]
-            if food_safe:
-                pool_sorted = food_safe
+            if not food_safe:
+                return False
+            pool_sorted = food_safe
 
         # 힌트 앵커 우선 선택 *(v3.1)*
         # 도달 가능 범위(travel_limit/taxi_limit) 안에 힌트 앵커가 있으면
