@@ -350,8 +350,11 @@ def sort_by_priority(
             return -1
 
         # fallback: 보충 수집으로 들어와 태그가 없어도 힌트 장소명과 부분 일치하면 최우선
+        # (공백 제거 후 비교 — "도째비골 스카이밸리" vs "도째비골스카이밸리")
+        name_n = name.replace(" ", "")
         hint_matched = bool(hint_kws) and any(
-            hint in name or name in hint for hint in hint_kws
+            h.replace(" ", "") in name_n or name_n in h.replace(" ", "")
+            for h in hint_kws if h
         )
         if hint_matched:
             return -1

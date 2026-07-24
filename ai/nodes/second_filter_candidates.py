@@ -13,7 +13,8 @@
 #        (블로그 없어도 제거하지 않고 name/category로 추론)
 #   4. LLM is_valid=false 장소 제거
 #   5. LLM 결과 머지 (atmosphere, best_for, place_tags, revisit_intent, summary)
-#   6. 점수 계산 (mood + blog + party + revisit = 최대 300점)
+#   6. 점수 계산 (mood + blog + party + revisit + hint = 최대 320점)
+#      *(v3.1)* hint_bonus: 힌트 앵커 본인 +20 / 앵커 주변 +10 (태그 기반)
 #   7. shortlist 선별 (category_group_code 기반 quota)
 #      - 케이스 1 (only): travel_days별 전체 quota
 #      - 케이스 2 (endpoint): day별 독립, day당 30개 고정

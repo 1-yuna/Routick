@@ -82,8 +82,12 @@ def calc_hint_bonus(place: dict, hint_keywords: list[str] | None = None) -> int:
     if place.get("nearest_hint"):
         return HINT_NEARBY_BONUS
     if hint_keywords:
-        name = place.get("name", "") or ""
-        if any(hint in name or name in hint for hint in hint_keywords if hint):
+        # 공백 제거 후 비교 — "도째비골 스카이밸리"(힌트) vs "도째비골스카이밸리"(카카오 상호)
+        name = (place.get("name", "") or "").replace(" ", "")
+        if name and any(
+            h.replace(" ", "") in name or name in h.replace(" ", "")
+            for h in hint_keywords if h
+        ):
             return HINT_ANCHOR_BONUS
     return 0
 
