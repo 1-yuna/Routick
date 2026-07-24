@@ -196,6 +196,14 @@ def filter_by_avoid(
 def filter_by_irrelevant(places: list[dict]) -> tuple[list[dict], int]:
     filtered = []
     for p in places:
+        # *(v3.1)* 힌트 앵커는 이 필터에서 제외 — 삼척중앙시장("가정,생활 > 시장"),
+        # 묵호항("교통,수송 > 교통시설 > 항구,포구")처럼 카카오 카테고리가
+        # "여행"이 아닌 생활/교통 카테고리로 잡히는 실존 명소·앵커가
+        # EXCLUDE_KEYWORDS("시장", "교통", "수송" 등)에 걸려 통째로 제거되는 문제가 있었음
+        if p.get("is_hint_anchor"):
+            filtered.append(p)
+            continue
+
         name     = p.get("name", "") or ""
         category = p.get("category", "") or ""
 
@@ -226,6 +234,11 @@ def filter_by_activity_exclude(
 
     filtered = []
     for p in places:
+        # *(v3.1)* 힌트 앵커는 이 필터에서도 제외 — 같은 이유
+        if p.get("is_hint_anchor"):
+            filtered.append(p)
+            continue
+
         category = p.get("category", "") or ""
         if any(kw in category for kw in exclude_keywords):
             continue
@@ -235,6 +248,10 @@ def filter_by_activity_exclude(
 
 
 # ─── 세부 카테고리별 중복 제한 ───
+# *(v3.1)* 힌트 앵커는 이 cap에서 제외. 카카오 카테고리가 "여행 > 관광,명소"처럼
+# 두루뭉술한 값이라, 논골담길·도째비골스카이밸리 같은 완전히 다른 실존 핫플이
+# 같은 서브카테고리로 묶여 cap에 걸려 통째로 잘리는 문제가 있었음
+# (앵커가 아닌 일반 명소는 여전히 cap 적용 — 잡다한 동상·기념비 난립 방지)
 def filter_by_subcategory_cap(
         places: list[dict],
         max_per_subcategory: int = 2,
@@ -243,6 +260,10 @@ def filter_by_subcategory_cap(
     filtered = []
 
     for p in places:
+        if p.get("is_hint_anchor"):
+            filtered.append(p)
+            continue
+
         category = p.get("category", "")
         parts    = category.split(" > ")
 

@@ -11,6 +11,8 @@
 #      - place_tags 기반 활동 다양성 판단
 #      - day 간 동일 장소 중복 금지를 최우선으로 고려
 #      - 동선 내 동일 place_tags 2개 이상 금지
+#      - *(v3.1)* 술/바 이후 신체 활동(activity)이 이어지는 등 상식적으로
+#        부자연스러운 순서 감점
 #   2. 각 장소별 추천 이유 생성 (moods/activities 매칭 포함, 30자 이내)
 #   3. day별 선택 이유 + 비교(미선택) 이유 생성
 # ─────────────────────────────────────────────────────────────────────
@@ -27,12 +29,16 @@ def _format_itinerary(itinerary: list[dict]) -> str:
     lines = []
     for item in places:
         p = item["place"]
+        bucket     = p.get("bucket", "")
         atmosphere = ", ".join(p.get("atmosphere", [])) or "정보없음"
         best_for   = ", ".join(p.get("best_for", [])) or "정보없음"
         tags       = ", ".join(p.get("place_tags", [])) or "정보없음"
         summary    = p.get("summary", "")
+        # *(v3.1)* 유형(bucket)을 명시 — "술/바 다음 activity 순서" 같은
+        # 상식적 순서 판단 규칙을 LLM이 실제로 체크할 수 있으려면
+        # 각 장소가 food/cafe/activity/browse/pop 중 무엇인지 알아야 함
         lines.append(
-            f"    - {p.get('name')} (id: {p.get('id')}) "
+            f"    - {p.get('name')} (id: {p.get('id')}, 유형: {bucket}) "
             f"| 분위기: {atmosphere} | 추천대상: {best_for} | 활동: {tags} | {summary}"
         )
     return "\n".join(lines)
@@ -99,6 +105,13 @@ def build_prompt(
        2개 이상이면 감점 요인입니다.
     5. day 간 동일 장소(id) 중복을 최우선으로 피하세요. 여러 day에서 좋은 동선이
        같은 장소를 포함하고 있다면, 전체 조합 관점에서 중복이 없는 조합을 선택하세요.
+    6. 순서가 상식적으로 부자연스러운 동선은 감점하세요. 특히:
+       - place_tags에 "바/술집"(또는 음주를 암시하는 태그)이 포함된 장소를 방문한
+         "이후"에 유형이 activity(신체 활동성이 있는 관광/체험)인 장소가 이어지는 경우
+         (예: 술집 → 액티비티 순서는 음주 후 신체 활동이라 비상식적입니다)
+       - 이런 순서가 있는 동선은 다른 조건이 비슷한 대안이 있다면 그 대안을 우선 선택하세요.
+         단, 유일한 후보이거나 다른 후보들도 전부 동일한 문제가 있다면 감점만 반영하고
+         선택 자체는 진행하세요.
     {single_note}
 
     [장소별 추천 이유 작성 기준]

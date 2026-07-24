@@ -168,6 +168,15 @@ async def _enrich_and_score(
                 warnings.append(f"[{label}] LLM 제거 무시 (FD6/CE7 보호): {name}")
                 continue
 
+            # *(v3.1)* 힌트 앵커 본인도 보호 — LLM이 name/category만 보고
+            # "여행지로 부적합"(예: 행정구역성 명칭, 정보 부족 등)이라 판단해도
+            # 유저가 명시적으로 지목한 장소이므로 강제 포함시킴.
+            # 이게 없으면 activity 카테고리인 앵커(삼척항, 삼척중앙시장 등)가
+            # food/cafe와 달리 아무 보호 없이 조용히 제거되는 문제가 있었음.
+            if place.get("is_hint_anchor"):
+                warnings.append(f"[{label}] LLM 제거 무시 (힌트 앵커 보호): {name}")
+                continue
+
             invalid_ids.add(pid)
             warnings.append(f"[{label}] LLM 제거: {name} - {r.get('invalid_reason', '')}")
 
@@ -204,7 +213,7 @@ async def _enrich_and_score(
             "summary":        enrich.get("summary", ""),
         })
 
-    # ── 5. 점수 계산 ────────────────────────────────────────────────
+    # ── 6. 점수 계산 (mood+blog+party+revisit+hint = 최대 320점) ────
     scored = []
     for place in enriched:
         place_id       = place.get("id")
@@ -231,7 +240,7 @@ async def _enrich_and_score(
 
     scored.sort(key=lambda x: x["total_score"], reverse=True)
 
-    # ── 6. shortlist 선별 ────────────────────────────────────────────
+    # ── 7. shortlist 선별 ────────────────────────────────────────────
     shortlist = select_shortlist(
         scored,
         route_type=route_type,
