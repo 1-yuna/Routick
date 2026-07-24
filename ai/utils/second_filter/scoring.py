@@ -69,9 +69,12 @@ def calc_revisit_score(place: dict) -> int:
 #   - is_hint_anchor: 힌트 앵커 본인 → +20
 #   - nearest_hint:   앵커 소반경 내에서 수집된 클러스터 장소 → +10
 # fallback: 보충 수집(center 반경)으로 들어와 태그가 없는 장소는
-#   힌트 장소명과 이름이 겹치면(부분 일치) 앵커로 간주 +20
+#   힌트 장소명과 이름이 완전히 일치하면(공백만 제외) 앵커로 간주 +20
 #   (태그 기반이 우선인 이유: 이름 매칭은 띄어쓰기 차이에 깨짐
 #    예: 힌트 "해운대 블루라인파크" vs 카카오 상호 "해운대블루라인파크")
+# *(v3.1 재수정)* 원래 부분 문자열 포함(in) 매칭이었는데, "삼척항" 같은 짧고
+# 흔한 힌트 키워드가 "컴포즈커피 삼척항점"처럼 이름에 그 지명만 우연히 들어간
+# 무관한 가게에도 보너스를 주는 문제가 있어 공백 제거 후 완전 일치로 좁힘.
 HINT_ANCHOR_BONUS = 20
 HINT_NEARBY_BONUS = 10
 
@@ -82,10 +85,9 @@ def calc_hint_bonus(place: dict, hint_keywords: list[str] | None = None) -> int:
     if place.get("nearest_hint"):
         return HINT_NEARBY_BONUS
     if hint_keywords:
-        # 공백 제거 후 비교 — "도째비골 스카이밸리"(힌트) vs "도째비골스카이밸리"(카카오 상호)
-        name = (place.get("name", "") or "").replace(" ", "")
-        if name and any(
-            h.replace(" ", "") in name or name in h.replace(" ", "")
+        name_n = (place.get("name", "") or "").replace(" ", "")
+        if name_n and any(
+            name_n == h.replace(" ", "")
             for h in hint_keywords if h
         ):
             return HINT_ANCHOR_BONUS

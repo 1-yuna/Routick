@@ -241,6 +241,7 @@ async def _enrich_and_score(
     scored.sort(key=lambda x: x["total_score"], reverse=True)
 
     # ── 7. shortlist 선별 ────────────────────────────────────────────
+    # *(v3.1)* hint_keywords 전달 — quota 컷에서도 힌트 앵커는 무조건 확보
     shortlist = select_shortlist(
         scored,
         route_type=route_type,
@@ -249,6 +250,7 @@ async def _enrich_and_score(
         start_lng=start_lng,
         end_lat=end_lat,
         end_lng=end_lng,
+        hint_keywords=hint_keywords,
     )
 
     if not shortlist:
