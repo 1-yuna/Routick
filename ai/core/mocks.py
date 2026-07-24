@@ -8,7 +8,7 @@ from core.state import UserInput
 
 
 # ══════════════════════════════════════════════════════════════════════
-# 케이스 1: 목적지 + 당일 + 도보
+# 케이스 1: 목적지 + 당일 + 도보 ( 묵호)
 # ══════════════════════════════════════════════════════════════════════
 mock_only_1day_walk: UserInput = {
     "route_type":       "only",
@@ -19,8 +19,9 @@ mock_only_1day_walk: UserInput = {
     "moods":            ["healing", "romantic"],
     "activities":       ["activity", "nature"],
     "avoid_activities": [],
-    "lat":              37.5572,
-    "lng":              126.9245,
+    "lat":              37.5469,
+    "lng":              129.1069,
+    "destination":      "묵호역",
     "days":             None,
     "start_time":       "11:00",
     "end_time":         "22:00",
@@ -44,6 +45,7 @@ mock_only_1day_car: UserInput = {
     "avoid_activities": [],
     "lat":              37.5572,
     "lng":              126.9245,
+    "destination":      "홍대입구역",
     "days":             None,
     "start_time":       "11:00",
     "end_time":         "22:00",
@@ -67,6 +69,7 @@ mock_only_3day_walk: UserInput = {
     "avoid_activities": [],
     "lat":              37.5572,
     "lng":              126.9245,
+    "destination":      "홍대입구역",
     "days":             None,
     "start_time":       "11:00",
     "end_time":         "22:00",
@@ -90,6 +93,7 @@ mock_only_3day_car: UserInput = {
     "avoid_activities": [],
     "lat":              37.5572,
     "lng":              126.9245,
+    "destination":      "홍대입구역",
     "days":             None,
     "start_time":       "11:00",
     "end_time":         "22:00",
@@ -114,6 +118,7 @@ mock_endpoint_1day_walk: UserInput = {
     "avoid_activities": [],
     "lat":              None,
     "lng":              None,
+    "destination":      None,
     "days": [
         {
             "day_number":     1,
@@ -152,6 +157,7 @@ mock_endpoint_1day_car: UserInput = {
     "avoid_activities": [],
     "lat":              None,
     "lng":              None,
+    "destination":      None,
     "days": [
         {
             "day_number":     1,
@@ -192,6 +198,7 @@ mock_endpoint_3day_walk: UserInput = {
     "avoid_activities": [],
     "lat":              None,
     "lng":              None,
+    "destination":      None,
     "days": [
         {
             "day_number":     1,
@@ -256,6 +263,7 @@ mock_endpoint_3day_car: UserInput = {
     "avoid_activities": [],
     "lat":              None,
     "lng":              None,
+    "destination":      None,
     "days": [
         {
             "day_number":     1,
@@ -321,6 +329,7 @@ mock_endpoint_2day_car: UserInput = {
     "avoid_activities": [],
     "lat":              None,
     "lng":              None,
+    "destination":      None,
     "days": [
         {
             "day_number":     1,

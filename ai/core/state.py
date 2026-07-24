@@ -42,13 +42,17 @@ class DayCoord(TypedDict):
     day_number: int
     start_lat: float
     start_lng: float
-    start_name: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소명
-    mid_lat: Optional[float]    # 경유지 (선택)
+    start_name: Optional[str]      # 프론트 카카오 자동완성에서 받은 장소명
+    start_address: Optional[str]   # 출발지 주소
+    start_place_id: Optional[str]  # 출발지 카카오 place_id
+    mid_lat: Optional[float]       # 경유지 (선택)
     mid_lng: Optional[float]
     mid_name: Optional[str]
     end_lat: float
     end_lng: float
-    end_name: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소명
+    end_name: Optional[str]        # 프론트 카카오 자동완성에서 받은 장소명
+    end_address: Optional[str]     # 도착지 주소
+    end_place_id: Optional[str]    # 도착지 카카오 place_id
 
 
 class UserInput(TypedDict):
@@ -62,9 +66,11 @@ class UserInput(TypedDict):
     activities: list[str]               # ["nature/walk", "shopping"] 등
     avoid_activities: Optional[list[str]]
 
-    # 케이스 1 (only) — 목적지 좌표
+    # 케이스 1 (only) — 목적지 좌표 + 이름
     lat: Optional[float]
     lng: Optional[float]
+    destination: Optional[str]  # 목적지 이름 (프론트 카카오 자동완성) *(v3.1 신규)*
+                                # region_hint의 앵커 지역명으로 우선 사용 (역지오코딩보다 정확)
 
     # 케이스 2 (endpoint) — day별 출발·도착 좌표
     days: Optional[list[DayCoord]]

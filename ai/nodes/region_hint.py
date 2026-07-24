@@ -7,13 +7,12 @@
 #   1. day별 힌트 질의용 앵커 지역명 확보
 #      - endpoint: mid_name > start_name (프론트에서 받은 값 우선 재사용)
 #        둘 다 없으면 center_lat/lng(=mid 좌표)를 카카오 좌표→행정구역 API로 역지오코딩
-#      - only: center_lat/lng(=목적지 좌표)를 역지오코딩
-#   2. LLM(GPT-4o-mini)에게 그 지역 근처에서 실제로 많이 찾는 구체적 장소·거리명 힌트 요청
+#      - only: destination(프론트에서 받은 목적지 이름) 우선 *(v3.1)*,
+#        없으면 center_lat/lng(=목적지 좌표)를 역지오코딩
+#   2. LLM(GPT-4o — REGION_HINT_MODEL)에게 그 지역 근처에서 실제로 많이 찾는 구체적 장소·거리명 힌트 요청
 #      (카테고리성 표현 대신 구체적 상호명만 추출하도록 프롬프트에서 강제)
-#      *(v3.1)* travel_mode(도보/자동차) + route_type을 프롬프트에 포함
-#      - 자동차 + only: 가까운 곳 최우선, 부족할 때만 차로 20~30분 내로 보충
-#      - 그 외 (도보, 또는 endpoint): 지역 바로 근처에 몰려 있는 장소만
-#        (endpoint는 day별 mid가 중심이라 다른 day 지역과 힌트가 섞이면 안 됨)
+#      *(v3.1)* 이동수단/route_type 조건은 프롬프트에서 제거 (응답 품질 저하로 회귀)
+#      거리 제한은 collect_pool 앵커 해소 단계의 기본 반경 검색이 담당
 #   3. day별 hint_keywords로 저장
 #      *(v3.1)* 힌트는 collect_pool에서 수집의 앵커(중심점)로 사용됨:
 #      앵커 해소 → 앵커 주변 소반경 수집(메인) → 조건부 center 보충 수집(폴백)
@@ -32,20 +31,30 @@ from prompts.region_hint_prompt import build_prompt
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
+# 지역 로컬 지식(세부 지명)이 중요한 노드라 mini 대신 4o 사용 *(v3.1)*
+# (mini는 논골담길·도째비골 같은 로컬 핫플을 못 잡고 카테고리성 표현을 뱉는 경향)
+REGION_HINT_MODEL = "gpt-4o"
+
 MAX_HINTS_PER_DAY = 5
 
 
 # ─── day별 힌트 질의용 앵커 지역명 확보 ───
 async def _anchor_name(
-    client:   httpx.AsyncClient,
-    day_info: dict,
-    day_raw:  dict | None,
+    client:      httpx.AsyncClient,
+    day_info:    dict,
+    day_raw:     dict | None,
+    destination: str = "",
 ) -> str:
     if day_raw:
         if day_raw.get("mid_name"):
             return day_raw["mid_name"]
         if day_raw.get("start_name"):
             return day_raw["start_name"]
+
+    # only 케이스: 프론트에서 받은 목적지 이름 우선 *(v3.1)*
+    # (역지오코딩은 "묵호동" 같은 행정구역명이라 "묵호역"보다 힌트 품질이 떨어짐)
+    if destination:
+        return destination
 
     lat = day_info.get("center_lat")
     lng = day_info.get("center_lng")
@@ -60,10 +69,8 @@ async def _call_llm(
     region_name:   str,
     moods_kr:      list[str],
     activities_kr: list[str],
-    transport:     str,
-    route_type:    str,
 ) -> list[str]:
-    prompt = build_prompt(region_name, moods_kr, activities_kr, transport, route_type)
+    prompt = build_prompt(region_name, moods_kr, activities_kr)
     try:
         resp = await client.post(
             OPENAI_API_URL,
@@ -72,7 +79,7 @@ async def _call_llm(
                 "Authorization": f"Bearer {OPENAI_API_KEY}",
             },
             json={
-                "model": "gpt-4o-mini",
+                "model": REGION_HINT_MODEL,
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 500,
                 "temperature": 0.3,
@@ -99,8 +106,7 @@ async def region_hint(state: dict) -> dict:
     days_raw      = ui.get("days") or []
     moods_kr      = ui.get("moods_kr") or []
     activities_kr = ui.get("activities_kr") or []
-    transport     = ui.get("transport", "walk")   # walk / car *(v3.1)*
-    route_type    = ui.get("route_type", "only")  # only / endpoint *(v3.1)*
+    destination   = ui.get("destination") or ""   # only 케이스 목적지 이름 *(v3.1)*
 
     if not days_info:
         warnings.append("days_info 없음 → region_hint 스킵")
@@ -113,13 +119,13 @@ async def region_hint(state: dict) -> dict:
             day_number = day_info["day_number"]
             day_raw = next((d for d in days_raw if d.get("day_number") == day_number), None)
 
-            region_name = await _anchor_name(client, day_info, day_raw)
+            region_name = await _anchor_name(client, day_info, day_raw, destination)
             if not region_name:
                 warnings.append(f"day{day_number} 힌트 앵커 지역명 확보 실패 → 힌트 스킵")
                 hint_keywords_by_day[day_number] = []
                 continue
 
-            hints = await _call_llm(client, region_name, moods_kr, activities_kr, transport, route_type)
+            hints = await _call_llm(client, region_name, moods_kr, activities_kr)
             hint_keywords_by_day[day_number] = hints
 
             if hints:
