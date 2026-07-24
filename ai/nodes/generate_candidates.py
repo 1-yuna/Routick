@@ -22,7 +22,7 @@
 
 import math
 from datetime import datetime, timedelta
-from utils.route.greedy_nn import greedy_nn, STAY_MINUTES, LUNCH_EXCLUDE_KEYWORDS
+from utils.route.greedy_nn import greedy_nn, STAY_MINUTES, LUNCH_EXCLUDE_KEYWORDS, get_stay_minutes
 from utils.route.route_check import check_route_intersections
 
 
@@ -169,8 +169,7 @@ def assign_times(
     for order, item in enumerate(route):
         place  = item["place"]
         pid    = place["id"]
-        bucket = place.get("bucket", "activity")
-        stay   = STAY_MINUTES.get(bucket, 90)
+        stay   = get_stay_minutes(place)   # *(v3.1)* activity 세부 유형별 체류시간
 
         travel_min = 0 if order == 0 else max(1, int(
             time_matrix[id_to_idx.get(route[order-1]["place"]["id"], 0)][id_to_idx.get(pid, 0)]

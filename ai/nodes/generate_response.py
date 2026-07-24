@@ -13,7 +13,7 @@
 #      - parking 블록은 enter/exit_transport 포함
 # ─────────────────────────────────────────────────────────────────────
 
-from utils.route.greedy_nn import STAY_MINUTES
+from utils.route.greedy_nn import STAY_MINUTES, get_stay_minutes
 
 
 # ─── 이동수단 한국어 → 영어 ───
@@ -190,7 +190,7 @@ def generate_response(state: dict) -> dict:
                 continue
 
             # ── place 블록 ───────────────────────────────────────────
-            stay_minutes = STAY_MINUTES.get(bucket, 60)
+            stay_minutes = get_stay_minutes(place)   # *(v3.1)* activity 세부 유형별 체류시간
             blocks.append({
                 "block_order":  block_order,
                 "type":         "place",
