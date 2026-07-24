@@ -243,6 +243,12 @@ def is_valid_route(
         bucket = item["place"].get("bucket", "")
         if bucket in ("food", "cafe"):
             continue
+        # *(v3.1)* 힌트 앵커는 카테고리 중복 검증에서 예외 —
+        # greedy_nn.is_selectable과 동일한 이유(카카오 카테고리가
+        # "여행 > 관광,명소"처럼 뭉뚱그려져 있어 서로 다른 앵커끼리
+        # 카테고리 문자열만 같다는 이유로 동선 전체가 무효 처리되는 문제 방지
+        if item["place"].get("is_hint_anchor"):
+            continue
         category = item["place"].get("category", "") or ""
         parts    = [p.strip() for p in category.split(">")]
         last     = parts[-1] if parts else ""

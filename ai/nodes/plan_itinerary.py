@@ -12,7 +12,14 @@
 #        1km 초과면 이전 주차장 복귀 → end 근처 새 주차장 검색 → 자동차로 이동 →
 #        새 주차장에서 end까지 도보로 연결
 #      - 이동시간은 Haversine 기반 추정값 (정확한 재계산은 3-8에서 수행)
-#   2. total_score 내림차순 정렬 후 day별 상위 5개 반환
+#   2. 상위 N개 추출 시 정렬 우선순위 *(v3.1 변경)*:
+#      ① 힌트 앵커 커버리지 점수 (높은 순) — region_hint의 hint_anchors는
+#         LLM이 반환한 순서 그대로가 순위(0번째=최우선)이므로, 순위가 높은
+#         앵커가 포함된 동선일수록 가중치를 크게 줌
+#      ② 경로 교차 적은 순
+#      ③ total_score 높은 순
+#      → 앵커를 많이/우선순위 높게 포함한 동선을 상위 3(only)/5(endpoint)개로
+#        추려서 3-8(select_itinerary) LLM 최종 선택 단계로 넘김
 #      유효 동선 1개 이상이면 진행, 없으면 실패 응답
 # ─────────────────────────────────────────────────────────────────────
 
@@ -276,6 +283,25 @@ def _brand_name(name: str) -> str:
     return re.sub(r'\s+\S*(점|지점|호점|본점|직영점|분점)$', '', name.strip()).strip()
 
 
+# ─── 힌트 앵커 순위 가중치 *(v3.1 신규)* ───
+# hint_anchors는 region_hint(LLM)가 반환한 순서 그대로 (0번째=최우선).
+# 순위가 높을수록(=인덱스가 작을수록) 큰 가중치를 부여.
+def _anchor_rank_weights(hint_anchors: list[dict] | None) -> dict[str, int]:
+    anchors = hint_anchors or []
+    n = len(anchors)
+    return {a["name"]: (n - i) for i, a in enumerate(anchors)}
+
+
+# ─── 동선의 힌트 앵커 커버리지 점수 *(v3.1 신규)* ───
+# 동선에 포함된 힌트 앵커들의 순위 가중치 합산. 앵커가 아예 없으면 0.
+def _route_anchor_score(itinerary: list[dict], rank_weights: dict[str, int]) -> int:
+    return sum(
+        rank_weights.get(item["place"].get("nearest_hint", ""), 0)
+        for item in itinerary
+        if item["place"].get("is_hint_anchor")
+    )
+
+
 # ─── 동선에서 장소 id + 브랜드명 추출 (start/end/parking 제외) ───
 def _route_keys(itinerary: list[dict]) -> tuple[set[str], set[str]]:
     ids, brands = set(), set()
@@ -295,6 +321,7 @@ async def plan_itinerary(state: dict) -> dict:
     transport_kr        = state["user_input"].get("transport_kr", "도보")
     route_type          = state["user_input"].get("route_type", "only")
     travel_days         = state["user_input"].get("travel_days", 1)
+    days_info           = state["user_input"].get("days_info") or []
     warnings: list[str] = []
 
     itineraries_by_day: dict[int, list[list[dict]]] = {}
@@ -313,11 +340,23 @@ async def plan_itinerary(state: dict) -> dict:
             if used_fallback:
                 warnings.append(f"[only] day{day_number} 유효 동선 없음 → 전체 동선 중 교차 적은 순으로 폴백")
 
-            # 교차 적은 순 → 점수 높은 순 (폴백일 때도 그나마 덜 지저분한 동선을 우선 노출)
+            # 힌트 앵커 순위 가중치 *(v3.1)*
+            day_info_entry = next((d for d in days_info if d.get("day_number") == day_number), None)
+            rank_weights = _anchor_rank_weights(day_info_entry.get("hint_anchors") if day_info_entry else None)
+
+            # 앵커 커버리지 높은 순 → 교차 적은 순 → 점수 높은 순
+            # (폴백일 때도 그나마 덜 지저분한 동선을 우선 노출)
             top_routes = sorted(
                 valid_routes,
-                key=lambda x: (x.get("intersection_count", 0), -x["total_score"]),
+                key=lambda x: (
+                    -_route_anchor_score(x["itinerary"], rank_weights),
+                    x.get("intersection_count", 0),
+                    -x["total_score"],
+                ),
             )[:3]
+            if rank_weights:
+                covered = [_route_anchor_score(r["itinerary"], rank_weights) for r in top_routes]
+                warnings.append(f"[only] day{day_number} 상위 3개 앵커 점수: {covered}")
             final = []
             for r in top_routes:
                 if transport_kr == "자동차":
@@ -351,10 +390,21 @@ async def plan_itinerary(state: dict) -> dict:
                 "step":               "failed",
             }
 
+        # 힌트 앵커 순위 가중치 *(v3.1)*
+        day_info_entry = next((d for d in days_info if d.get("day_number") == day_number), None)
+        rank_weights = _anchor_rank_weights(day_info_entry.get("hint_anchors") if day_info_entry else None)
+
         top_routes = sorted(
             valid_routes,
-            key=lambda x: (x.get("intersection_count", 0), -x["total_score"]),
+            key=lambda x: (
+                -_route_anchor_score(x["itinerary"], rank_weights),
+                x.get("intersection_count", 0),
+                -x["total_score"],
+            ),
         )[:MAX_ITINERARIES_PER_DAY]
+        if rank_weights:
+            covered = [_route_anchor_score(r["itinerary"], rank_weights) for r in top_routes]
+            warnings.append(f"day{day_number} 상위 {MAX_ITINERARIES_PER_DAY}개 앵커 점수: {covered}")
 
         final_itineraries = []
         for r in top_routes:

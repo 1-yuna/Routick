@@ -297,9 +297,13 @@ def greedy_nn(
                 category = item["place"].get("category", "") or ""
                 if any(kw in category for kw in LUNCH_EXCLUDE_KEYWORDS):
                     return False
-            # category_name 마지막 depth 중복 사전 차단 (food/cafe 제외)
+            # category_name 마지막 depth 중복 사전 차단 (food/cafe/힌트앵커 제외) *(v3.1)*
+            # 힌트 앵커도 예외 처리 필요: 카카오 카테고리가 전부 "여행 > 관광,명소"
+            # 같은 두루뭉술한 값이라, 논골담길·도째비골스카이밸리처럼 완전히 다른
+            # 실존 장소인데도 카테고리 문자열이 같다는 이유로 차단되던 문제가 있었음
+            # (동상·기념비 같은 잡다한 일반 명소는 여전히 차단 대상)
             item_bucket = item["place"].get("bucket", "")
-            if item_bucket not in ("food", "cafe"):
+            if item_bucket not in ("food", "cafe") and not item["place"].get("is_hint_anchor"):
                 item_category = item["place"].get("category", "") or ""
                 item_parts = [p.strip() for p in item_category.split(">")]
                 item_last  = item_parts[-1] if item_parts else ""
