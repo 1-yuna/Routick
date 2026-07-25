@@ -1,11 +1,20 @@
 import { getTransportTime } from './directionUtils.jsx';
 
 // blocks 배열을 순회하며:
-// 0. 삭제 후 불필요한 walk/parking 정리
-// 1. place-place 사이에 walk 블록 없으면 자동 삽입
-// 2. walk/parking 이동시간 재계산
+// 0. 삭제 후 불필요한 walk/taxi/parking 정리
+// 1. place-place 사이에 이동(walk/taxi) 블록 없으면 자동 삽입
+// 2. walk/taxi/parking 이동시간 재계산
+//    *(v3)* 도보 코스에서 도보 20분 초과 구간은 taxi로 자동 전환
+//    (백엔드 generate_candidates의 택시 태깅 규칙과 동일 기준)
 // 3. placeOrder 재정렬
 // transport: 'car' | 'walk'
+
+// 도보 → 택시 전환 기준 (분) — 백엔드 TRAVEL_TIME_LIMIT["도보"]와 동일
+const WALK_TAXI_THRESHOLD = 20;
+
+// walk/taxi 공통: 장소-장소 사이 이동 블록인지
+const isSegment = (b) => b?.type === 'walk' || b?.type === 'taxi';
+
 export async function recalcTransportUtils(blocks, transport) {
   // 0단계: 타입 전환된 블록의 transport 필드 정규화
   // place→parking: enter/exitTransport 없으면 추가
@@ -35,7 +44,7 @@ export async function recalcTransportUtils(blocks, transport) {
   // 1단계: 불필요한 블록 정리
   let cleaned = cleanBlocks(normalized);
 
-  // 1단계: place-place 사이 walk 블록 삽입
+  // 1단계: place-place 사이 이동 블록 삽입 (일단 walk로 — 2단계에서 taxi 판정)
   const withWalk = [];
   for (let i = 0; i < cleaned.length; i++) {
     withWalk.push(cleaned[i]);
@@ -43,7 +52,7 @@ export async function recalcTransportUtils(blocks, transport) {
     const cur = cleaned[i];
     const next = cleaned[i + 1];
 
-    // place 다음에 바로 place가 오면 walk 삽입
+    // place 다음에 바로 place가 오면 이동 블록 삽입
     if (cur.type === 'place' && next?.type === 'place') {
       withWalk.push({
         blockOrder: 0, // 나중에 재정렬
@@ -63,16 +72,32 @@ export async function recalcTransportUtils(blocks, transport) {
   for (let i = 0; i < withWalk.length; i++) {
     const cur = withWalk[i];
 
-    // walk 블록 (장소-장소 사이, 항상 도보)
-    if (cur.type === 'walk') {
+    // walk/taxi 블록 (장소-장소 사이)
+    // 편집으로 거리가 바뀌었을 수 있으므로 walk/taxi 판정도 매번 다시 수행
+    if (isSegment(cur)) {
       const prev = withWalk[i - 1];
       const next = withWalk[i + 1];
       if (prev && next && !next._isAnchor) {
         const prevCoord = getCoord(prev);
         const nextCoord = getCoord(next);
         if (prevCoord && nextCoord) {
-          cur.mode = 'walk';
-          cur.minutes = await getTransportTime(prevCoord, nextCoord, '도보');
+          const walkMin = await getTransportTime(prevCoord, nextCoord, '도보');
+
+          if (transport === 'walk' && walkMin > WALK_TAXI_THRESHOLD) {
+            // *(v3)* 도보 코스에서 도보 20분 초과 → 택시 전환
+            // 시간은 카카오 모빌리티(자동차) 기준으로 재계산
+            cur.type = 'taxi';
+            cur.mode = 'taxi';
+            cur.minutes = await getTransportTime(
+              prevCoord,
+              nextCoord,
+              '자동차'
+            );
+          } else {
+            cur.type = 'walk';
+            cur.mode = 'walk';
+            cur.minutes = walkMin;
+          }
         }
       }
     }
@@ -131,7 +156,7 @@ export async function recalcTransportUtils(blocks, transport) {
   return withWalk.map((block, idx) => {
     const base = { ...block, blockOrder: idx + 1 };
 
-    if (block.type === 'walk') {
+    if (isSegment(block)) {
       current += Number(block.minutes) || 0;
       return base;
     }
@@ -160,30 +185,27 @@ export async function recalcTransportUtils(blocks, transport) {
 }
 
 // 삭제 후 불필요한 블록 정리
-// - 연속된 walk → 하나로 합치기
-// - 맨 앞 / 맨 뒤 walk 제거
+// - 연속된 walk/taxi → 하나로 합치기
+// - 맨 앞 / 맨 뒤 walk/taxi 제거
 // - parking 다음에 바로 parking이면 중간 parking의 enterTransport를 앞 parking의 exitTransport로 병합
 function cleanBlocks(blocks) {
   let result = [...blocks];
 
-  // 1) 맨 앞 walk 제거
-  while (result.length > 0 && result[0].type === 'walk') {
+  // 1) 맨 앞 이동 블록 제거
+  while (result.length > 0 && isSegment(result[0])) {
     result = result.slice(1);
   }
 
-  // 2) 맨 뒤 walk 제거
-  while (result.length > 0 && result[result.length - 1].type === 'walk') {
+  // 2) 맨 뒤 이동 블록 제거
+  while (result.length > 0 && isSegment(result[result.length - 1])) {
     result = result.slice(0, -1);
   }
 
-  // 3) 연속된 walk → 하나만 남기기
+  // 3) 연속된 이동 블록 → 하나만 남기기 (walk-taxi 연속 포함)
   const deduped = [];
   for (let i = 0; i < result.length; i++) {
-    if (
-      result[i].type === 'walk' &&
-      deduped[deduped.length - 1]?.type === 'walk'
-    ) {
-      continue; // 연속 walk는 skip
+    if (isSegment(result[i]) && isSegment(deduped[deduped.length - 1])) {
+      continue; // 연속 이동 블록은 skip
     }
     deduped.push(result[i]);
   }

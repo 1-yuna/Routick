@@ -82,6 +82,23 @@ async def version():
     return {"version": PIPELINE_VERSION}
 
 
+# ─── region_hint 결과(day별 hint_keywords) 콘솔 출력 ───
+# *(v3.1 신규)* "힌트가 뭐가 나왔는지 바로 눈으로 보고 싶다" 요청으로 추가.
+# region_hint 노드 자체도 warnings에 남기지만, 파이프라인이 실패해도(예:
+# generate_candidates에서 예외) 여기서 먼저 찍어두면 어디까지 힌트가
+# 잘 나왔는지 바로 확인 가능.
+def _print_hint_keywords(final_state: dict) -> None:
+    days_info = (final_state.get("user_input") or {}).get("days_info") or []
+    print("\n🎯 힌트 키워드 (region_hint 결과)")
+    if not days_info:
+        print("   (days_info 없음)")
+        return
+    for d in days_info:
+        day_number = d.get("day_number")
+        hints      = d.get("hint_keywords")
+        print(f"   day{day_number}: {hints}")
+
+
 @app.post("/api/generate")
 async def generate(request: dict):
     try:
@@ -93,6 +110,8 @@ async def generate(request: dict):
 
         initial_state = make_initial_state(request)
         final_state = await graph.ainvoke(initial_state)
+
+        _print_hint_keywords(final_state)
 
         response = final_state.get("response")
         if not response:
@@ -166,6 +185,9 @@ user_input = {
 async def main():
     initial_state = make_initial_state(user_input)
     final_state = await graph.ainvoke(initial_state)
+
+    _print_hint_keywords(final_state)
+
     print(json.dumps(final_state["response"], ensure_ascii=False, indent=2))
 
 
