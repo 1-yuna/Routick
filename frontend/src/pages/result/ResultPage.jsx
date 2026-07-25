@@ -14,16 +14,14 @@ import BaseModal from '../../common/modal/BaseModal.jsx';
 import CancelIcon from '../../assets/icons/cancel.svg?react';
 import LeftIcon from '../../assets/icons/left.svg?react';
 import useCourseStore from '../../store/courseStore.jsx';
-import useSelectionStore from '../../store/selectionStore.jsx';
 import { extractMarkers } from '../../utils/markerUtils.jsx';
 import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
 import { createTrip, updateTripDays } from '../../api/trip.jsx';
-import { savePreferences, generateCourse } from '../../api/course.jsx';
+import { generateCourse } from '../../api/course.jsx';
 import {
   buildTripCreatePayload,
   buildTripDaysUpdatePayload,
 } from '../../utils/tripUtils.jsx';
-import { buildPreferencePayload } from '../../utils/preferenceUtils.jsx';
 import { normalizeCourse } from '../../utils/courseUtils.jsx';
 
 // 언마운트돼도 유지되는 화면 상태 (장소 상세로 갔다가 돌아와도 고정되게)
@@ -34,6 +32,7 @@ let resultScrollTop = 0;
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
   const setCourse = useCourseStore((state) => state.setCourse);
+  const preferenceId = useCourseStore((state) => state.preferenceId);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
   const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const navigate = useNavigate();
@@ -102,16 +101,21 @@ export default function ResultPage() {
     }
   };
 
-  // 재추천 - LoadingPage의 최초 생성 흐름과 동일한 API를 같은 입력값(useSelectionStore)으로
-  // 재호출 (savePreferences → generateCourse → normalizeCourse → setCourse)
+  // 재추천 - *(fix)* savePreferences를 다시 호출하면 안 됨. 최초 생성(LoadingPage)
+  // 때 저장해둔 동일 preferenceId로 generateCourse만 재호출
+  // (course.jsx 주석: "재추천 시 동일 preferenceId로 재호출" —
+  //  이전에 savePreferences를 재호출하도록 만들었을 때 POST /courses/preferences
+  //  400 Bad Request가 났던 원인)
   const handleRefresh = async () => {
     if (isRefreshing) return;
+    if (!preferenceId) {
+      alert(
+        '재추천에 필요한 정보를 찾을 수 없어요. 처음부터 다시 시도해주세요.'
+      );
+      return;
+    }
     setIsRefreshing(true);
     try {
-      const payload = buildPreferencePayload(useSelectionStore.getState());
-      const prefRes = await savePreferences(payload);
-      const { preferenceId } = prefRes.data.data;
-
       const courseRes = await generateCourse(preferenceId);
       const newCourse = normalizeCourse(courseRes.data.data);
 

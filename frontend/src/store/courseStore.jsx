@@ -8,7 +8,13 @@ const isSegment = (b) => b?.type === 'walk' || b?.type === 'taxi';
 const useCourseStore = create((set) => ({
   course: mockCourse,
   setCourse: (course) => set({ course }),
-  reset: () => set({ course: mockCourse }),
+  reset: () => set({ course: mockCourse, preferenceId: null }),
+
+  // *(신규)* 재추천용 preferenceId — 최초 코스 생성(LoadingPage) 때 저장해두고,
+  // 재추천 시 savePreferences를 다시 호출하지 않고 이 값으로 generateCourse만
+  // 재호출함 (course.jsx 주석: "재추천 시 동일 preferenceId로 재호출")
+  preferenceId: null,
+  setPreferenceId: (preferenceId) => set({ preferenceId }),
 
   // 편집 모드 (페이지 이동 간 유지용)
   isEditing: false,

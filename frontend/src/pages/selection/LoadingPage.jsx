@@ -11,6 +11,7 @@ import { normalizeCourse } from '../../utils/courseUtils.jsx';
 export default function LoadingPage() {
   const navigate = useNavigate();
   const setCourse = useCourseStore((state) => state.setCourse);
+  const setPreferenceId = useCourseStore((state) => state.setPreferenceId);
   const requested = useRef(false);
   const [progress, setProgress] = useState(0);
 
@@ -32,6 +33,11 @@ export default function LoadingPage() {
         const prefRes = await savePreferences(payload);
         const { preferenceId } = prefRes.data.data;
 
+        // *(신규)* 재추천(ResultPage handleRefresh)에서 재사용할 수 있도록
+        // preferenceId를 store에 저장 — 재추천 시 savePreferences를 또
+        // 호출하면 안 됨 (course.jsx 주석: "재추천 시 동일 preferenceId로 재호출")
+        setPreferenceId(preferenceId);
+
         const courseRes = await generateCourse(preferenceId);
         setCourse(normalizeCourse(courseRes.data.data));
 
@@ -41,7 +47,7 @@ export default function LoadingPage() {
         navigate('/fail');
       }
     })();
-  }, [navigate, setCourse]);
+  }, [navigate, setCourse, setPreferenceId]);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-white gap-16">
