@@ -85,6 +85,7 @@ export default function CourseList({
   onDaySelect,
   onCardClick,
   onPointClick,
+  onRefresh,
 }) {
   const dayNumbers = course.days.map((d) => d.dayNumber);
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
@@ -95,6 +96,7 @@ export default function CourseList({
         days={dayNumbers}
         selectedDay={selectedDay}
         onDaySelect={onDaySelect}
+        onRefresh={onRefresh}
       />
       {selectedDayData && (
         <div>
