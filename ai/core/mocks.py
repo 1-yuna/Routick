@@ -30,6 +30,31 @@ mock_only_1day_walk: UserInput = {
     "final_keywords": None, "name_search_keywords": None, "days_info": None,
 }
 
+# ══════════════════════════════════════════════════════════════════════
+# 케이스 1-1: 목적지 + 당일 + 도보 ( 홍대역 ) *(v4 신규)*
+# mock_only_1day_walk와 동일 조건, 목적지만 홍대역으로 교체
+# ══════════════════════════════════════════════════════════════════════
+mock_only_1day_walk_hong: UserInput = {
+    "route_type":       "only",
+    "travel_days":      1,
+    "travel_date":      "2025-06-15",
+    "transport":        "walk",
+    "companion":        "couple",
+    "moods":            ["healing", "romantic"],
+    "activities":       ["activity", "nature"],
+    "avoid_activities": [],
+    "lat":              37.5572,
+    "lng":              126.9245,
+    "destination":      "홍대역",
+    "days":             None,
+    "start_time":       "11:00",
+    "end_time":         "22:00",
+    "companion_kr": None, "moods_kr": None, "activities_kr": None,
+    "transport_kr": None, "duration_kr": None, "travel_weekday": None,
+    "final_keywords": None, "name_search_keywords": None, "days_info": None,
+}
+
+
 
 # ══════════════════════════════════════════════════════════════════════
 # 케이스 2: 목적지 + 당일 + 자동차

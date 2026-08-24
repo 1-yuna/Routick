@@ -58,6 +58,10 @@ WEEKDAY_MAP = {
     6: "일",
 }
 
+# ─── 여행 시간 기본값 ───
+DEFAULT_START_TIME = "11:00"
+DEFAULT_END_TIME   = "22:00"
+
 # ─── 케이스 1 (only): 원형 반경 (km) ───
 RADIUS_MAP = {
     "walk": {1: 2.0,  2: 2.5,  3: 3.0,  4: 3.5},
