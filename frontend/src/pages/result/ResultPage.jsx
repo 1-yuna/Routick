@@ -17,10 +17,12 @@ import useCourseStore from '../../store/courseStore.jsx';
 import { extractMarkers } from '../../utils/markerUtils.jsx';
 import { recalcTransportUtils } from '../../utils/recalcTransportUtils.jsx';
 import { createTrip, updateTripDays } from '../../api/trip.jsx';
+import { generateCourse } from '../../api/course.jsx';
 import {
   buildTripCreatePayload,
   buildTripDaysUpdatePayload,
 } from '../../utils/tripUtils.jsx';
+import { normalizeCourse } from '../../utils/courseUtils.jsx';
 
 // 언마운트돼도 유지되는 화면 상태 (장소 상세로 갔다가 돌아와도 고정되게)
 let resultSheetY = 400;
@@ -29,6 +31,8 @@ let resultScrollTop = 0;
 
 export default function ResultPage() {
   const course = useCourseStore((state) => state.course);
+  const setCourse = useCourseStore((state) => state.setCourse);
+  const preferenceId = useCourseStore((state) => state.preferenceId);
   const deleteBlocks = useCourseStore((state) => state.deleteBlocks);
   const updateBlocks = useCourseStore((state) => state.updateBlocks);
   const navigate = useNavigate();
@@ -47,6 +51,8 @@ export default function ResultPage() {
   const [showExitModal, setShowExitModal] = useState(false);
   // 순서변경 임시 저장 - 완료 누를 때만 store 반영
   const [pendingLocalDays, setPendingLocalDays] = useState(null);
+  // 재추천 로딩 상태 - true인 동안 바텀시트에 로딩 애니메이션 표시
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // sheetY/selectedDay 바뀔 때마다 모듈 변수에 동기화 (setState 호출 아니라서 lint 규칙 안 걸림)
   useEffect(() => {
@@ -92,6 +98,35 @@ export default function ResultPage() {
       setShowUpdateModal(true);
     } catch (e) {
       alert('수정에 실패했어요. 다시 시도해주세요.');
+    }
+  };
+
+  // 재추천 - *(fix)* savePreferences를 다시 호출하면 안 됨. 최초 생성(LoadingPage)
+  // 때 저장해둔 동일 preferenceId로 generateCourse만 재호출
+  // (course.jsx 주석: "재추천 시 동일 preferenceId로 재호출" —
+  //  이전에 savePreferences를 재호출하도록 만들었을 때 POST /courses/preferences
+  //  400 Bad Request가 났던 원인)
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    if (!preferenceId) {
+      alert(
+        '재추천에 필요한 정보를 찾을 수 없어요. 처음부터 다시 시도해주세요.'
+      );
+      return;
+    }
+    setIsRefreshing(true);
+    try {
+      const courseRes = await generateCourse(preferenceId);
+      const newCourse = normalizeCourse(courseRes.data.data);
+
+      setCourse(newCourse);
+      // 새 코스의 day 구성이 다를 수 있으니 선택된 day를 첫 day로 리셋
+      setSelectedDay(newCourse.days?.[0]?.dayNumber ?? 1);
+      setPendingLocalDays(null);
+    } catch (e) {
+      alert('재추천에 실패했어요. 다시 시도해주세요.');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -306,12 +341,25 @@ export default function ResultPage() {
             onDragEnd={handleDragEnd}
             onDragMove={handleDragMove}
           />
+        ) : isRefreshing ? (
+          // 재추천 로딩 - TopCardSection의 "..." bounce 애니메이션과 동일한 스타일
+          <div className="flex flex-col items-center justify-center gap-3 py-24">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+            </div>
+            <p className="text-12-rg text-gray2">
+              새로운 코스를 다시 찾고 있어요 ✈️
+            </p>
+          </div>
         ) : (
           <div className="flex flex-col gap-8">
             <CourseList
               course={course}
               selectedDay={selectedDay}
               onDaySelect={setSelectedDay}
+              onRefresh={handleRefresh}
               onCardClick={(block) =>
                 navigate(`/place/${block.placeId}`, {
                   state: { ...block, from: fromMyTrip ? 'mytrip' : 'result' },

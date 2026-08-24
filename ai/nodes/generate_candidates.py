@@ -14,13 +14,15 @@
 #        단, 출발-도착 거리가 짧으면(SHORT_DISTANCE_THRESHOLD_KM 이하)
 #        작은 원형 동선이 자연스러우므로 일정 건수(MAX_INTERSECTIONS_SHORT_DISTANCE) 허용
 #      - 이동시간 초과 제외
+#        *(v3)* 도보 여행: 20분 초과 구간은 무효 대신 travel_mode="택시" 태깅 후 통과,
+#        45분(WALK_TAXI_LIMIT) 초과만 무효. 자동차는 기존대로 30분 초과 무효
 #      - 동선 내 동일 category_name (맨 마지막 depth 기준) 2개 이상 제외 (food/cafe 제외)
 #      - 점심 슬롯 술집/고기류 제외
 # ─────────────────────────────────────────────────────────────────────
 
 import math
 from datetime import datetime, timedelta
-from utils.route.greedy_nn import greedy_nn, STAY_MINUTES, LUNCH_EXCLUDE_KEYWORDS
+from utils.route.greedy_nn import greedy_nn, STAY_MINUTES, LUNCH_EXCLUDE_KEYWORDS, get_stay_minutes
 from utils.route.route_check import check_route_intersections
 
 
@@ -29,6 +31,11 @@ TRAVEL_TIME_LIMIT = {
     "도보":   20,
     "자동차": 30,
 }
+
+# ─── 도보 여행 택시 전환 하드컷 (분) *(v3)* ───
+# 도보 20분 초과 ~ 45분 이하 구간은 travel_mode="택시" 태깅 후 유효 처리,
+# 45분 초과 구간만 무효 처리
+WALK_TAXI_LIMIT = 45
 
 # ─── 출발-도착 거리가 이 값 이하면 transport=car여도 도보 기준 적용 ───
 SHORT_DISTANCE_THRESHOLD_KM = 1.0
@@ -70,11 +77,14 @@ def classify_bucket(place: dict) -> str:
     category = place.get("category", "") or ""
     name     = place.get("name", "") or ""
 
+    # 디저트류(제과/베이커리/디저트/아이스크림/도넛)는 FD6이라도 cafe로 분류
+    # (1차 필터 CAFE_FOOD_KEYWORDS와 동일 기준 — FD6 체크보다 먼저 와야 함.
+    #  닭강정·떡,한과 같은 테이크아웃 먹거리는 food 유지)
+    if any(kw in category for kw in ("제과", "베이커리", "디저트", "아이스크림", "도넛")):
+        return "cafe"
     if code == "FD6":
         return "food"
     if code == "CE7":
-        return "cafe"
-    if "제과" in category or "베이커리" in category:
         return "cafe"
     if any(kw in category for kw in BUCKET_KEYWORDS["browse"]):
         return "browse"
@@ -108,8 +118,8 @@ def distance_to_minutes(distance_km: float, transport_kr: str) -> float:
 
 # ─── 이동시간 행렬 계산 ───
 def build_matrix(
-    shortlist:    list[dict],
-    transport_kr: str,
+        shortlist:    list[dict],
+        transport_kr: str,
 ) -> tuple[list[str], list[list[float]], list[list[float]]]:
     place_index     = [item["place"]["id"] for item in shortlist]
     distance_matrix = []
@@ -147,10 +157,10 @@ def to_str(dt: datetime) -> str:
 
 # ─── 동선 시간 배치 ───
 def assign_times(
-    route:       list[dict],
-    start_time:  str,
-    time_matrix: list[list[float]],
-    place_index: list[str],
+        route:       list[dict],
+        start_time:  str,
+        time_matrix: list[list[float]],
+        place_index: list[str],
 ) -> list[dict]:
     id_to_idx    = {pid: i for i, pid in enumerate(place_index)}
     itinerary    = []
@@ -159,8 +169,7 @@ def assign_times(
     for order, item in enumerate(route):
         place  = item["place"]
         pid    = place["id"]
-        bucket = place.get("bucket", "activity")
-        stay   = STAY_MINUTES.get(bucket, 90)
+        stay   = get_stay_minutes(place)   # *(v3.1)* activity 세부 유형별 체류시간
 
         travel_min = 0 if order == 0 else max(1, int(
             time_matrix[id_to_idx.get(route[order-1]["place"]["id"], 0)][id_to_idx.get(pid, 0)]
@@ -188,13 +197,37 @@ def assign_times(
     return itinerary
 
 
+# ─── 이동수단 태깅 *(v3)* ───
+# 각 아이템의 다음 구간 이동수단(travel_mode)을 부여.
+# 도보 여행에서 20분 초과 구간은 "택시"로 임시 태깅
+# (fetch_details에서 최종 이동수단 확정 시 이 태그를 보존,
+#  generate_response에서 type=taxi 블록으로 출력됨)
+def _tag_travel_modes(itinerary: list[dict], transport_kr: str) -> list[dict]:
+    walk_limit = TRAVEL_TIME_LIMIT["도보"]
+    result = []
+    for item in itinerary:
+        travel_min = item.get("travel_to_next_minutes", 0) or 0
+        if transport_kr == "자동차":
+            mode = "자동차"
+        elif travel_min > walk_limit:
+            mode = "택시"
+        else:
+            mode = "도보"
+        result.append({**item, "travel_mode": mode})
+    return result
+
+
 # ─── 동선 유효성 검증 ───
 def is_valid_route(
-    itinerary:         list[dict],
-    travel_limit:      int,
-    max_same_category: int = 1,
-    max_intersections: int = 0,
+        itinerary:         list[dict],
+        travel_limit:      int,
+        max_same_category: int = 1,
+        max_intersections: int = 0,
+        taxi_limit:        int | None = None,
 ) -> tuple[bool, str]:
+    # *(v3)* 도보 여행이면 taxi_limit(45분)이 하드컷 —
+    # travel_limit(20분) 초과 구간은 택시로 태깅돼 있으므로 45분까지 유효
+    hard_limit = taxi_limit if taxi_limit else travel_limit
 
     for idx, item in enumerate(itinerary[:-1]):
         bucket = item["place"].get("bucket", "")
@@ -202,13 +235,19 @@ def is_valid_route(
             continue
         if itinerary[idx + 1]["place"].get("bucket") == "end":
             continue
-        if item["travel_to_next_minutes"] > travel_limit:
+        if item["travel_to_next_minutes"] > hard_limit:
             return False, "이동시간 초과"
 
     category_last_list = []
     for item in itinerary:
         bucket = item["place"].get("bucket", "")
         if bucket in ("food", "cafe"):
+            continue
+        # *(v3.1)* 힌트 앵커는 카테고리 중복 검증에서 예외 —
+        # greedy_nn.is_selectable과 동일한 이유(카카오 카테고리가
+        # "여행 > 관광,명소"처럼 뭉뚱그려져 있어 서로 다른 앵커끼리
+        # 카테고리 문자열만 같다는 이유로 동선 전체가 무효 처리되는 문제 방지
+        if item["place"].get("is_hint_anchor"):
             continue
         category = item["place"].get("category", "") or ""
         parts    = [p.strip() for p in category.split(">")]
@@ -227,32 +266,36 @@ def is_valid_route(
 
 
 # ─── stop_time 계산 ───
+# *(v3.1)* 21:00 → 22:00으로 상향 — 저녁 food가 도달 가능해도 stop_time까지
+# 남은 시간이 부족해 pick_slot이 실패하는 케이스(저녁 통째로 누락)의 여유를 늘림
 def _effective_stop_time(transport_kr: str) -> str:
     if transport_kr == "자동차":
         from datetime import datetime as _dt, timedelta as _td
-        return (_dt.strptime("21:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)).strftime("%H:%M")
-    return "21:00"
+        return (_dt.strptime("22:00", "%H:%M") - _td(minutes=PARKING_OVERHEAD_MINUTES)).strftime("%H:%M")
+    return "22:00"
 
 
 # ─── 단일 day 동선 생성 ───
 def _generate_day_routes(
-    candidates:         list[dict],
-    place_index:        list[str],
-    time_matrix:        list[list[float]],
-    travel_limit:       int,
-    start_time:         str,
-    stop_time:          str,
-    excluded_place_ids: set[str],
-    start_lat:          float = None,
-    start_lng:          float = None,
-    mid_lat:            float = None,
-    mid_lng:            float = None,
-    end_lat:            float = None,
-    end_lng:            float = None,
-    start_name:         str = "출발지",
-    end_name:           str = "도착지",
-    day_info:           dict = None,
-    repeat_per_start:   int = REPEAT_PER_START,
+        candidates:         list[dict],
+        place_index:        list[str],
+        time_matrix:        list[list[float]],
+        travel_limit:       int,
+        start_time:         str,
+        stop_time:          str,
+        excluded_place_ids: set[str],
+        start_lat:          float = None,
+        start_lng:          float = None,
+        mid_lat:            float = None,
+        mid_lng:            float = None,
+        end_lat:            float = None,
+        end_lng:            float = None,
+        start_name:         str = "출발지",
+        end_name:           str = "도착지",
+        day_info:           dict = None,
+        repeat_per_start:   int = REPEAT_PER_START,
+        transport_kr:       str = "도보",
+        taxi_limit:         int | None = None,
 ) -> list[dict]:
     all_routes = []
     has_start  = start_lat is not None and start_lng is not None
@@ -304,6 +347,7 @@ def _generate_day_routes(
                 end_lng=end_lng,
                 start_time=start_time,
                 stop_time=stop_time,
+                taxi_limit=taxi_limit,
             )
             if not route:
                 continue
@@ -360,6 +404,9 @@ def _generate_day_routes(
                     "recommendation_reason":  "",
                 }]
 
+            # 이동수단 태깅 (도보 20분 초과 구간 → 택시) *(v3)*
+            itinerary = _tag_travel_modes(itinerary, transport_kr)
+
             all_routes.append({
                 "itinerary":    itinerary,
                 "total_travel": total_travel,
@@ -382,6 +429,8 @@ def generate_candidates(state: dict) -> dict:
 
     warnings: list[str] = []
     travel_limit = TRAVEL_TIME_LIMIT.get(transport_kr, 20)
+    # *(v3)* 도보 여행만 택시 전환 허용 (자동차는 None → 기존 30분 하드컷)
+    taxi_limit = WALK_TAXI_LIMIT if transport_kr == "도보" else None
 
     all_routes_by_day:      dict[int, list[dict]] = {}
     valid_routes_by_day:    dict[int, list[dict]] = {}
@@ -419,11 +468,13 @@ def generate_candidates(state: dict) -> dict:
                 candidates=candidates, place_index=p_idx, time_matrix=t_mat,
                 travel_limit=travel_limit, start_time=start_time, stop_time=stop_time,
                 excluded_place_ids=set(excluded_place_ids),
+                transport_kr=transport_kr, taxi_limit=taxi_limit,
             )
 
             valid_routes, invalid_routes = [], []
             for r in batch_routes:
-                ok, reason = is_valid_route(r["itinerary"], travel_limit)
+                r["intersection_count"] = len(check_route_intersections(r["itinerary"]))
+                ok, reason = is_valid_route(r["itinerary"], travel_limit, taxi_limit=taxi_limit)
                 if ok:
                     valid_routes.append(r)
                 else:
@@ -517,11 +568,14 @@ def generate_candidates(state: dict) -> dict:
             start_name=day_info.get("start_name"),
             end_name=day_info.get("end_name"),
             day_info=day_info,
+            transport_kr=transport_kr, taxi_limit=taxi_limit,
         )
 
         valid_routes, invalid_routes = [], []
         for r in all_routes:
-            ok, reason = is_valid_route(r["itinerary"], day_travel_limit, max_intersections=day_max_intersections)
+            r["intersection_count"] = len(check_route_intersections(r["itinerary"]))
+            ok, reason = is_valid_route(r["itinerary"], day_travel_limit,
+                                        max_intersections=day_max_intersections, taxi_limit=taxi_limit)
             if ok:
                 valid_routes.append(r)
             else:

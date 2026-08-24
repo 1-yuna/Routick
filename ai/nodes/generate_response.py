@@ -13,11 +13,11 @@
 #      - parking 블록은 enter/exit_transport 포함
 # ─────────────────────────────────────────────────────────────────────
 
-from utils.route.greedy_nn import STAY_MINUTES
+from utils.route.greedy_nn import STAY_MINUTES, get_stay_minutes
 
 
 # ─── 이동수단 한국어 → 영어 ───
-TRANSPORT_MAP = {"도보": "walk", "자동차": "car"}
+TRANSPORT_MAP = {"도보": "walk", "자동차": "car", "택시": "taxi"}   # *(v3)* taxi 추가
 
 
 # ─── [노드] 응답 생성 ───
@@ -96,7 +96,8 @@ def generate_response(state: dict) -> dict:
                 "lng":      p.get("lng", 0.0),
                 "place_id": p.get("id", ""),
                 "exit_transport": {
-                    "mode":    transport,
+                    # *(v3)* 출발지→첫 장소 구간이 택시 태깅됐으면 taxi로 출력
+                    "mode":    TRANSPORT_MAP.get(start_item.get("travel_mode") or transport_kr, transport),
                     "minutes": start_item.get("travel_to_next_minutes", 0),
                 },
             }
@@ -189,7 +190,7 @@ def generate_response(state: dict) -> dict:
                 continue
 
             # ── place 블록 ───────────────────────────────────────────
-            stay_minutes = STAY_MINUTES.get(bucket, 60)
+            stay_minutes = get_stay_minutes(place)   # *(v3.1)* activity 세부 유형별 체류시간
             blocks.append({
                 "block_order":  block_order,
                 "type":         "place",
@@ -211,16 +212,19 @@ def generate_response(state: dict) -> dict:
             place_order += 1
             prev_leave_at = item.get("leave_at")  # 다음 parking 블록의 arrive_time 기준
 
-            # ── walk 블록 삽입 조건 ───────────────────────────────────
+            # ── walk/taxi 블록 삽입 조건 ─────────────────────────────
             # 다음 블록이 존재하고 parking이 아닌 경우에만 삽입
+            # *(v3)* travel_mode="택시" 구간은 type=taxi로 출력
+            # (walk와 동일 필드 구조의 병렬 블록 타입 — parking처럼 별도 type)
             travel_min  = item.get("travel_to_next_minutes", 0)
             next_item   = main_items[i + 1] if i + 1 < len(main_items) else None
             next_bucket = next_item["place"].get("bucket", "") if next_item else ""
 
             if travel_min > 0 and next_item and next_bucket != "parking":
+                seg_type = "taxi" if item.get("travel_mode") == "택시" else "walk"
                 blocks.append({
                     "block_order": block_order,
-                    "type":        "walk",
+                    "type":        seg_type,
                     "minutes":     travel_min,
                 })
                 block_order += 1

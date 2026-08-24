@@ -1,10 +1,20 @@
 import { create } from 'zustand';
 import { mockCourse } from '../data/mock/courses.jsx';
 
+// walk/taxi는 둘 다 "이동 구간" 블록 — 정리 로직에서 동일 취급
+// *(v3)* taxi 추가에 맞춰 walk 전용이던 체크를 segment 공통 체크로 변경
+const isSegment = (b) => b?.type === 'walk' || b?.type === 'taxi';
+
 const useCourseStore = create((set) => ({
   course: mockCourse,
   setCourse: (course) => set({ course }),
-  reset: () => set({ course: mockCourse }),
+  reset: () => set({ course: mockCourse, preferenceId: null }),
+
+  // *(신규)* 재추천용 preferenceId — 최초 코스 생성(LoadingPage) 때 저장해두고,
+  // 재추천 시 savePreferences를 다시 호출하지 않고 이 값으로 generateCourse만
+  // 재호출함 (course.jsx 주석: "재추천 시 동일 preferenceId로 재호출")
+  preferenceId: null,
+  setPreferenceId: (preferenceId) => set({ preferenceId }),
 
   // 편집 모드 (페이지 이동 간 유지용)
   isEditing: false,
@@ -56,7 +66,7 @@ const useCourseStore = create((set) => ({
 
   // 블록 삭제
   // uids: _uid 형식 배열 (place-{placeId}-{dayNumber} 또는 parking-{placeId}-{dayNumber})
-  // 삭제 후 첫 블록이 walk면 자동 제거, parking이면 유지
+  // 삭제 후 첫 블록이 walk/taxi면 자동 제거, parking이면 유지
   deleteBlocks: (uids) =>
     set((state) => {
       const days = state.course.days.map((day) => {
@@ -83,31 +93,28 @@ const useCourseStore = create((set) => ({
           return true;
         });
 
-        // 맨 앞 walk 제거
-        while (filtered.length > 0 && filtered[0].type === 'walk') {
+        // 맨 앞 walk/taxi 제거
+        while (filtered.length > 0 && isSegment(filtered[0])) {
           filtered = filtered.slice(1);
         }
 
-        // 맨 뒤 walk 제거
+        // 맨 뒤 walk/taxi 제거
         while (
           filtered.length > 0 &&
-          filtered[filtered.length - 1].type === 'walk'
+          isSegment(filtered[filtered.length - 1])
         ) {
           filtered = filtered.slice(0, -1);
         }
 
-        // 연속 walk → 하나만
+        // 연속 walk/taxi → 하나만
         const deduped = [];
         for (const block of filtered) {
-          if (
-            block.type === 'walk' &&
-            deduped[deduped.length - 1]?.type === 'walk'
-          ) {
+          if (isSegment(block) && isSegment(deduped[deduped.length - 1])) {
             continue;
           }
-          // parking 다음 walk → parking의 exitTransport가 이미 이동시간 표시하므로 walk 제거
+          // parking 다음 walk/taxi → parking의 exitTransport가 이미 이동시간 표시하므로 제거
           if (
-            block.type === 'walk' &&
+            isSegment(block) &&
             deduped[deduped.length - 1]?.type === 'parking'
           ) {
             continue;

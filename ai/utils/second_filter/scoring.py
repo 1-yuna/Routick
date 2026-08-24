@@ -8,7 +8,8 @@
 #   2. blog_score      → 블로그 긍정 언급 빈도 (최대 100점)
 #   3. party_fit_score → best_for에 companion 포함 시 (최대 30점)
 #   4. revisit_score   → 재방문 의사 (최대 20점)
-#   total              → 최대 300점
+#   5. hint_bonus      → 힌트 앵커 본인 20 / 앵커 주변 10 (최대 20점) *(v3.1 변경)*
+#   total              → 최대 320점
 # ─────────────────────────────────────────────────────────────────────
 
 REVISIT_SCORE_MAP = {
@@ -63,11 +64,42 @@ def calc_revisit_score(place: dict) -> int:
     return REVISIT_SCORE_MAP.get(intent, 0)
 
 
-# ─── 종합 점수 (최대 300점) ───
+# ─── 힌트 보너스 (앵커 20 / 앵커 주변 10, 최대 20점) *(v3.1 변경)* ───
+# collect_candidate_pool이 달아준 태그 기반 2단계 배점:
+#   - is_hint_anchor: 힌트 앵커 본인 → +20
+#   - nearest_hint:   앵커 소반경 내에서 수집된 클러스터 장소 → +10
+# fallback: 보충 수집(center 반경)으로 들어와 태그가 없는 장소는
+#   힌트 장소명과 이름이 완전히 일치하면(공백만 제외) 앵커로 간주 +20
+#   (태그 기반이 우선인 이유: 이름 매칭은 띄어쓰기 차이에 깨짐
+#    예: 힌트 "해운대 블루라인파크" vs 카카오 상호 "해운대블루라인파크")
+# *(v3.1 재수정)* 원래 부분 문자열 포함(in) 매칭이었는데, "삼척항" 같은 짧고
+# 흔한 힌트 키워드가 "컴포즈커피 삼척항점"처럼 이름에 그 지명만 우연히 들어간
+# 무관한 가게에도 보너스를 주는 문제가 있어 공백 제거 후 완전 일치로 좁힘.
+HINT_ANCHOR_BONUS = 20
+HINT_NEARBY_BONUS = 10
+
+
+def calc_hint_bonus(place: dict, hint_keywords: list[str] | None = None) -> int:
+    if place.get("is_hint_anchor"):
+        return HINT_ANCHOR_BONUS
+    if place.get("nearest_hint"):
+        return HINT_NEARBY_BONUS
+    if hint_keywords:
+        name_n = (place.get("name", "") or "").replace(" ", "")
+        if name_n and any(
+            name_n == h.replace(" ", "")
+            for h in hint_keywords if h
+        ):
+            return HINT_ANCHOR_BONUS
+    return 0
+
+
+# ─── 종합 점수 (최대 320점) ───
 def calc_total_score(
         mood_score:      float,
         blog_score:      int,
         party_fit_score: int,
         revisit_score:   int,
+        hint_bonus:      int = 0,
 ) -> float:
-    return mood_score + blog_score + party_fit_score + revisit_score
+    return mood_score + blog_score + party_fit_score + revisit_score + hint_bonus

@@ -9,6 +9,9 @@
 #      - 여행과 무관한 키워드 제거 (category: EXCLUDE_KEYWORDS, name: EXCLUDE_KEYWORDS_NAME)
 #      - activities 선택 여부 기반 제거 (category: ACTIVITY_EXCLUDE_KEYWORDS)
 #      - 세부 카테고리별 중복 제한 (동일 카테고리 최대 2개)
+#      *(v3.1)* 위 4개 필터 모두 힌트 앵커(is_hint_anchor 태그, 태그 없으면
+#      hint_keywords 이름 매칭 fallback)는 절대 제거하지 않음 — 힌트 키워드는
+#      어떤 필터 단계에서도 사라지면 안 된다는 원칙
 #   2. 정렬
 #      - 활동/동행자별 장소 우선 정렬 (PRIORITY_KEYWORDS)
 #      - final_keywords category 매칭 → 최우선
@@ -63,7 +66,8 @@ def _debug_print(label: str, places: list[dict], removed: int = 0) -> None:
             code = p.get("category_group_code", "")
             name = p["name"]
             cat  = p.get("category", "")
-            print(f"{idx:02}. [{code or '---':3}] {name} | {cat}")
+            anchor = " 🎯힌트" if p.get("is_hint_anchor") else ""
+            print(f"{idx:02}. [{code or '---':3}] {name} | {cat}{anchor}")
 
 
 def _debug_summary(label: str, places: list[dict]) -> None:
@@ -93,6 +97,7 @@ def _filter_one_day(
     start_lng: float = None,
     end_lat: float = None,
     end_lng: float = None,
+    hint_keywords: list[str] = None,
 ) -> list[dict]:
     activity_keywords = get_activity_keywords(activities_kr)
 
@@ -103,26 +108,30 @@ def _filter_one_day(
     if debug:
         _debug_print(f"1️⃣  [{day_label}] avoid_activities 필터", filtered, removed)
 
-    filtered, removed = filter_by_irrelevant(filtered)
+    # *(v3.1)* hint_keywords를 전달해 태그 없는 보충 수집 카피도 이름으로 보호
+    filtered, removed = filter_by_irrelevant(filtered, hint_keywords=hint_keywords)
     if debug:
         _debug_print(f"2️⃣  [{day_label}] 여행 무관 키워드 제거", filtered, removed)
 
-    filtered, removed = filter_by_activity_exclude(filtered, activities_kr)
+    filtered, removed = filter_by_activity_exclude(filtered, activities_kr, hint_keywords=hint_keywords)
     if debug:
         _debug_print(f"3️⃣  [{day_label}] activity 기반 제거 필터", filtered, removed)
 
-    filtered, removed = filter_by_subcategory_cap(filtered, max_per_subcategory=2)
+    filtered, removed = filter_by_subcategory_cap(filtered, max_per_subcategory=3, hint_keywords=hint_keywords)
     if debug:
         _debug_print(f"4️⃣  [{day_label}] 세부 카테고리 중복 제한", filtered, removed)
 
-    filtered, removed = filter_by_bucket_and_activity(filtered, activity_keywords)
+    filtered, removed = filter_by_bucket_and_activity(filtered, activity_keywords, hint_keywords=hint_keywords)
     if removed > 0:
         warnings.append(f"[{day_label}] activity 필터로 {removed}개 제거")
     if debug:
         _debug_print(f"5️⃣  [{day_label}] bucket 분류 + activity 필터", filtered, removed)
 
     filtered = boost_by_priority(filtered, companion_kr=companion_kr, activities_kr=activities_kr)
-    filtered = sort_by_priority(filtered, final_keywords=final_keywords, name_search_keywords=name_search_keywords)
+    filtered = sort_by_priority(
+        filtered, final_keywords=final_keywords, name_search_keywords=name_search_keywords,
+        hint_keywords=hint_keywords,
+    )
     if debug:
         _debug_print(f"5️⃣  [{day_label}] 정렬", filtered, 0)
 
@@ -155,6 +164,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     activities_kr        = ui.get("activities_kr") or []
     final_keywords       = ui.get("final_keywords") or []
     name_search_keywords = ui.get("name_search_keywords") or []
+    days_info            = ui.get("days_info") or []
 
     filtered_by_day: dict[int, list] = {}
     all_filtered:    list[dict]      = []
@@ -162,10 +172,15 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
     # ── 케이스 1 (only): 정렬 후 라운드로빈으로 day별 균등 배분 ──────────
     if route_type == "only":
         all_candidates = candidates_by_day.get(1, [])
+        # only 케이스는 목적지 좌표가 동일하므로 힌트도 첫 day 기준 사용
+        hint_keywords = (days_info[0].get("hint_keywords") if days_info else None) or []
 
         # 우선순위 정렬 (활동/동행자 우선 + 프랜차이즈 뒤로)
         sorted_candidates = boost_by_priority(all_candidates, companion_kr=companion_kr, activities_kr=activities_kr)
-        sorted_candidates = sort_by_priority(sorted_candidates, final_keywords=final_keywords, name_search_keywords=name_search_keywords)
+        sorted_candidates = sort_by_priority(
+            sorted_candidates, final_keywords=final_keywords, name_search_keywords=name_search_keywords,
+            hint_keywords=hint_keywords,
+        )
 
         # category_group_code 기준 분류 (food/cafe/others)
         food_list   = [p for p in sorted_candidates if p.get("category_group_code") == "FD6"]
@@ -201,6 +216,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 travel_days=travel_days,
                 debug=debug,
                 day_label=f"only-day{day_number}",
+                hint_keywords=hint_keywords,
             )
 
             filtered_by_day[day_number] = filtered
@@ -216,6 +232,12 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
         for day_number in sorted(candidates_by_day.keys()):
             day_candidates = candidates_by_day[day_number]
 
+            day_info_entry = next((d for d in days_info if d.get("day_number") == day_number), None)
+            hint_keywords  = (day_info_entry.get("hint_keywords") if day_info_entry else None) or []
+
+            # *(v3.1)* 이전 day에서 이미 사용된 장소 제외 시에도 힌트 앵커/힌트 이름
+            # 매칭 장소는 예외 없이 제외 대상이 될 수 있음 (동일 장소가 여러 day
+            # hint로 잡히는 경우는 의도된 중복 배제이므로 여기는 그대로 둠)
             day_candidates = [
                 p for p in day_candidates
                 if p["id"] not in used_place_ids
@@ -240,6 +262,7 @@ def first_filter_candidates(state: dict, debug: bool = False) -> dict:
                 travel_days=travel_days,
                 debug=debug,
                 day_label=f"day{day_number}",
+                hint_keywords=hint_keywords,
                 start_lat=start_lat,
                 start_lng=start_lng,
                 end_lat=end_lat,

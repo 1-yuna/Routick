@@ -13,7 +13,8 @@
 #        (블로그 없어도 제거하지 않고 name/category로 추론)
 #   4. LLM is_valid=false 장소 제거
 #   5. LLM 결과 머지 (atmosphere, best_for, place_tags, revisit_intent, summary)
-#   6. 점수 계산 (mood + blog + party + revisit = 최대 300점)
+#   6. 점수 계산 (mood + blog + party + revisit + hint = 최대 320점)
+#      *(v3.1)* hint_bonus: 힌트 앵커 본인 +20 / 앵커 주변 +10 (태그 기반)
 #   7. shortlist 선별 (category_group_code 기반 quota)
 #      - 케이스 1 (only): travel_days별 전체 quota
 #      - 케이스 2 (endpoint): day별 독립, day당 30개 고정
@@ -28,6 +29,7 @@ from utils.second_filter.scoring import (
     calc_party_fit_score,
     calc_revisit_score,
     calc_blog_score,
+    calc_hint_bonus,
     calc_total_score,
 )
 from utils.second_filter.shortlist import select_shortlist
@@ -45,6 +47,7 @@ async def second_filter_candidates(state: dict) -> dict:
     route_type   = ui.get("route_type", "endpoint")
 
     filtered_by_day = state.get("filtered_by_day", {})
+    days_info       = ui.get("days_info") or []
 
     if not filtered_by_day:
         warnings.append("filtered_by_day 비어있음 → 보강 스킵")
@@ -64,6 +67,10 @@ async def second_filter_candidates(state: dict) -> dict:
     shortlist_route_type = "only_day" if route_type == "only" else "endpoint"
 
     for day_number, day_filtered in filtered_by_day.items():
+        # day별 hint_keywords (fallback 이름 매칭용 — 태그 없는 보충 수집 장소 대비) *(v3.1)*
+        day_info_entry = next((d for d in days_info if d.get("day_number") == day_number), None)
+        hint_keywords  = (day_info_entry.get("hint_keywords") if day_info_entry else None) or []
+
         scored, shortlist = await _enrich_and_score(
             places=day_filtered,
             moods_kr=moods_kr,
@@ -73,6 +80,7 @@ async def second_filter_candidates(state: dict) -> dict:
             travel_days=travel_days,
             warnings=warnings,
             label=f"day{day_number}",
+            hint_keywords=hint_keywords,
         )
         shortlist_by_day[day_number] = shortlist
         all_scored.extend(scored)
@@ -102,6 +110,7 @@ async def _enrich_and_score(
     start_lng:     float = None,
     end_lat:       float = None,
     end_lng:       float = None,
+    hint_keywords: list[str] = None,
 ) -> tuple[list[dict], list[dict]]:
 
     if not places:
@@ -159,6 +168,15 @@ async def _enrich_and_score(
                 warnings.append(f"[{label}] LLM 제거 무시 (FD6/CE7 보호): {name}")
                 continue
 
+            # *(v3.1)* 힌트 앵커 본인도 보호 — LLM이 name/category만 보고
+            # "여행지로 부적합"(예: 행정구역성 명칭, 정보 부족 등)이라 판단해도
+            # 유저가 명시적으로 지목한 장소이므로 강제 포함시킴.
+            # 이게 없으면 activity 카테고리인 앵커(삼척항, 삼척중앙시장 등)가
+            # food/cafe와 달리 아무 보호 없이 조용히 제거되는 문제가 있었음.
+            if place.get("is_hint_anchor"):
+                warnings.append(f"[{label}] LLM 제거 무시 (힌트 앵커 보호): {name}")
+                continue
+
             invalid_ids.add(pid)
             warnings.append(f"[{label}] LLM 제거: {name} - {r.get('invalid_reason', '')}")
 
@@ -195,7 +213,7 @@ async def _enrich_and_score(
             "summary":        enrich.get("summary", ""),
         })
 
-    # ── 5. 점수 계산 ────────────────────────────────────────────────
+    # ── 6. 점수 계산 (mood+blog+party+revisit+hint = 최대 320점) ────
     scored = []
     for place in enriched:
         place_id       = place.get("id")
@@ -207,7 +225,8 @@ async def _enrich_and_score(
         blog_score      = calc_blog_score(positive_count, has_negative)
         party_fit_score = calc_party_fit_score(place, companion_kr)
         revisit_score   = calc_revisit_score(place)
-        total_score     = calc_total_score(mood_score, blog_score, party_fit_score, revisit_score)
+        hint_bonus      = calc_hint_bonus(place, hint_keywords)   # *(v3.1)* 앵커 20 / 주변 10
+        total_score     = calc_total_score(mood_score, blog_score, party_fit_score, revisit_score, hint_bonus)
 
         scored.append({
             "place":           place,
@@ -215,12 +234,14 @@ async def _enrich_and_score(
             "party_fit_score": party_fit_score,
             "revisit_score":   revisit_score,
             "blog_score":      blog_score,
+            "hint_bonus":      hint_bonus,
             "total_score":     total_score,
         })
 
     scored.sort(key=lambda x: x["total_score"], reverse=True)
 
-    # ── 6. shortlist 선별 ────────────────────────────────────────────
+    # ── 7. shortlist 선별 ────────────────────────────────────────────
+    # *(v3.1)* hint_keywords 전달 — quota 컷에서도 힌트 앵커는 무조건 확보
     shortlist = select_shortlist(
         scored,
         route_type=route_type,
@@ -229,6 +250,7 @@ async def _enrich_and_score(
         start_lng=start_lng,
         end_lat=end_lat,
         end_lng=end_lng,
+        hint_keywords=hint_keywords,
     )
 
     if not shortlist:

@@ -18,9 +18,10 @@
 #      슬롯 구조상 서로 호환되므로 네 bucket 전체를 대상으로 폭넓게 탐색해
 #      5가지 조건을 만족하면 교체 (shortlist 보강 정보가 있으면 우선 사용)
 #      대체 적용 후에는 카카오 Directions로 최종 정밀 재계산 수행
-#   4. 저녁 food(동선상 마지막 food) 종료 시점이 21:00을 넘기면,
+#   4. 저녁 food(동선상 마지막 food) 종료 시점이 22:00을 넘기면, *(v3.1)* 21:00 → 22:00
 #      그 이후 일정(activity 등)을 모두 잘라내고 바로 도착지(end)로 연결
-#   5. 각 블록의 다음 구간 실제 이동수단(travel_mode: 도보/자동차) 부여
+#   5. 각 블록의 다음 구간 실제 이동수단(travel_mode: 도보/자동차/택시) 부여
+#      *(v3)* generate_candidates에서 태깅된 "택시" 구간은 보존 (도보로 덮어쓰지 않음)
 #      - 단순히 앞뒤 블록 타입만으로 판단하면 틀릴 수 있어, 차량 보유 상태를
 #        동선 순서대로 누적 추적(has_car)하여 정확한 구간별 이동수단 결정
 #      - 주차장 도착 시 하차(이후 도보) → 새 주차장으로 이동하는 구간만 차량
@@ -386,7 +387,8 @@ def _assign_travel_mode(itinerary: list[dict], is_car_day: bool) -> list[dict]:
     - 자동차 일정(start)은 차를 가진 상태로 출발
     - parking 도착 시 하차 → 이후 도보 상태로 전환
     - 새 parking으로 이동(주차장 간 이동)하는 구간만 다시 차량 탑승
-    - 도보 일정은 항상 도보"""
+    - 도보 일정은 항상 도보
+    *(v3)* 도보 일정에서 generate_candidates가 태깅한 "택시" 구간은 그대로 보존"""
     result   = [dict(item) for item in itinerary]
     has_car  = is_car_day
 
@@ -414,6 +416,11 @@ def _assign_travel_mode(itinerary: list[dict], is_car_day: bool) -> list[dict]:
                 i += 1
                 continue
 
+        # *(v3)* 도보 일정의 택시 태그 보존 — "도보"로 덮어쓰지 않음
+        if not has_car and item.get("travel_mode") == "택시":
+            i += 1
+            continue
+
         result[i]["travel_mode"] = "자동차" if has_car else "도보"
         has_car = False  # 일반 장소 이후에는 다시 도보 (다음이 parking이면 위에서 갱신됨)
         i += 1
@@ -424,7 +431,7 @@ def _assign_travel_mode(itinerary: list[dict], is_car_day: bool) -> list[dict]:
 async def _cutoff_after_evening_food(
     itinerary: list[dict],
     transport_kr: str = "도보",
-    cutoff_time: str = "21:00",
+    cutoff_time: str = "22:00",  # *(v3.1)* 21:00 → 22:00 (greedy_nn stop_time과 동일하게 상향)
 ) -> list[dict]:
     """저녁 food(동선상 마지막 food) 종료 시점이 cutoff_time을 넘기면,
     그 이후의 일반 장소(activity/cafe/browse/pop 등)를 모두 잘라내고
@@ -782,9 +789,10 @@ async def fetch_details(state: dict) -> dict:
             if transport_kr == "자동차":
                 enriched = await _recalculate_travel_times(kakao_client, enriched)
 
-            # 저녁 food 이후 21:00을 넘기면 그 뒤 일정을 모두 잘라내고 바로 도착지로 연결
+            # 저녁 food 이후 22:00을 넘기면 그 뒤 일정을 모두 잘라내고 바로 도착지로 연결
             # (transport=자동차면 보유 주차장 기준으로 주차장 재경유 처리)
-            enriched = await _cutoff_after_evening_food(enriched, transport_kr=transport_kr, cutoff_time="21:00")
+            # *(v3.1)* 21:00 → 22:00
+            enriched = await _cutoff_after_evening_food(enriched, transport_kr=transport_kr, cutoff_time="22:00")
 
             # 각 블록의 다음 구간 실제 이동수단(도보/자동차) 부여
             enriched = _assign_travel_mode(enriched, is_car_day=(transport_kr == "자동차"))

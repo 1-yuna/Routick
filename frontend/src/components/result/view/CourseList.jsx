@@ -52,11 +52,13 @@ function renderBlocks(blocks, onCardClick, hasEnd = false) {
               />
             );
           case 'walk':
-            // mode가 있으면 mode 사용, 없으면 기본 'walk'
+          case 'taxi':
+            // *(v3)* taxi 추가 — mode가 있으면 mode 사용, 없으면 백엔드가 내려준
+            // type(walk/taxi) 그대로 사용 (백엔드 응답엔 별도 mode 필드가 없음)
             return (
               <MoveItem
                 key={item.blockOrder}
-                mode={item.mode ?? 'walk'}
+                mode={item.mode ?? item.type}
                 minutes={item.minutes}
               />
             );
@@ -83,6 +85,7 @@ export default function CourseList({
   onDaySelect,
   onCardClick,
   onPointClick,
+  onRefresh,
 }) {
   const dayNumbers = course.days.map((d) => d.dayNumber);
   const selectedDayData = course.days.find((d) => d.dayNumber === selectedDay);
@@ -93,6 +96,7 @@ export default function CourseList({
         days={dayNumbers}
         selectedDay={selectedDay}
         onDaySelect={onDaySelect}
+        onRefresh={onRefresh}
       />
       {selectedDayData && (
         <div>

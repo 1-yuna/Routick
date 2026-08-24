@@ -42,13 +42,17 @@ class DayCoord(TypedDict):
     day_number: int
     start_lat: float
     start_lng: float
-    start_name: Optional[str]   # 프론트 카카오 자동완성에서 받은 장소명
-    mid_lat: Optional[float]    # 경유지 (선택)
+    start_name: Optional[str]      # 프론트 카카오 자동완성에서 받은 장소명
+    start_address: Optional[str]   # 출발지 주소
+    start_place_id: Optional[str]  # 출발지 카카오 place_id
+    mid_lat: Optional[float]       # 경유지 (선택)
     mid_lng: Optional[float]
     mid_name: Optional[str]
     end_lat: float
     end_lng: float
-    end_name: Optional[str]     # 프론트 카카오 자동완성에서 받은 장소명
+    end_name: Optional[str]        # 프론트 카카오 자동완성에서 받은 장소명
+    end_address: Optional[str]     # 도착지 주소
+    end_place_id: Optional[str]    # 도착지 카카오 place_id
 
 
 class UserInput(TypedDict):
@@ -62,9 +66,11 @@ class UserInput(TypedDict):
     activities: list[str]               # ["nature/walk", "shopping"] 등
     avoid_activities: Optional[list[str]]
 
-    # 케이스 1 (only) — 목적지 좌표
+    # 케이스 1 (only) — 목적지 좌표 + 이름
     lat: Optional[float]
     lng: Optional[float]
+    destination: Optional[str]  # 목적지 이름 (프론트 카카오 자동완성) *(v3.1 신규)*
+                                # region_hint의 앵커 지역명으로 우선 사용 (역지오코딩보다 정확)
 
     # 케이스 2 (endpoint) — day별 출발·도착 좌표
     days: Optional[list[DayCoord]]
@@ -106,6 +112,13 @@ class DayInfo(TypedDict):
     start_region: Optional[str]     # 케이스 2: 시작 지역명
     end_region: Optional[str]       # 케이스 2: 도착 지역명
 
+    # LLM 지역 힌트 (region_hint에서 채움) *(v3 신규)*
+    hint_keywords: Optional[list[str]]  # 해당 day 근방의 구체적 핫플 장소명 힌트
+
+    # 힌트 앵커 (collect_candidate_pool에서 hint_keywords를 카카오 name 검색으로
+    # 해소한 결과) *(v3.1 신규)* — 앵커 주변 소반경 수집의 중심점
+    hint_anchors: Optional[list[dict]]  # [{name, resolved_name, place_id, lat, lng}]
+
 
 # ─────────────────────────────────────────────────────────────────────
 # 장소 관련 타입
@@ -138,6 +151,11 @@ class Place(TypedDict):
     src: Optional[str]              # 대표 이미지 URL
     status: Optional[str]           # 영업 상태 ("영업 중" / "영업 종료" 등)
 
+    # ── collect_candidate_pool (앵커 수집) 태깅 *(v3.1 신규)* ──────
+    is_hint_anchor: Optional[bool]  # 힌트 앵커 본인 여부
+    nearest_hint: Optional[str]     # 이 장소를 수집한 가장 가까운 앵커의 힌트 키워드
+    hint_dist_m: Optional[int]      # 그 앵커까지의 직선거리 (m)
+
 
 class ScoredPlace(TypedDict):
     """점수가 계산된 장소"""
@@ -146,6 +164,7 @@ class ScoredPlace(TypedDict):
     party_fit_score: int
     revisit_score: int
     blog_score: int                 # v2 신규
+    hint_bonus: int                 # v3 신규 - region_hint 힌트 장소명 매칭 시
     total_score: float
 
 
@@ -191,6 +210,8 @@ class ItineraryItem(TypedDict):
     leave_at: str
     travel_to_next_minutes: int
     recommendation_reason: str          # select_itinerary에서 채워짐
+    travel_mode: Optional[str]          # 도보/자동차/택시 - 이 장소 → 다음 장소 구간의 이동수단
+                                         # *(v3 신규)* 도보 20분 초과 구간은 "택시"로 태깅됨
 
 
 class DayItinerary(TypedDict):
