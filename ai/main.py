@@ -20,7 +20,7 @@ from langgraph.graph import StateGraph, START, END
 from core.state import TravelState, make_initial_state
 from nodes.preprocess_input import preprocess_input
 from nodes.region_hint import region_hint
-from nodes.collect_candidate_pool import collect_candidate_pool
+from nodes.collect_and_filter_places import collect_candidate_pool
 from nodes.first_filter_candidates import first_filter_candidates
 from nodes.second_filter_candidates import second_filter_candidates
 from nodes.generate_candidates import generate_candidates

@@ -11,7 +11,7 @@ load_dotenv()
 
 from core.state import make_initial_state
 from nodes.preprocess_input import preprocess_input
-from nodes.collect_candidate_pool import collect_candidate_pool
+from nodes.collect_and_filter_places import collect_and_filter_places
 from nodes.first_filter_candidates import first_filter_candidates
 from nodes.second_filter_candidates import second_filter_candidates
 from nodes.generate_candidates import generate_candidates
@@ -32,7 +32,7 @@ async def main():
 
     print("\n=== 2. collect_candidate_pool ===")
     s2 = {**initial_state, "user_input": r1["user_input"]}
-    r2 = await collect_candidate_pool(s2)
+    r2 = await collect_and_filter_places(s2)
     print("step:", r2["step"], "| warnings:", r2["warnings"])
     print("candidates 수:", len(r2["candidates"]))
     for d, places in r2["candidates_by_day"].items():

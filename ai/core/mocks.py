@@ -41,7 +41,7 @@ mock_only_1day_walk_hong: UserInput = {
     "transport":        "walk",
     "companion":        "couple",
     "moods":            ["healing", "romantic"],
-    "activities":       ["activity", "nature"],
+    "activities":       ["activity", "indoor"],
     "avoid_activities": [],
     "lat":              37.5572,
     "lng":              126.9245,

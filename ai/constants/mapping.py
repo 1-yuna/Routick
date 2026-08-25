@@ -62,10 +62,16 @@ WEEKDAY_MAP = {
 DEFAULT_START_TIME = "11:00"
 DEFAULT_END_TIME   = "22:00"
 
-# ─── 권역 주변 수집 반경 (km) ───
+# ─── 기준 지역 주변 수집 반경 (km) ───
 BASE_COLLECT_RADIUS_KM = {
     "walk": 5.0,
     "car":  10.0,
+}
+
+# ─── 앵커 주변 추가 수집 반경 (km) ───
+ANCHOR_RADIUS_KM = {
+    "walk": 0.8,
+    "car":  2.0,
 }
 
 # # ─── 케이스 1 (only): 원형 반경 (km) ───
@@ -73,7 +79,6 @@ BASE_COLLECT_RADIUS_KM = {
 #     "walk": {1: 2.0,  2: 2.5,  3: 3.0,  4: 3.5},
 #     "car":  {1: 10.0, 2: 13.0, 3: 15.0, 4: 18.0},
 # }
-#
 #
 # # ─── 케이스 2 (endpoint): 사각형 마진 (km) ───
 # MARGIN_MAP = {
