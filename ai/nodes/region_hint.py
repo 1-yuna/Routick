@@ -4,28 +4,52 @@
 # 여행 권역 조회 노드
 #
 # 흐름:
-#   1. day별 기준 지역명 + 기준 좌표 확보
+#   1. day별 기준 지역명 + 기준 좌표 확보 (day별 병렬)
 #      - only: destination, 없으면 lat/lng 역지오코딩
 #      - endpoint: mid_name > start_name, 없으면 mid 좌표 역지오코딩
 #        mid 좌표 자체가 없으면 start~end 직선 중간점으로 계산
-#   2. LLM에게 그 지역 기준으로 하루 콘셉트/선정 이유/앵커 이름 2~3개 요청
+#   2. LLM에게 그 지역 기준으로 하루 콘셉트/선정 이유/앵커 이름 2~3개 요청 (day별 병렬)
 #      (region_name은 별도로 만들지 않고 기준 지역명을 그대로 사용)
-#      이전 day에서 LLM이 이미 제안한 이름은 avoid 목록으로 넘겨서 중복 방지
 #   3. 앵커 이름의 place_id/좌표 해소는 여기서 하지 않음 — 다음 노드
 #      (collect_and_filter_places)에서 실제 수집과 함께 처리
 # ─────────────────────────────────────────────────────────────────────
 
+import asyncio
 import json
 import os
 import httpx
 
-from utils.pool.kakao_search import coord_to_region
 from prompts.region_hint_prompt import build_prompt
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
+KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
+KAKAO_GEO     = "https://dapi.kakao.com/v2/local/geo/coord2regioncode.json"
+
 REGION_HINT_MODEL = "gpt-5.1"
+
+
+# ─── 좌표 → 행정구역명 변환 ───
+async def coord_to_region(
+    client: httpx.AsyncClient,
+    lat: float,
+    lng: float,
+) -> str:
+    headers = {"Authorization": f"KakaoAK {KAKAO_API_KEY}"}
+    params  = {"x": lng, "y": lat}
+    try:
+        resp = await client.get(KAKAO_GEO, headers=headers, params=params)
+        resp.raise_for_status()
+        docs = resp.json().get("documents", [])
+        for doc in docs:
+            if doc.get("region_type") == "H":
+                return doc.get("region_2depth_name", "")
+        if docs:
+            return docs[0].get("region_2depth_name", "")
+    except Exception:
+        pass
+    return ""
 
 
 # ─── 두 좌표의 직선 중간점 ───
@@ -78,7 +102,7 @@ async def _call_llm(
         "max_completion_tokens": 1500 if is_reasoning_model else 500,
     }
     if is_reasoning_model:
-        payload["reasoning_effort"] = "low"
+        payload["reasoning_effort"] = "none"
     else:
         payload["temperature"] = 0.3
     resp = await client.post(
@@ -108,6 +132,44 @@ def _fallback_day(day_number: int, context_name: str, center_lat, center_lng) ->
     }
 
 
+# ─── day 하나 처리: 기준 좌표 확보 실패/LLM 실패 시 폴백 ───
+async def _process_day(
+    client: httpx.AsyncClient,
+    day_number: int,
+    context_name: str,
+    center_lat: float | None,
+    center_lng: float | None,
+    moods_kr: list[str],
+    activities_kr: list[str],
+) -> tuple[dict, str]:
+    if not context_name or center_lat is None or center_lng is None:
+        return (
+            _fallback_day(day_number, context_name, center_lat, center_lng),
+            f"day{day_number} 기준 지역명/좌표 확보 실패 → 반경 검색 폴백",
+        )
+
+    try:
+        llm_result = await _call_llm(client, context_name, moods_kr, activities_kr, [])
+    except Exception as e:
+        return (
+            _fallback_day(day_number, context_name, center_lat, center_lng),
+            f"day{day_number} 권역 조회 LLM 실패: {type(e).__name__} → 반경 검색 폴백",
+        )
+
+    anchor_names = [a for a in (llm_result.get("anchors") or []) if isinstance(a, str) and a.strip()]
+    day_entry = {
+        "day_number":     day_number,
+        "region_name":    context_name,
+        "region_concept": llm_result.get("concept"),
+        "region_reason":  llm_result.get("reason"),
+        "anchor_names":   anchor_names,
+        "center_lat":     center_lat,
+        "center_lng":     center_lng,
+        "is_fallback":    False,
+    }
+    return day_entry, f"day{day_number} 권역: {context_name} / 앵커 제안 {len(anchor_names)}개"
+
+
 # ─── [노드] 여행 권역 조회 ───
 async def region_hint(state: dict) -> dict:
     ui = state["user_input"]
@@ -127,43 +189,23 @@ async def region_hint(state: dict) -> dict:
     else:
         day_numbers = [d["day_number"] for d in days_raw]
 
-    days_info: list[dict] = []
-    used_anchor_names: set[str] = set()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        bases = await asyncio.gather(*[
+            _day_base(
+                client,
+                next((d for d in days_raw if d.get("day_number") == day_number), None),
+                destination, lat, lng,
+            )
+            for day_number in day_numbers
+        ])
 
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        for day_number in day_numbers:
-            day_raw = next((d for d in days_raw if d.get("day_number") == day_number), None)
-            context_name, center_lat, center_lng = await _day_base(client, day_raw, destination, lat, lng)
+        results = await asyncio.gather(*[
+            _process_day(client, day_number, context_name, center_lat, center_lng, moods_kr, activities_kr)
+            for day_number, (context_name, center_lat, center_lng) in zip(day_numbers, bases)
+        ])
 
-            if not context_name or center_lat is None or center_lng is None:
-                warnings.append(f"day{day_number} 기준 지역명/좌표 확보 실패 → 반경 검색 폴백")
-                days_info.append(_fallback_day(day_number, context_name, center_lat, center_lng))
-                continue
-
-            try:
-                llm_result = await _call_llm(
-                    client, context_name, moods_kr, activities_kr,
-                    list(used_anchor_names),
-                )
-            except Exception as e:
-                warnings.append(f"day{day_number} 권역 조회 LLM 실패: {type(e).__name__} → 반경 검색 폴백")
-                days_info.append(_fallback_day(day_number, context_name, center_lat, center_lng))
-                continue
-
-            anchor_names = [a for a in (llm_result.get("anchors") or []) if isinstance(a, str) and a.strip()]
-            used_anchor_names.update(anchor_names)
-
-            days_info.append({
-                "day_number":     day_number,
-                "region_name":    context_name,
-                "region_concept": llm_result.get("concept"),
-                "region_reason":  llm_result.get("reason"),
-                "anchor_names":   anchor_names,
-                "center_lat":     center_lat,
-                "center_lng":     center_lng,
-                "is_fallback":    False,
-            })
-            warnings.append(f"day{day_number} 권역: {context_name} / 앵커 제안 {len(anchor_names)}개")
+    days_info = [entry for entry, _ in results]
+    warnings.extend(msg for _, msg in results)
 
     ui = {**ui, "days_info": days_info}
 

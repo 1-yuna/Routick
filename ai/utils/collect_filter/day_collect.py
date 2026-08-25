@@ -2,18 +2,99 @@
 # day_collect
 # ─────────────────────────────────────────────────────────────────────
 # 카카오 Local API 검색 + 하루치 장소 수집 (기준 지역 반경 + 앵커 반경 병합 후 dedup)
+# + PostgreSQL 연결/upsert
 # ─────────────────────────────────────────────────────────────────────
 
 import asyncio
 import os
+from typing import Optional
 
+import asyncpg
 import httpx
 
-from utils.pool.db import upsert_places
 from constants.mapping import BASE_COLLECT_RADIUS_KM, ANCHOR_RADIUS_KM
 
 KAKAO_API_KEY = os.getenv("KAKAO_REST_API_KEY")
 KAKAO_BASE    = "https://dapi.kakao.com/v2/local/search"
+
+_pool: Optional[asyncpg.Pool] = None
+
+
+# ─── 커넥션 풀 (싱글톤 패턴) ───
+async def get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        new_pool = await asyncpg.create_pool(  # type: ignore[misc]
+            host=os.getenv("DB_HOST", "localhost"),
+            port=int(os.getenv("DB_PORT", "5432")),
+            user=os.getenv("DB_USER", os.getlogin()),
+            password=os.getenv("DB_PASSWORD", ""),
+            database=os.getenv("DB_NAME", "routick"),
+            min_size=1,
+            max_size=10,
+        )
+        if new_pool is None:
+            raise RuntimeError("Failed to create asyncpg pool")
+        _pool = new_pool
+
+    return _pool
+
+
+# ─── 앱 종료 시 호출 ───
+async def close_pool() -> None:
+    global _pool
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
+
+
+# ─── PostgreSQL upsert ───
+async def upsert_places(places: list[dict]) -> int:
+    if not places:
+        return 0
+
+    pool = await get_pool()
+
+    rows = [
+        (
+            p["id"],
+            p["name"],
+            p.get("category", ""),
+            p.get("category_group_code", ""),
+            p.get("phone", ""),
+            p.get("address_name", ""),
+            p.get("road_address_name", ""),
+            p["lat"],
+            p["lng"],
+            p.get("place_url", ""),
+        )
+        for p in places
+    ]
+
+    async with pool.acquire() as conn:
+        await conn.executemany(
+            """
+            INSERT INTO places (
+                place_id, name, category, category_group_code,
+                phone, address_name, road_address_name,
+                lat, lng, place_url, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+            ON CONFLICT (place_id) DO UPDATE SET
+                name                = EXCLUDED.name,
+                category            = EXCLUDED.category,
+                category_group_code = EXCLUDED.category_group_code,
+                phone               = EXCLUDED.phone,
+                address_name        = EXCLUDED.address_name,
+                road_address_name   = EXCLUDED.road_address_name,
+                lat                 = EXCLUDED.lat,
+                lng                 = EXCLUDED.lng,
+                place_url           = EXCLUDED.place_url,
+                updated_at          = NOW()
+            """,
+            rows,
+        )
+
+    return len(rows)
 
 CATEGORY_CODES = {
     "카페":     "CE7",
