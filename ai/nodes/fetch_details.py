@@ -31,7 +31,7 @@ import os
 import httpx
 from datetime import datetime, timedelta
 
-from nodes.generate_candidates import classify_bucket
+from nodes.generate_route_candidates import classify_bucket
 from nodes.plan_itinerary import search_parking
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")

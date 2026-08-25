@@ -23,7 +23,7 @@ from nodes.region_hint import region_hint
 from nodes.collect_and_filter_places import collect_candidate_pool
 from nodes.first_filter_candidates import first_filter_candidates
 from nodes.enrich_and_score_places import second_filter_candidates
-from nodes.generate_candidates import generate_candidates
+from nodes.generate_route_candidates import generate_candidates
 from nodes.plan_itinerary import plan_itinerary
 from nodes.select_itinerary import select_itinerary
 from nodes.fetch_details import fetch_details

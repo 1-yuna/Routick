@@ -388,3 +388,55 @@ mock_endpoint_2day_walk: UserInput = {
     "transport_kr": None, "duration_kr": None, "travel_weekday": None,
     "final_keywords": None, "name_search_keywords": None, "days_info": None,
 }
+
+# ══════════════════════════════════════════════════════════════════════
+# 케이스 10: 출발/도착 + 1박2일 + 자동차
+# day1: 묵호역 (단독)
+# day2: 삼척역 (단독)
+# ══════════════════════════════════════════════════════════════════════
+mock_endpoint_2day_car: UserInput = {
+    "route_type": "endpoint",
+    "travel_days": 2,
+    "travel_date": "2025-06-15",
+    "transport": "car",
+    "companion": "couple",
+    "moods": ["healing", "active"],
+    "activities": ["activity", "nature"],
+    "avoid_activities": [],
+    "lat": None,
+    "lng": None,
+    "destination": None,
+    "days": [
+        {
+            "day_number": 1,
+            "start_lat": 37.4299, "start_lng": 129.1787,
+            "start_name": "삼척역",
+            "start_address": "강원특별자치도 삼척시 중앙로 13",
+            "start_place_id": "10440361",
+            "mid_lat": 37.4299, "mid_lng": 129.1787,
+            "mid_name": "삼척역",
+            "end_lat": 37.4299, "end_lng": 129.1787,
+            "end_name": "삼척역",
+            "end_address": "강원특별자치도 삼척시 중앙로 13",
+            "end_place_id": "10440361",
+        },
+        {
+            "day_number": 2,
+            "start_lat": 37.5469, "start_lng": 129.1069,
+            "start_name": "묵호역",
+            "start_address": "강원특별자치도 동해시 발한동 210",
+            "start_place_id": "10440360",
+            "mid_lat": 37.5469, "mid_lng": 129.1069,
+            "mid_name": "묵호역",
+            "end_lat": 37.5469, "end_lng": 129.1069,
+            "end_name": "묵호역",
+            "end_address": "강원특별자치도 동해시 발한동 210",
+            "end_place_id": "10440360",
+        }
+    ],
+    "start_time": "11:00",
+    "end_time": "22:00",
+    "companion_kr": None, "moods_kr": None, "activities_kr": None,
+    "transport_kr": None, "duration_kr": None, "travel_weekday": None,
+    "final_keywords": None, "name_search_keywords": None, "days_info": None,
+}

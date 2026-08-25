@@ -102,7 +102,8 @@ async def _call_llm(
         "max_completion_tokens": 1500 if is_reasoning_model else 500,
     }
     if is_reasoning_model:
-        payload["reasoning_effort"] = "none"
+        # "none"은 gpt-5.1 전용, 그 외 gpt-5 계열(mini/nano 포함)은 "minimal"이 최저 단계
+        payload["reasoning_effort"] = "none" if REGION_HINT_MODEL == "gpt-5.1" else "minimal"
     else:
         payload["temperature"] = 0.3
     resp = await client.post(
@@ -119,7 +120,13 @@ async def _call_llm(
     return json.loads(clean)
 
 
-def _fallback_day(day_number: int, context_name: str, center_lat, center_lng) -> dict:
+def _fallback_day(
+    day_number: int,
+    context_name: str,
+    center_lat, center_lng,
+    start_lat=None, start_lng=None,
+    end_lat=None, end_lng=None,
+) -> dict:
     return {
         "day_number":     day_number,
         "region_name":    context_name,
@@ -128,11 +135,17 @@ def _fallback_day(day_number: int, context_name: str, center_lat, center_lng) ->
         "anchor_names":   [],
         "center_lat":     center_lat,
         "center_lng":     center_lng,
+        "start_lat":      start_lat,
+        "start_lng":      start_lng,
+        "end_lat":        end_lat,
+        "end_lng":        end_lng,
         "is_fallback":    True,
     }
 
 
 # ─── day 하나 처리: 기준 좌표 확보 실패/LLM 실패 시 폴백 ───
+# start/end 좌표는 route_type=endpoint일 때만 존재 — 동선 생성 노드가 출발/도착 블록을
+# 붙일 때 쓰므로, mid(center)와 별개로 days_info에 그대로 실어 보냄
 async def _process_day(
     client: httpx.AsyncClient,
     day_number: int,
@@ -141,10 +154,14 @@ async def _process_day(
     center_lng: float | None,
     moods_kr: list[str],
     activities_kr: list[str],
+    start_lat: float | None = None,
+    start_lng: float | None = None,
+    end_lat: float | None = None,
+    end_lng: float | None = None,
 ) -> tuple[dict, str]:
     if not context_name or center_lat is None or center_lng is None:
         return (
-            _fallback_day(day_number, context_name, center_lat, center_lng),
+            _fallback_day(day_number, context_name, center_lat, center_lng, start_lat, start_lng, end_lat, end_lng),
             f"day{day_number} 기준 지역명/좌표 확보 실패 → 반경 검색 폴백",
         )
 
@@ -152,7 +169,7 @@ async def _process_day(
         llm_result = await _call_llm(client, context_name, moods_kr, activities_kr, [])
     except Exception as e:
         return (
-            _fallback_day(day_number, context_name, center_lat, center_lng),
+            _fallback_day(day_number, context_name, center_lat, center_lng, start_lat, start_lng, end_lat, end_lng),
             f"day{day_number} 권역 조회 LLM 실패: {type(e).__name__} → 반경 검색 폴백",
         )
 
@@ -165,6 +182,10 @@ async def _process_day(
         "anchor_names":   anchor_names,
         "center_lat":     center_lat,
         "center_lng":     center_lng,
+        "start_lat":      start_lat,
+        "start_lng":      start_lng,
+        "end_lat":        end_lat,
+        "end_lng":        end_lng,
         "is_fallback":    False,
     }
     return day_entry, f"day{day_number} 권역: {context_name} / 앵커 제안 {len(anchor_names)}개"
@@ -199,8 +220,15 @@ async def region_hint(state: dict) -> dict:
             for day_number in day_numbers
         ])
 
+        day_raw_map = {d["day_number"]: d for d in days_raw}
         results = await asyncio.gather(*[
-            _process_day(client, day_number, context_name, center_lat, center_lng, moods_kr, activities_kr)
+            _process_day(
+                client, day_number, context_name, center_lat, center_lng, moods_kr, activities_kr,
+                start_lat=day_raw_map[day_number]["start_lat"] if day_number in day_raw_map else None,
+                start_lng=day_raw_map[day_number]["start_lng"] if day_number in day_raw_map else None,
+                end_lat=day_raw_map[day_number]["end_lat"] if day_number in day_raw_map else None,
+                end_lng=day_raw_map[day_number]["end_lng"] if day_number in day_raw_map else None,
+            )
             for day_number, (context_name, center_lat, center_lng) in zip(day_numbers, bases)
         ])
 
