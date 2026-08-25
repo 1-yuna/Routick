@@ -26,7 +26,7 @@ from nodes.enrich_and_score_places import second_filter_candidates
 from nodes.generate_route_candidates import generate_candidates
 from nodes.plan_itinerary import plan_itinerary
 from nodes.select_itinerary import select_itinerary
-from nodes.fetch_details import fetch_details
+from nodes.verify_and_respond import fetch_details
 from nodes.generate_response import generate_response
 
 
