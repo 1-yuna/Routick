@@ -76,6 +76,10 @@ def build_prompt(valid_routes_by_day: dict[int, list[dict]], user_input: dict) -
 
     [day별 선택 이유 작성 기준]
     - select_reason: 왜 이 동선을 선택했는지 핵심 이유를 1~2문장으로 작성하세요.
+    - place_reasons: 선택한 동선에 포함된 "모든" 장소 각각에 대해, 왜 이 장소가 이
+      동선에 어울리는지(분위기·활동 매칭, 동선 내 구성상 역할, 앵커 여부 등) 1문장으로
+      작성하세요. place_id는 후보 목록에 적힌 id를 그대로 쓰세요. 누락 없이 동선의
+      장소 수만큼 채우세요.
 
     [응답 형식]
     {{
@@ -83,7 +87,10 @@ def build_prompt(valid_routes_by_day: dict[int, list[dict]], user_input: dict) -
         {{
           "day_number": 1,
           "selected_route_index": 0,
-          "select_reason": "선택 이유"
+          "select_reason": "선택 이유",
+          "place_reasons": [
+            {{"place_id": "장소id", "reason": "이 장소를 고른 이유"}}
+          ]
         }}
       ]
     }}

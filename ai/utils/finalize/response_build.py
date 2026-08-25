@@ -96,7 +96,9 @@ def build_day_response(day_number: int, stops: list[dict], ui: dict) -> dict:
             "address":      p.get("road_address_name") or p.get("address_name", ""),
             "image_url":    p.get("src"),
             "status":       p.get("status", "정보없음"),
-            "description":  p.get("summary", ""),
+            # select_itinerary가 GPT/폴백으로 채워 넣은 "이 동선에 왜 들어갔는지" 이유.
+            # 검증 단계에서 대체된 장소 등 어쩌다 못 채워진 경우에만 장소 자체 요약으로 대체
+            "description":  p.get("recommendation_reason") or p.get("summary", ""),
             "lat":          p.get("lat", 0.0),
             "lng":          p.get("lng", 0.0),
             "stay_minutes": s.get("leave_at") and s.get("arrive_at") and _minutes_between(s["arrive_at"], s["leave_at"]),
@@ -127,7 +129,11 @@ def _minutes_between(arrive_at: str, leave_at: str) -> int:
     return int((l - a).total_seconds() / 60)
 
 
-# ─── 전체 응답 조립 (meta + day별 응답) ───
+# ─── 전체 응답 조립 (meta + region + day별 응답) ───
+# region은 day 안이 아니라 예전 응답 구조 그대로 최상위에 둠 — only는 "region" 1개,
+# endpoint는 "start_region"/"end_region" — day별로 권역이 달라도(v4 신규) 1일차/마지막날
+# 기준으로만 요약해서 예전과 동일한 최상위 스펙을 유지 (day별 상세 권역은 필요하면
+# days[].blocks에서 각 장소로 확인 가능)
 def build_response(day_responses: dict[int, dict], ui: dict) -> dict:
     meta = {
         "period":    ui.get("duration_kr", ""),
@@ -139,12 +145,24 @@ def build_response(day_responses: dict[int, dict], ui: dict) -> dict:
     }
 
     days_info = ui.get("days_info") or []
-    region_by_day = {d["day_number"]: d.get("region_name", "") for d in days_info}
-    for day_number, day_obj in day_responses.items():
-        day_obj["region"] = region_by_day.get(day_number, "")
+    day_info_map = {d["day_number"]: d for d in days_info}
+    route_type = ui.get("route_type", "only")
+
+    if route_type == "only":
+        first_day_number = min(day_info_map) if day_info_map else None
+        region_fields = {"region": day_info_map.get(first_day_number, {}).get("region_name", "")}
+    else:
+        day_numbers = sorted(day_info_map.keys())
+        first_day = day_info_map.get(day_numbers[0], {}) if day_numbers else {}
+        last_day  = day_info_map.get(day_numbers[-1], {}) if day_numbers else {}
+        region_fields = {
+            "start_region": first_day.get("region_name", ""),
+            "end_region":   last_day.get("region_name", ""),
+        }
 
     return {
         "transport": ui.get("transport", "walk"),
         "meta":      meta,
+        **region_fields,
         "days":      [day_responses[d] for d in sorted(day_responses.keys())],
     }

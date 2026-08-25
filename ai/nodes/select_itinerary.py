@@ -66,6 +66,32 @@ async def _call_llm(valid_routes_by_day: dict, ui: dict) -> dict:
         return json.loads(clean)
 
 
+# ─── GPT가 못 채웠거나(fallback 경로) 응답에서 빠뜨린 장소용 — 점수/분위기·활동 매칭
+#     정보로 대신 만드는 추천 이유 (place 블록 description에 그대로 노출됨) ───
+def _fallback_place_reason(place: dict) -> str:
+    parts = []
+    atmosphere = place.get("atmosphere") or []
+    if atmosphere:
+        parts.append("/".join(atmosphere[:2]) + " 분위기")
+    matched = place.get("matched_activities") or []
+    if matched:
+        parts.append("/".join(matched[:2]) + " 활동과 매칭")
+    if place.get("query_name"):
+        parts.append("앵커 장소")
+    base = ", ".join(parts) if parts else (place.get("summary") or "")
+    score = place.get("total_score", 0)
+    return f"{base} (적합도 {score}점으로 자동 선택)" if base else f"적합도 {score}점으로 자동 선택"
+
+
+# ─── route의 각 place에 추천 이유를 부착한 새 route dict 반환 (원본 불변) ───
+def _attach_place_reasons(route: dict, reasons: dict[str, str]) -> dict:
+    places = [
+        {**p, "recommendation_reason": reasons.get(p["id"]) or _fallback_place_reason(p)}
+        for p in route["places"]
+    ]
+    return {**route, "places": places}
+
+
 # ─── LLM 응답을 day별 선택 동선으로 매핑 — 모든 day가 커버 안 되면 예외(폴백 유도) ───
 def _apply_llm_selection(llm_result: dict, valid_routes_by_day: dict) -> tuple[dict, dict]:
     selected_by_day: dict[int, dict] = {}
@@ -78,7 +104,14 @@ def _apply_llm_selection(llm_result: dict, valid_routes_by_day: dict) -> tuple[d
             continue
         idx = day_result.get("selected_route_index", 0)
         idx = min(max(int(idx), 0), len(candidates) - 1)
-        selected_by_day[day_number] = candidates[idx]
+        route = candidates[idx]
+
+        place_reasons = {
+            pr["place_id"]: pr.get("reason", "")
+            for pr in (day_result.get("place_reasons") or [])
+            if pr.get("place_id")
+        }
+        selected_by_day[day_number] = _attach_place_reasons(route, place_reasons)
         day_meta[day_number] = {"select_reason": day_result.get("select_reason", "")}
 
     if set(selected_by_day.keys()) != set(valid_routes_by_day.keys()):
@@ -183,7 +216,7 @@ async def select_itinerary(state: dict) -> dict:
                 "warnings":          warnings + ["폴백 조합 탐색 실패 — day 간 중복 없는 조합이 존재하지 않음"],
                 "step":              "select_failed",
             }
-        selected_by_day = combo
+        selected_by_day = {d: _attach_place_reasons(route, {}) for d, route in combo.items()}
         day_meta = {d: {"select_reason": "자동 선택 (day 간 중복 없는 조합 중 적합도 총점 최고)"} for d in combo}
 
     return {
