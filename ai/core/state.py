@@ -1,29 +1,30 @@
 # ─────────────────────────────────────────────────────────────────────
 # state
 # ─────────────────────────────────────────────────────────────────────
-# state 정의
+# state 정의 (v4 — pipeline_redesign_v4.md 기준 전면 재작성)
 #
 # 흐름:
 #   1. 초기 상태 생성 && 사용자 입력 저장
-#   2. 전처리 (preprocess_input)
-#      - route_type에 따라 day별 좌표/반경/지역명 계산
-#   3. 후보 수집 (collect_candidate_pool)
-#      - day별 독립 수집 (only: 원형 radius / endpoint: rect)
-#   4. 1차 필터링 (first_filter_candidates)
-#   5. 2차 필터링 (second_filter_candidates)
-#      - 블로그 보강 + 점수 계산 + shortlist 구성
-#   6. 이동시간 행렬 계산 (travel_matrix)
-#      - day별 독립 계산
-#   7. 동선 후보 생성 + 일정 계획 (plan_itinerary)
-#      - parking 거점 추가 (transport=car)
-#      - fallback 처리
-#   8. 최적 일정 선택 (select_itinerary)
-#      - LLM 선택 + rollback 처리
-#   9. 최종 정보 보충 (fetch_details)
-#      - 구글 Places API (이미지/별점/리뷰수/영업시간)
-#      - 영업시간 충돌 시 대체 장소 교체
-#  10. 응답 생성 (generate_response)
-#      - blocks 배열 구성 (place/walk/parking 타입 혼합)
+#   2. 입력 전처리 (preprocess_input)
+#   3. 여행 권역 조회 (region_hint) — 신규 노드
+#   4. 장소 수집 + 1차 필터링 (collect_and_filter_places)
+#      - day당 30개로 축약, scored_by_day 롤백 재사용을 위해 유지
+#   5. 장소 정보 보강 + 점수화 (enrich_and_score_places)
+#      - day당 15개로 2차 필터링 (shortlist_by_day)
+#   6. 동선 후보 생성 (generate_route_candidates)
+#   7. 최적 일정 선택 (select_itinerary)
+#      - GPT 요청 전 사전 검증 실패 시 6번 로직을 노드 내부에서 직접
+#        재호출(quota 완화 15→30, 6→5슬롯) — 그래프 레벨 롤백 아님
+#   8. 상세 정보 검증 + 응답 생성 (verify_and_respond)
+#      - 대체 장소 탐색 실패 시 6번의 day 재생성 로직을 노드 내부에서
+#        직접 재호출(day당 1회) — 이것도 그래프 레벨 롤백 아님
+#
+# 위 6번/8번 롤백이 전부 노드 내부 직접 재호출로 처리되기 때문에
+# graph.py는 조건부 엣지 없는 단순 선형 그래프로 충분함
+#
+# 실제 배포 경로는 core/state.py (graph.py 등에서 `from core.state import ...`
+# 로 임포트) — 이 프로젝트에서는 다른 노드/유틸 파일과 동일하게 평문 파일명으로
+# 관리 (nodes.*, prompts.*, constants.* 파일들과 같은 컨벤션)
 # ─────────────────────────────────────────────────────────────────────
 
 from typing import Annotated, Optional
@@ -55,6 +56,33 @@ class DayCoord(TypedDict):
     end_place_id: Optional[str]    # 도착지 카카오 place_id
 
 
+class DayInfo(TypedDict):
+    """day별 권역 정보 (region_hint에서 채움)"""
+    day_number: int
+
+    region_name: Optional[str]          # 기준 지역명
+                                         # (only: destination 또는 역지오코딩 결과,
+                                         #  endpoint: mid_name > start_name 또는 역지오코딩)
+    region_concept: Optional[str]       # LLM이 제안한 하루 콘셉트
+    region_reason: Optional[str]        # 그 권역을 고른 이유
+    anchor_names: Optional[list[str]]   # LLM이 제안한 앵커 장소명 2~3개
+                                         # (place_id/좌표 해소는 collect_and_filter_places에서)
+
+    center_lat: Optional[float]         # 권역 기준 좌표
+    center_lng: Optional[float]         # (only: destination/lat,lng 그대로,
+                                         #  endpoint: mid 좌표 또는 start~end 직선 중간점)
+
+    # endpoint 케이스 전용 — 실제 출발/도착 좌표 (동선 생성이 시작/끝 블록을 붙일 때 사용,
+    # center와 별개로 그대로 실어 보냄)
+    start_lat: Optional[float]
+    start_lng: Optional[float]
+    end_lat: Optional[float]
+    end_lng: Optional[float]
+
+    is_fallback: Optional[bool]         # 기준 지역명/좌표 확보 실패 또는 LLM 실패로
+                                         # 반경 검색 폴백됐는지
+
+
 class UserInput(TypedDict):
     # ── Spring에서 넘겨주는 값 ──────────────────────────────────────
     route_type: str                     # only / endpoint
@@ -69,8 +97,8 @@ class UserInput(TypedDict):
     # 케이스 1 (only) — 목적지 좌표 + 이름
     lat: Optional[float]
     lng: Optional[float]
-    destination: Optional[str]  # 목적지 이름 (프론트 카카오 자동완성) *(v3.1 신규)*
-                                # region_hint의 앵커 지역명으로 우선 사용 (역지오코딩보다 정확)
+    destination: Optional[str]          # 목적지 이름 (프론트 카카오 자동완성)
+                                         # region_hint의 기준 지역명으로 우선 사용
 
     # 케이스 2 (endpoint) — day별 출발·도착 좌표
     days: Optional[list[DayCoord]]
@@ -88,194 +116,47 @@ class UserInput(TypedDict):
     final_keywords: Optional[list[str]] # 검색 키워드 목록 (category + name 합산)
     name_search_keywords: Optional[list[str]]  # name 검색 전용 키워드
 
-    # day별 검색 파라미터 (preprocess_input에서 계산)
-    days_info: Optional[list["DayInfo"]]
-
-
-class DayInfo(TypedDict):
-    """day별 검색 파라미터 (preprocess_input에서 계산)"""
-    day_number: int
-
-    # 케이스 1: 원형 반경
-    center_lat: Optional[float]
-    center_lng: Optional[float]
-    radius_km: Optional[float]
-
-    # 케이스 2: 사각형 영역
-    rect_min_lat: Optional[float]
-    rect_min_lng: Optional[float]
-    rect_max_lat: Optional[float]
-    rect_max_lng: Optional[float]
-
-    # 지역명 (collect_candidate_pool에서 카카오 좌표→행정구역 API로 채움)
-    region: Optional[str]           # 케이스 1: 목적지 지역명
-    start_region: Optional[str]     # 케이스 2: 시작 지역명
-    end_region: Optional[str]       # 케이스 2: 도착 지역명
-
-    # LLM 지역 힌트 (region_hint에서 채움) *(v3 신규)*
-    hint_keywords: Optional[list[str]]  # 해당 day 근방의 구체적 핫플 장소명 힌트
-
-    # 힌트 앵커 (collect_candidate_pool에서 hint_keywords를 카카오 name 검색으로
-    # 해소한 결과) *(v3.1 신규)* — 앵커 주변 소반경 수집의 중심점
-    hint_anchors: Optional[list[dict]]  # [{name, resolved_name, place_id, lat, lng}]
+    # ── region_hint 후 채워지는 값 ─────────────────────────────────
+    days_info: Optional[list[DayInfo]]
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 장소 관련 타입
+# 파이프라인 내부 데이터
 # ─────────────────────────────────────────────────────────────────────
-
-class Place(TypedDict):
-    """카카오 API로 수집한 장소 원본 + 보강 필드"""
-    id: str
-    name: str
-    category: str
-    category_group_code: str
-    phone: str
-    address_name: str
-    road_address_name: str
-    lat: float
-    lng: float
-    place_url: str
-
-    # ── second_filter (LLM 보강) 후 채워지는 값 ────────────────────
-    atmosphere: list[str]           # ["활기찬", "힐링"] 등
-    best_for: list[str]             # ["연인", "친구"] 등
-    place_tags: list[str]           # ["산책로", "한식"] 등
-    revisit_intent: str             # high / medium / low
-    summary: str                    # 한줄 요약 (30자 이내)
-
-    # ── generate_candidates (버킷 분류) 후 채워지는 값 ─────────────
-    bucket: str                     # food / cafe / activity / browse / pop / parking
-
-    # ── fetch_details (구글 Places API) 후 채워지는 값 ─────────────
-    src: Optional[str]              # 대표 이미지 URL
-    status: Optional[str]           # 영업 상태 ("영업 중" / "영업 종료" 등)
-
-    # ── collect_candidate_pool (앵커 수집) 태깅 *(v3.1 신규)* ──────
-    is_hint_anchor: Optional[bool]  # 힌트 앵커 본인 여부
-    nearest_hint: Optional[str]     # 이 장소를 수집한 가장 가까운 앵커의 힌트 키워드
-    hint_dist_m: Optional[int]      # 그 앵커까지의 직선거리 (m)
-
-
-class ScoredPlace(TypedDict):
-    """점수가 계산된 장소"""
-    place: Place
-    mood_score: float
-    party_fit_score: int
-    revisit_score: int
-    blog_score: int                 # v2 신규
-    hint_bonus: int                 # v3 신규 - region_hint 힌트 장소명 매칭 시
-    total_score: float
-
-
-# ─────────────────────────────────────────────────────────────────────
-# 일정 관련 타입
-# ─────────────────────────────────────────────────────────────────────
-
-class Transport(TypedDict):
-    """이동 정보"""
-    mode: str       # walk / car
-    minutes: int    # 이동 시간 (분)
-
-
-class ParkingBlock(TypedDict):
-    """주차장 블록"""
-    type: str                           # "parking"
-    bucket: str                         # "parking"
-    name: str
-    address: str
-    lat: float
-    lng: float
-    description: Optional[str]          # 주차 요금 정보
-    enter_transport: Optional[Transport] # 이전 블록 → 주차장 (이전이 parking이면 없음)
-    exit_transport: Optional[Transport]  # 주차장 → 다음 블록
-
-
-class StartEndPoint(TypedDict):
-    """출발지/도착지 정보 (endpoint 케이스만)"""
-    name: str
-    address: str
-    lat: float
-    lng: float
-    place_id: str
-    exit_transport: Optional[Transport]   # 출발지 → 첫 블록 (start용)
-    enter_transport: Optional[Transport]  # 마지막 블록 → 도착지 (end용)
-
-
-class ItineraryItem(TypedDict):
-    """동선 내 장소 아이템 (plan_itinerary에서 생성)"""
-    order: int
-    place: Place
-    arrive_at: str
-    leave_at: str
-    travel_to_next_minutes: int
-    recommendation_reason: str          # select_itinerary에서 채워짐
-    travel_mode: Optional[str]          # 도보/자동차/택시 - 이 장소 → 다음 장소 구간의 이동수단
-                                         # *(v3 신규)* 도보 20분 초과 구간은 "택시"로 태깅됨
-
-
-class DayItinerary(TypedDict):
-    """day별 확정 동선"""
-    day_number: int
-    itinerary: list[ItineraryItem]
-    parking_blocks: list[ParkingBlock]  # transport=car일 때만 (plan_itinerary에서 추가)
-    start: Optional[StartEndPoint]      # 출발지 (endpoint 케이스만)
-    end: Optional[StartEndPoint]        # 도착지 (endpoint 케이스만)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# 전체 state
-# ─────────────────────────────────────────────────────────────────────
+# 장소(Place)/동선(Route) dict의 정확한 필드 구성은 그 값을 만드는 유틸 모듈이
+# 기준임 (예: 장소 보강 필드는 utils/enrich_score/*.py, 동선 필드는
+# utils/route/route_build.py) — 노드 함수들도 전부 plain dict로 주고받고 있어
+# 여기서도 TypedDict로 다시 못박지 않고 느슨하게 dict로 둠
 
 class TravelState(TypedDict):
-    # 사용자 입력
     user_input: UserInput
 
-    # 후보 수집 (day별로 분리, day_number 키)
-    candidates: Annotated[list[Place], operator.add]            # 전체 합산 (LangGraph reducer)
-    candidates_by_day: dict[int, list[Place]]                   # day별 분리본
+    # 4. 장소 수집 + 1차 필터링 — day당 30개
+    filtered_candidates: list[dict]
+    filtered_by_day: dict[int, list[dict]]
 
-    # 1차 필터링
-    filtered_candidates: list[Place]
-    filtered_by_day: dict[int, list[Place]]                     # day별 분리본
+    # 5. 장소 정보 보강 + 점수화
+    scored_candidates: list[dict]              # 2차 필터링 이전 — day당 30개 전체 (점수 포함)
+    scored_by_day: dict[int, list[dict]]        # ↑ day별 분리본
+                                                 #   7번 사전 검증 실패 롤백 시 블로그/GPT 재호출 없이
+                                                 #   quota만 다시 잘라 재사용
+    shortlist: list[dict]                       # 2차 필터링 후 — day당 15개
+    shortlist_by_day: dict[int, list[dict]]
 
-    # 2차 필터링
-    scored_candidates: list[ScoredPlace]
-    shortlist: list[ScoredPlace]
-    shortlist_by_day: dict[int, list[ScoredPlace]]              # day별 분리본
+    # 6. 동선 후보 생성 — route dict: {places, total_score, has_anchor, start_block, end_block}
+    route_candidates_by_day: dict[int, list[dict]]
+    route_candidates: list[dict]
 
-    # 이동시간 행렬 (day별) - generate_candidates에서 계산
-    distance_matrix_by_day: dict[int, list[list[float]]]
-    time_matrix_by_day: dict[int, list[list[float]]]
-    place_index_by_day: dict[int, list[str]]                    # day별 인덱스 → place_id
+    # 7. 최적 일정 선택
+    final_itineraries: dict[int, dict]          # day_number → route dict 1개
+    day_meta: dict[int, dict]                   # day_number → {select_reason}
 
-    # 동선 후보 (generate_candidates에서 생성)
-    all_routes_by_day: dict[int, list[dict]]                    # day별 전체 동선
-    valid_routes_by_day: dict[int, list[dict]]                  # day별 유효 동선
-    invalid_routes_by_day: dict[int, list[dict]]                # day별 제외된 동선
-
-    # 일정 후보 (plan_itinerary에서 상위 5개 추출)
-    itineraries_by_day: dict[int, list[list[ItineraryItem]]]    # day별 후보 동선들
-
-    # 최종 선택된 동선 (select_itinerary에서 day별 1개씩 확정)
-    final_itineraries: dict[int, list[ItineraryItem]]           # day_number → itinerary
-    day_meta: dict[int, dict]                                   # day_number → {select_reason, compare_reason}
-
-    # 최종 선택된 동선 (day별) — 레거시, generate_response fallback용
-    selected_itinerary: list[DayItinerary]
-
-    # rollback 제어
-    excluded_place_ids: list[str]                               # select_itinerary rollback 시 전달
-    retry_count: int
-    rollback_count: int                                         # select_itinerary 내부 rollback 횟수
+    # 8. 상세 정보 검증 + 응답 생성
+    response: dict                              # {transport, meta, days: [...]}
 
     # 메타·제어
-    errors: list[str]
-    warnings: list[str]
-    step: str
-
-    # 최종 응답
-    response: dict
+    warnings: Annotated[list[str], operator.add]  # 노드마다 자기 몫만 반환 → 그래프가 누적
+    step: str                                      # 마지막으로 완료된 단계 (덮어쓰기)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -286,38 +167,22 @@ def make_initial_state(user_input: UserInput) -> TravelState:
     return {
         "user_input": user_input,
 
-        "candidates": [],
-        "candidates_by_day": {},
-
         "filtered_candidates": [],
         "filtered_by_day": {},
 
         "scored_candidates": [],
+        "scored_by_day": {},
         "shortlist": [],
         "shortlist_by_day": {},
 
-        "distance_matrix_by_day": {},
-        "time_matrix_by_day": {},
-        "place_index_by_day": {},
-
-        "all_routes_by_day": {},
-        "valid_routes_by_day": {},
-        "invalid_routes_by_day": {},
-
-        "itineraries_by_day": {},
+        "route_candidates_by_day": {},
+        "route_candidates": [],
 
         "final_itineraries": {},
         "day_meta": {},
 
-        "selected_itinerary": [],
+        "response": {},
 
-        "excluded_place_ids": [],
-        "retry_count": 0,
-        "rollback_count": 0,
-
-        "errors": [],
         "warnings": [],
         "step": "initialized",
-
-        "response": {},
     }
