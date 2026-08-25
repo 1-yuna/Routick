@@ -3,7 +3,7 @@
 # ─────────────────────────────────────────────────────────────────────
 # GPT로 블로그 요약 기반 장소 보강
 # 추출 항목: 분위기 / 활동(사용자 선호 활동 매칭) / 재방문의사(+근거 및 신뢰도) / 특징요약
-# 10개씩 청크로 나눠 병렬 호출
+# 5개씩 청크로 나눠 병렬 호출 (청크가 작을수록 청크당 생성량이 줄어 개별 응답이 빨라짐)
 # ─────────────────────────────────────────────────────────────────────
 
 import asyncio
@@ -16,7 +16,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
 ENRICH_MODEL = "gpt-5-mini"
-CHUNK_SIZE   = 10
+CHUNK_SIZE   = 5
 
 ATMOSPHERE_TAGS = ["활기찬", "힐링", "감성", "이색", "조용한", "따뜻한", "로맨틱", "깔끔한", "빈티지", "힙한"]
 
@@ -76,7 +76,7 @@ async def _call_llm(client: httpx.AsyncClient, chunk: list[dict], activities_kr:
     payload = {
         "model": ENRICH_MODEL,
         "messages": [{"role": "user", "content": prompt}],
-        "max_completion_tokens": 4000 if is_reasoning_model else 2000,
+        "max_completion_tokens": 2500 if is_reasoning_model else 1200,
     }
     if is_reasoning_model:
         # "none"은 gpt-5.1 전용, 그 외 gpt-5 계열(mini/nano 포함)은 "minimal"이 최저 단계

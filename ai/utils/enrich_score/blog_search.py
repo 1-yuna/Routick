@@ -19,7 +19,8 @@ SNIPPET_MAX_LEN  = 150
 
 # 네이버 검색 API는 초당 약 10건으로 제한 — day별로 이 함수가 동시에 여러 번
 # 호출돼도(엔진 전체 기준) 초당 호출 수를 넘기지 않도록 전역 dispatch gate로 제어
-DISPATCH_INTERVAL = 0.12
+# 0.10초 = 초당 10건, 문서상 한도에 거의 붙임 (429나면 재시도가 받아줌)
+DISPATCH_INTERVAL = 0.10
 MAX_RETRIES        = 3
 RETRY_BASE_DELAY    = 0.5
 
