@@ -14,7 +14,8 @@
 #      - place_id 기준 중복 제거
 #      - 수집 결과(필터링 전 원본)를 PostgreSQL에 upsert
 #   3. 1차 필터링 (utils/collect_filter/day_filter.py)
-#      - 제거: 사용자 제외활동 / 여행과 무관한 키워드 / 동일 이름(접미어 무시)·좌표 중복
+#      - 제거: 이전 day에서 이미 채택된 장소 (day 간 중복 방지, day 순서대로 누적)
+#        / 사용자 제외활동 / 여행과 무관한 키워드 / 동일 이름(접미어 무시)·좌표 중복
 #        / 동일 브랜드 하루당 최대 1개 / 동일 세부 카테고리(3단계 이상 일치) 하루당 최대 2개
 #      - 카페·베이커리 재분류 (other는 activity로 통합)
 #      - 앵커 필수 포함 (제거 단계에서 빠졌으면 다시 추가, 단 제외활동에 걸린 경우는 제외)
@@ -78,7 +79,6 @@ async def collect_and_filter_places(state: dict) -> dict:
                 dropped = [n for n in anchor_names if n not in resolved_query_names]
                 warnings.append(f"day{day_number} 앵커 일부 해소 실패: {dropped}")
             for a in anchors:
-                used_place_ids.add(a["place_id"])
                 if a["name"] != a["query_name"]:
                     warnings.append(f"day{day_number} 앵커 이름 불일치: '{a['query_name']}' 요청 → '{a['name']}' 매칭됨")
 
@@ -86,7 +86,8 @@ async def collect_and_filter_places(state: dict) -> dict:
             if not places:
                 warnings.append(f"day{day_number} 수집 결과 0개")
 
-            filtered = filter_day(places, avoid_activities, anchors)
+            filtered = filter_day(places, avoid_activities, anchors, used_place_ids)
+            used_place_ids.update(p["id"] for p in filtered)
 
             filtered_by_day[day_number] = filtered
             all_filtered.extend(filtered)

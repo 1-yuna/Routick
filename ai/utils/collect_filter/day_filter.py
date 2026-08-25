@@ -1,7 +1,8 @@
 # ─────────────────────────────────────────────────────────────────────
 # day_filter
 # ─────────────────────────────────────────────────────────────────────
-# 1차 필터링: 제거 → 카페·베이커리 재분류 → 앵커 필수 포함 → day 쿼터 축약
+# 1차 필터링: 이전 day 중복 제거 → 제거 → 카페·베이커리 재분류
+#            → 앵커 필수 포함 → day 쿼터 축약
 # ─────────────────────────────────────────────────────────────────────
 
 import re
@@ -76,6 +77,13 @@ def _category_prefix(category: str, depth: int = 3) -> str:
     if prefix:
         prefix[-1] = CATEGORY_SYNONYM_GROUPS.get(prefix[-1], prefix[-1])
     return " > ".join(prefix)
+
+
+# ─── 제거: 이전 day에서 이미 채택된 장소 (day 간 중복 방지) ───
+def _remove_used(places: list[dict], used_place_ids: set[str]) -> list[dict]:
+    if not used_place_ids:
+        return places
+    return [p for p in places if p["id"] not in used_place_ids]
 
 
 # ─── 제거: 사용자 제외활동 / 무관 키워드 ───
@@ -204,12 +212,18 @@ def _cap_quota(places: list[dict], anchor_place_ids: set[str]) -> list[dict]:
 
 
 # ─── 하루치 1차 필터링 ───
-def filter_day(places: list[dict], avoid_activities: list[str], anchors: list[dict]) -> list[dict]:
+def filter_day(
+    places: list[dict],
+    avoid_activities: list[str],
+    anchors: list[dict],
+    used_place_ids: set[str] | None = None,
+) -> list[dict]:
     anchor_place_ids = {a["place_id"] for a in anchors if a.get("place_id")}
     # 앵커를 앞으로 정렬 — 이름 중복 제거 시 앵커가 우선 남도록
     ordered = sorted(places, key=lambda p: p["id"] not in anchor_place_ids)
 
-    filtered = _remove_excluded(ordered, avoid_activities)
+    filtered = _remove_used(ordered, used_place_ids or set())
+    filtered = _remove_excluded(filtered, avoid_activities)
     filtered = _dedup_by_name(filtered)
     filtered = _cap_brand(filtered, max_per_brand=1)
     filtered = _cap_category(filtered, max_per_category=2)
