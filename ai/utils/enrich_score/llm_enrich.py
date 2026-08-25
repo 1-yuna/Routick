@@ -3,10 +3,10 @@
 # ─────────────────────────────────────────────────────────────────────
 # GPT로 블로그 요약 기반 장소 보강
 # 추출 항목: 분위기 / 활동(사용자 선호 활동 매칭) / 재방문의사(+근거 및 신뢰도) / 특징요약
-# 5개씩 청크로 나눠 병렬 호출 (청크가 작을수록 청크당 생성량이 줄어 개별 응답이 빨라짐)
+# 청크(블로그 데이터가 이미 CHUNK_SIZE 단위)를 GPT 1회 호출로 보강 — 청크 단위 분할과
+# 블로그 검색 파이프라인 결합은 enrich_and_score_places.py(노드)에서 처리
 # ─────────────────────────────────────────────────────────────────────
 
-import asyncio
 import json
 import os
 
@@ -19,11 +19,6 @@ ENRICH_MODEL = "gpt-5-mini"
 CHUNK_SIZE   = 5
 
 ATMOSPHERE_TAGS = ["활기찬", "힐링", "감성", "이색", "조용한", "따뜻한", "로맨틱", "깔끔한", "빈티지", "힙한"]
-
-
-# ─── 청크 분할 ───
-def _chunk(items: list, size: int) -> list[list]:
-    return [items[i:i + size] for i in range(0, len(items), size)]
 
 
 # ─── 프롬프트 ───
@@ -95,26 +90,16 @@ async def _call_llm(client: httpx.AsyncClient, chunk: list[dict], activities_kr:
     return json.loads(clean)
 
 
-# ─── 블로그 데이터 → GPT 보강 (청크 병렬 처리), place_id → 보강결과 dict 반환 ───
-async def enrich_with_llm(blog_data: list[dict], activities_kr: list[str], warnings: list[str]) -> dict:
-    if not blog_data:
+# ─── 청크 1개 GPT 보강 (blog_data는 이미 CHUNK_SIZE 단위), place_id → 보강결과 dict 반환 ───
+async def enrich_chunk_with_llm(chunk_blog_data: list[dict], activities_kr: list[str], warnings: list[str]) -> dict:
+    if not chunk_blog_data:
         return {}
 
-    chunks = _chunk(blog_data, CHUNK_SIZE)
     async with httpx.AsyncClient(timeout=30.0) as client:
-        results = await asyncio.gather(
-            *[_call_llm(client, chunk, activities_kr) for chunk in chunks],
-            return_exceptions=True,
-        )
+        try:
+            result = await _call_llm(client, chunk_blog_data, activities_kr)
+        except Exception as e:
+            warnings.append(f"GPT 보강 실패 (청크 {len(chunk_blog_data)}개): {type(e).__name__}: {e}")
+            return {}
 
-    llm_map: dict[str, dict] = {}
-    for chunk, result in zip(chunks, results):
-        if isinstance(result, Exception):
-            warnings.append(f"GPT 보강 실패 (청크 {len(chunk)}개): {type(result).__name__}: {result}")
-            continue
-        for r in result:
-            pid = r.get("place_id")
-            if pid:
-                llm_map[pid] = r
-
-    return llm_map
+    return {r["place_id"]: r for r in result if r.get("place_id")}
