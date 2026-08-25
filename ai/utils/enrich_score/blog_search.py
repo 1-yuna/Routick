@@ -17,10 +17,32 @@ NAVER_BLOG_URL      = "https://openapi.naver.com/v1/search/blog.json"
 MAX_SNIPPETS     = 5
 SNIPPET_MAX_LEN  = 150
 
-# 네이버 검색 API는 초당 약 10건으로 제한 — 동시 요청 수 + 재시도로 429 대응
+# 네이버 검색 API는 초당 약 10건으로 제한 — day별로 이 함수가 동시에 여러 번
+# 호출돼도(엔진 전체 기준) 초당 호출 수를 넘기지 않도록 전역 dispatch gate로 제어
 DISPATCH_INTERVAL = 0.12
 MAX_RETRIES        = 3
 RETRY_BASE_DELAY    = 0.5
+
+_dispatch_lock: asyncio.Lock | None = None
+_next_dispatch_time = 0.0
+
+
+# ─── 전역 dispatch gate: 프로세스 전체 기준으로 요청 간격 확보 (day 병렬 호출 포함) ───
+async def _acquire_dispatch_slot() -> None:
+    global _dispatch_lock, _next_dispatch_time
+    if _dispatch_lock is None:
+        _dispatch_lock = asyncio.Lock()
+
+    async with _dispatch_lock:
+        loop = asyncio.get_event_loop()
+        now = loop.time()
+        start_at = max(_next_dispatch_time, now)
+        _next_dispatch_time = start_at + DISPATCH_INTERVAL
+        wait = start_at - now
+
+    if wait > 0:
+        await asyncio.sleep(wait)
+
 
 _TAG_RE = re.compile(r"<[^>]+>")
 
@@ -52,6 +74,7 @@ async def _fetch_blog_snippets(
         params = {"query": place["name"], "display": MAX_SNIPPETS, "sort": "sim"}
         items = []
         for attempt in range(MAX_RETRIES):
+            await _acquire_dispatch_slot()
             try:
                 resp = await client.get(NAVER_BLOG_URL, headers=headers, params=params)
                 if resp.status_code == 429:
@@ -77,15 +100,11 @@ async def _fetch_blog_snippets(
 
 
 # ─── 장소별 블로그 snippet 병렬 수집 ───
-# 동시 요청 수(semaphore)만으로는 요청 완료가 빨라 초당 제한을 쉽게 넘기므로,
-# task 생성 자체를 일정 간격으로 늦춰 초당 호출 수를 직접 제어
+# 실제 초당 호출 수 제어는 _acquire_dispatch_slot()이 전역으로 담당하므로
+# 여기서는 동시 커넥션 수만 semaphore로 적당히 제한
 async def search_naver_blogs(places: list[dict], warnings: list[str]) -> list[dict]:
-    semaphore = asyncio.Semaphore(5)
+    semaphore = asyncio.Semaphore(8)
     async with httpx.AsyncClient(timeout=10.0) as client:
-        tasks = []
-        for i, p in enumerate(places):
-            if i > 0:
-                await asyncio.sleep(DISPATCH_INTERVAL)
-            tasks.append(asyncio.create_task(_fetch_blog_snippets(client, semaphore, p, warnings)))
+        tasks = [_fetch_blog_snippets(client, semaphore, p, warnings) for p in places]
         results = await asyncio.gather(*tasks)
     return results

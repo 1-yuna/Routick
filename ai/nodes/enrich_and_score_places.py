@@ -13,11 +13,38 @@
 #      - 분위기30 + 활동30 + 동행자20 + 재방문의사20 = 100점
 #        (동행자는 GPT 보강 없이 카테고리 기반 기본값으로 판단)
 #      - 하루 당 20개로 축약 (음식점7 / 카페3 / 활동관광10), 앵커 보호 없이 점수 순으로만 판단
+#
+# day별로 서로 의존성이 없어(collect_and_filter_places와 달리 day 간 dedup 없음)
+# 전체를 day별 병렬로 처리 — wall time이 day 수 합산이 아닌 가장 느린 day 1개 기준
 # ─────────────────────────────────────────────────────────────────────
+
+import asyncio
 
 from utils.enrich_score.blog_search import search_naver_blogs
 from utils.enrich_score.llm_enrich import enrich_with_llm
 from utils.enrich_score.score_filter import score_places, select_day_shortlist
+
+
+# ─── day 하나 처리: 블로그 검색 → GPT 보강 → 점수화 → 2차 필터링 ───
+async def _process_day(
+    day_number: int,
+    places: list[dict],
+    moods_kr: list[str],
+    activities_kr: list[str],
+    companion_kr: str,
+) -> tuple[int, list[dict], list[dict], list[str]]:
+    day_warnings: list[str] = []
+
+    if not places:
+        return day_number, [], [], [f"day{day_number} 대상 장소 0개 → 스킵"]
+
+    blog_data = await search_naver_blogs(places, day_warnings)
+    llm_map   = await enrich_with_llm(blog_data, activities_kr, day_warnings)
+    scored    = score_places(places, llm_map, moods_kr, companion_kr)
+    shortlist = select_day_shortlist(scored)
+
+    day_warnings.append(f"day{day_number} 보강 {len(places)}개 → 2차 필터링 후 {len(shortlist)}개")
+    return day_number, scored, shortlist, day_warnings
 
 
 # ─── [노드] 장소 정보 보강 + 점수화 ───
@@ -41,25 +68,20 @@ async def enrich_and_score_places(state: dict) -> dict:
             "step":              "score_failed",
         }
 
+    results = await asyncio.gather(*[
+        _process_day(day_number, places, moods_kr, activities_kr, companion_kr)
+        for day_number, places in filtered_by_day.items()
+    ])
+
     all_scored:       list[dict]      = []
     all_shortlist:    list[dict]      = []
     shortlist_by_day: dict[int, list] = {}
 
-    for day_number, places in filtered_by_day.items():
-        if not places:
-            shortlist_by_day[day_number] = []
-            warnings.append(f"day{day_number} 대상 장소 0개 → 스킵")
-            continue
-
-        blog_data = await search_naver_blogs(places, warnings)
-        llm_map   = await enrich_with_llm(blog_data, activities_kr, warnings)
-        scored    = score_places(places, llm_map, moods_kr, companion_kr)
-        shortlist = select_day_shortlist(scored)
-
+    for day_number, scored, shortlist, day_warnings in results:
         all_scored.extend(scored)
         all_shortlist.extend(shortlist)
         shortlist_by_day[day_number] = shortlist
-        warnings.append(f"day{day_number} 보강 {len(places)}개 → 2차 필터링 후 {len(shortlist)}개")
+        warnings.extend(day_warnings)
 
     return {
         "scored_candidates": all_scored,
