@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────
-# 4. enrich_and_score_places
+# enrich_and_score_places
 # ─────────────────────────────────────────────────────────────────────
 # 장소 정보 보강 + 점수화 노드
 #
@@ -18,6 +18,10 @@
 #
 # day별로 서로 의존성이 없어(collect_and_filter_places와 달리 day 간 dedup 없음)
 # 전체를 day별 병렬로 처리 — wall time이 day 수 합산이 아닌 가장 느린 day 1개 기준
+#
+# scored_by_day: 20개로 축약하기 전, day별 30개(1차 필터링 quota) 전체의 점수 결과.
+# "최적 일정 선택" 노드가 검증 실패로 롤백할 때(20→30개 확대) 블로그/GPT 재호출 없이
+# 여기서 바로 quota만 다시 잘라 쓰도록 별도로 남겨둠
 # ─────────────────────────────────────────────────────────────────────
 
 import asyncio
@@ -81,6 +85,7 @@ async def enrich_and_score_places(state: dict) -> dict:
     if not filtered_by_day:
         return {
             "scored_candidates": [],
+            "scored_by_day":     {},
             "shortlist":         [],
             "shortlist_by_day":  {},
             "user_input":        ui,
@@ -95,16 +100,19 @@ async def enrich_and_score_places(state: dict) -> dict:
 
     all_scored:       list[dict]      = []
     all_shortlist:    list[dict]      = []
+    scored_by_day:    dict[int, list] = {}
     shortlist_by_day: dict[int, list] = {}
 
     for day_number, scored, shortlist, day_warnings in results:
         all_scored.extend(scored)
         all_shortlist.extend(shortlist)
+        scored_by_day[day_number] = scored
         shortlist_by_day[day_number] = shortlist
         warnings.extend(day_warnings)
 
     return {
         "scored_candidates": all_scored,
+        "scored_by_day":     scored_by_day,
         "shortlist":         all_shortlist,
         "shortlist_by_day":  shortlist_by_day,
         "user_input":        ui,

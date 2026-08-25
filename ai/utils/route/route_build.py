@@ -18,7 +18,10 @@ from utils.route.route_constraints import (
 )
 from utils.route.route_timing import travel_between, haversine_km
 
-SLOT_PATTERN = ["flex", "food", "flex", "flex", "food", "flex"]
+SLOT_PATTERN_6 = ["flex", "food", "flex", "flex", "food", "flex"]
+
+# 5슬롯 폴백 패턴 — "최적 일정 선택" 노드가 검증 실패 시 완화된 조건으로 재생성할 때 사용
+SLOT_PATTERN_5 = ["flex", "food", "flex", "food", "flex"]
 
 
 # ─── 슬롯 하나의 후보 풀 (bucket/brand/category/연속카페 제약만 적용, 이동시간은 아직) ───
@@ -71,8 +74,9 @@ def _pick(feasible: list[tuple], route_has_anchor: bool) -> tuple:
     return max(feasible, key=lambda pt: pt[0]["total_score"])
 
 
-# ─── 동선 하나 생성 (시작 장소 1개로부터 그리디하게 6개 채움) ───
+# ─── 동선 하나 생성 (시작 장소 1개로부터 그리디하게 slot_pattern 길이만큼 채움) ───
 # start_coord / end_coord: endpoint 케이스의 실제 출발지·도착지 좌표 (only면 둘 다 None)
+# slot_pattern: 기본 6슬롯(SLOT_PATTERN_6). "최적 일정 선택" 노드의 완화 재생성 시 SLOT_PATTERN_5로 교체
 def build_route(
     start_place: dict,
     flex_pool: list[dict],
@@ -81,6 +85,7 @@ def build_route(
     route_type: str,
     start_coord: tuple | None,
     end_coord: tuple | None,
+    slot_pattern: list[str] = SLOT_PATTERN_6,
 ) -> dict | None:
     used_ids:        set = {start_place["id"]}
     used_brands:      set = set()
@@ -88,13 +93,13 @@ def build_route(
     register_place(start_place, used_brands, used_categories)
 
     places = [start_place]
-    legs   = []  # 슬롯 간 이동 정보 (len = 5, 슬롯0→1, 1→2, ...)
+    legs   = []  # 슬롯 간 이동 정보 (len = len(slot_pattern) - 1)
     route_has_anchor = is_anchor(start_place)
     current_lat, current_lng = start_place["lat"], start_place["lng"]
     last_bucket = start_place.get("bucket")
 
-    for slot_index in range(1, len(SLOT_PATTERN)):
-        slot_type = SLOT_PATTERN[slot_index]
+    for slot_index in range(1, len(slot_pattern)):
+        slot_type = slot_pattern[slot_index]
         pool = food_pool if slot_type == "food" else flex_pool
 
         candidates = _slot_candidates(pool, used_ids, used_brands, used_categories, last_bucket)
@@ -102,7 +107,7 @@ def build_route(
         if not feasible:
             return None
 
-        is_last_slot = slot_index == len(SLOT_PATTERN) - 1
+        is_last_slot = slot_index == len(slot_pattern) - 1
         if is_last_slot and route_type == "endpoint" and end_coord is not None:
             biased = _bias_toward_end(feasible, end_coord[0], end_coord[1])
             chosen_place, chosen_travel = _pick(biased, route_has_anchor)
@@ -133,7 +138,7 @@ def build_route(
         }
 
     return {
-        "places":      [{**p, "slot": i, "slot_type": SLOT_PATTERN[i]} for i, p in enumerate(places)],
+        "places":      [{**p, "slot": i, "slot_type": slot_pattern[i]} for i, p in enumerate(places)],
         "legs":        legs,
         "start_block": start_block,
         "end_block":   end_block,

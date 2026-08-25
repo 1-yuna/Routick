@@ -93,14 +93,17 @@ def _bucket_group(place: dict) -> str:
     return bucket if bucket in DAY_SHORTLIST_QUOTA else "activity"
 
 
-# ─── 하루 당 20개로 축약 (음식점7 / 카페3 / 활동관광10), 점수 순으로만 판단 ───
-def select_day_shortlist(scored: list[dict]) -> list[dict]:
+# ─── 하루 당 quota만큼 축약, 점수 순으로만 판단 ───
+# quota 기본값은 20개(음식점7/카페3/활동관광10) — "최적 일정 선택" 노드가 검증 실패로
+# 롤백할 때(20→30개 확대) 블로그/GPT 재호출 없이 이미 계산된 scored_by_day에서
+# 더 큰 quota로 다시 잘라 쓸 수 있도록 파라미터로 열어둠
+def select_day_shortlist(scored: list[dict], quota: dict[str, int] = DAY_SHORTLIST_QUOTA) -> list[dict]:
     grouped: dict[str, list[dict]] = {"food": [], "cafe": [], "activity": []}
     for p in scored:
         grouped[_bucket_group(p)].append(p)
 
     result = []
-    for group, quota in DAY_SHORTLIST_QUOTA.items():
+    for group, group_quota in quota.items():
         ranked = sorted(grouped[group], key=lambda p: -p["total_score"])
-        result.extend(ranked[:quota])
+        result.extend(ranked[:group_quota])
     return result
