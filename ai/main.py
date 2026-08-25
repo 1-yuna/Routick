@@ -1,11 +1,11 @@
 # ─────────────────────────────────────────────────────────────────────
 # main
 # ─────────────────────────────────────────────────────────────────────
-# LangGraph AI Agent 파이프라인
+# LangGraph AI Agent 파이프라인 (v4)
 #
 # 실행:
 #   - 서버 모드: uvicorn main:app --port 8000 --reload  (Spring 연동용)
-#     *(v3.1)* --reload 필수 — 없으면 nodes/*.py 등을 고쳐도
+#     --reload 필수 — 없으면 nodes/*.py 등을 고쳐도
 #     이미 메모리에 로드된 이전 함수가 계속 실행됨 (프로세스 재시작 전까지 코드 변경 반영 안 됨)
 #   - 테스트 모드: 파이참에서 main.py 우클릭 → Run 'main'
 # ─────────────────────────────────────────────────────────────────────
@@ -20,48 +20,39 @@ from langgraph.graph import StateGraph, START, END
 from core.state import TravelState, make_initial_state
 from nodes.preprocess_input import preprocess_input
 from nodes.region_hint import region_hint
-from nodes.collect_and_filter_places import collect_candidate_pool
-from nodes.first_filter_candidates import first_filter_candidates
-from nodes.enrich_and_score_places import second_filter_candidates
-from nodes.generate_route_candidates import generate_candidates
-from nodes.plan_itinerary import plan_itinerary
+from nodes.collect_and_filter_places import collect_and_filter_places
+from nodes.enrich_and_score_places import enrich_and_score_places
+from nodes.generate_route_candidates import generate_route_candidates
 from nodes.select_itinerary import select_itinerary
-from nodes.verify_and_respond import fetch_details
-from nodes.generate_response import generate_response
+from nodes.verify_and_respond import verify_and_respond
 
 
 # ─── 서버가 실제로 최신 코드로 떠 있는지 빠르게 확인용 ───
-# *(v3.1)* "수정한 게 반영이 안 되는 것 같다" 싶을 때
+# "수정한 게 반영이 안 되는 것 같다" 싶을 때
 # GET /api/version 찍어보면 재시작이 실제로 됐는지 바로 확인 가능
 # (Spring/Postman에서 호출해봐도 됨). 코드 수정할 때마다 문자열 값을 같이 바꿔주세요.
-PIPELINE_VERSION = "v3.1-anchor-hint-fix-2026-07-24"
+PIPELINE_VERSION = "v4-2026-08-25"
 
 
 # ─── LangGraph 그래프 빌드 ───
 graph_builder = StateGraph(TravelState)
 
-graph_builder.add_node("preprocess_input",         preprocess_input)
-graph_builder.add_node("region_hint",              region_hint)
-graph_builder.add_node("collect_candidate_pool",   collect_candidate_pool)
-graph_builder.add_node("first_filter_candidates",  first_filter_candidates)
-graph_builder.add_node("second_filter_candidates", second_filter_candidates)
-graph_builder.add_node("generate_candidates",      generate_candidates)
-graph_builder.add_node("plan_itinerary",           plan_itinerary)
-graph_builder.add_node("select_itinerary",         select_itinerary)
-graph_builder.add_node("fetch_details",            fetch_details)
-graph_builder.add_node("generate_response",        generate_response)
+graph_builder.add_node("preprocess_input",          preprocess_input)
+graph_builder.add_node("region_hint",               region_hint)
+graph_builder.add_node("collect_and_filter_places", collect_and_filter_places)
+graph_builder.add_node("enrich_and_score_places",   enrich_and_score_places)
+graph_builder.add_node("generate_route_candidates", generate_route_candidates)
+graph_builder.add_node("select_itinerary",          select_itinerary)
+graph_builder.add_node("verify_and_respond",        verify_and_respond)
 
-graph_builder.add_edge(START,                      "preprocess_input")
-graph_builder.add_edge("preprocess_input",         "region_hint")
-graph_builder.add_edge("region_hint",              "collect_candidate_pool")
-graph_builder.add_edge("collect_candidate_pool",   "first_filter_candidates")
-graph_builder.add_edge("first_filter_candidates",  "second_filter_candidates")
-graph_builder.add_edge("second_filter_candidates", "generate_candidates")
-graph_builder.add_edge("generate_candidates",      "plan_itinerary")
-graph_builder.add_edge("plan_itinerary",           "select_itinerary")
-graph_builder.add_edge("select_itinerary",         "fetch_details")
-graph_builder.add_edge("fetch_details",            "generate_response")
-graph_builder.add_edge("generate_response",        END)
+graph_builder.add_edge(START,                       "preprocess_input")
+graph_builder.add_edge("preprocess_input",          "region_hint")
+graph_builder.add_edge("region_hint",               "collect_and_filter_places")
+graph_builder.add_edge("collect_and_filter_places", "enrich_and_score_places")
+graph_builder.add_edge("enrich_and_score_places",   "generate_route_candidates")
+graph_builder.add_edge("generate_route_candidates", "select_itinerary")
+graph_builder.add_edge("select_itinerary",          "verify_and_respond")
+graph_builder.add_edge("verify_and_respond",        END)
 
 graph = graph_builder.compile()
 
@@ -82,21 +73,22 @@ async def version():
     return {"version": PIPELINE_VERSION}
 
 
-# ─── region_hint 결과(day별 hint_keywords) 콘솔 출력 ───
-# *(v3.1 신규)* "힌트가 뭐가 나왔는지 바로 눈으로 보고 싶다" 요청으로 추가.
-# region_hint 노드 자체도 warnings에 남기지만, 파이프라인이 실패해도(예:
-# generate_candidates에서 예외) 여기서 먼저 찍어두면 어디까지 힌트가
-# 잘 나왔는지 바로 확인 가능.
-def _print_hint_keywords(final_state: dict) -> None:
+# ─── region_hint 결과(day별 권역/앵커) 콘솔 출력 ───
+# "권역/앵커가 뭐가 나왔는지 바로 눈으로 보고 싶다" 용도.
+# region_hint 노드 자체도 warnings에 남기지만, 파이프라인이 이후 단계(예:
+# collect_and_filter_places)에서 예외/빈 결과가 나도 여기서 먼저 찍어두면
+# 권역 조회까지는 잘 됐는지 바로 확인 가능.
+def _print_region_hint(final_state: dict) -> None:
     days_info = (final_state.get("user_input") or {}).get("days_info") or []
-    print("\n🎯 힌트 키워드 (region_hint 결과)")
+    print("\n🎯 여행 권역 조회 결과 (region_hint)")
     if not days_info:
         print("   (days_info 없음)")
         return
     for d in days_info:
-        day_number = d.get("day_number")
-        hints      = d.get("hint_keywords")
-        print(f"   day{day_number}: {hints}")
+        print(
+            f"   day{d.get('day_number')}: region={d.get('region_name')} | "
+            f"anchors={d.get('anchor_names')} | fallback={d.get('is_fallback')}"
+        )
 
 
 @app.post("/api/generate")
@@ -111,7 +103,7 @@ async def generate(request: dict):
         initial_state = make_initial_state(request)
         final_state = await graph.ainvoke(initial_state)
 
-        _print_hint_keywords(final_state)
+        _print_region_hint(final_state)
 
         response = final_state.get("response")
         if not response:
@@ -186,7 +178,12 @@ async def main():
     initial_state = make_initial_state(user_input)
     final_state = await graph.ainvoke(initial_state)
 
-    _print_hint_keywords(final_state)
+    _print_region_hint(final_state)
+
+    print(f"\n🔎 마지막 단계(step): {final_state.get('step')}")
+    print("🔎 경고/진행 로그(warnings):")
+    for w in final_state.get("warnings", []):
+        print(f"   - {w}")
 
     print(json.dumps(final_state["response"], ensure_ascii=False, indent=2))
 
